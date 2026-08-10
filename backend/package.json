@@ -1,0 +1,44 @@
+{
+  "name": "church-backend",
+  "version": "1.0.0",
+  "description": "Complete Node.js, Express, TypeScript, MongoDB & Socket.IO backend for Church App",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "seed": "ts-node-dev src/seed/seedData.ts",
+    "clean": "ts-node-dev src/seed/cleanDb.ts"
+  },
+  "keywords": [
+    "church",
+    "express",
+    "typescript",
+    "mongodb",
+    "socket.io",
+    "react-native"
+  ],
+  "author": "ChurchConnect Team",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0",
+    "nodemon": "^3.1.14",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.10.7",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.3"
+  }
+}

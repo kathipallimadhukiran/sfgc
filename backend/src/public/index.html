@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChurchConnect - Unified Admin & Live Projection Console</title>
+  <!-- Google Fonts & Font Awesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><i class="fa-solid fa-church"></i></div>
+        <div class="brand-info">
+          <h2>ChurchConnect</h2>
+          <span>Admin & Media Center</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <a href="#overview" class="nav-item active" data-tab="overview">
+          <i class="fa-solid fa-chart-pie"></i> <span>Overview</span>
+        </a>
+        <a href="#projection" class="nav-item highlight-item" data-tab="projection">
+          <i class="fa-solid fa-desktop"></i> <span>Live Lyrics Projection</span>
+          <span class="live-pill">LIVE</span>
+        </a>
+        <a href="#members" class="nav-item" data-tab="members">
+          <i class="fa-solid fa-users"></i> <span>Members Directory</span>
+        </a>
+        <a href="#songs" class="nav-item" data-tab="songs">
+          <i class="fa-solid fa-music"></i> <span>Song Catalog</span>
+        </a>
+        <a href="#events" class="nav-item" data-tab="events">
+          <i class="fa-solid fa-calendar-days"></i> <span>Events & Services</span>
+        </a>
+        <a href="#notices" class="nav-item" data-tab="notices">
+          <i class="fa-solid fa-bullhorn"></i> <span>Notices & Alerts</span>
+        </a>
+        <a href="#stream" class="nav-item" data-tab="stream">
+          <i class="fa-brands fa-youtube"></i> <span>Sanctuary Stream</span>
+        </a>
+        <a href="#bibleplans" class="nav-item" data-tab="bibleplans">
+          <i class="fa-solid fa-book-bible"></i> <span>Bible Plans & Stats</span>
+        </a>
+        <a href="#api" class="nav-item" data-tab="api">
+          <i class="fa-solid fa-code"></i> <span>API Tester</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="server-status">
+          <span class="status-dot online"></span>
+          <div class="status-text">
+            <strong>Server Active</strong>
+            <small id="serverPing">Port 5000 | MongoDB</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <header class="top-nav">
+        <div class="page-title">
+          <h1 id="tabTitle">Overview & Insights</h1>
+          <p id="tabSubtitle">Real-time church metrics, administration, and live service control.</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn btn-outline" id="btnQuickRefresh" onclick="app.refreshAll()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+          <button class="btn btn-primary" onclick="app.openSongModal()">
+            <i class="fa-solid fa-plus"></i> Add New Song
+          </button>
+          <div class="admin-badge">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Administrator</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- TAB 1: OVERVIEW -->
+      <section id="tab-overview" class="tab-pane active">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card stat-blue">
+            <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">Total Members</span>
+              <h3 id="statMembersCount">--</h3>
+              <small class="stat-sub">Registered families</small>
+            </div>
+          </div>
+          <div class="stat-card stat-purple">
+            <div class="stat-icon"><i class="fa-solid fa-music"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">Worship Songs</span>
+              <h3 id="statSongsCount">--</h3>
+              <small class="stat-sub">Telugu & English</small>
+            </div>
+          </div>
+          <div class="stat-card stat-amber">
+            <div class="stat-icon"><i class="fa-solid fa-calendar-check"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">Upcoming Events</span>
+              <h3 id="statEventsCount">--</h3>
+              <small class="stat-sub">Services scheduled</small>
+            </div>
+          </div>
+          <div class="stat-card stat-emerald">
+            <div class="stat-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">Sanctuary Feed</span>
+              <h3 id="statStreamStatus">Active</h3>
+              <small class="stat-sub">Live synchronized</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two Column Content Grid -->
+        <div class="content-grid-2">
+          <!-- Recent Notices Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-bullhorn text-amber"></i> Latest Church Announcements</h3>
+              <button class="btn btn-sm btn-outline" onclick="app.switchTab('notices')">Manage</button>
+            </div>
+            <div id="overviewNoticesList" class="compact-list">
+              <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading notices...</div>
+            </div>
+          </div>
+
+          <!-- Upcoming Services Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-calendar-days text-primary"></i> Next Worship Gatherings</h3>
+              <button class="btn btn-sm btn-outline" onclick="app.switchTab('events')">Manage</button>
+            </div>
+            <div id="overviewEventsList" class="compact-list">
+              <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading services...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: PROJECTION & LIVE LYRICS -->
+      <section id="tab-projection" class="tab-pane">
+        <div class="projection-workspace">
+          <!-- Left Song Picker & Control Sidebar -->
+          <div class="projection-control-sidebar glass-card">
+            <div class="section-title">
+              <h3><i class="fa-solid fa-list-music"></i> Select Song to Project</h3>
+            </div>
+            <div class="search-input-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="projSongSearch" placeholder="Search song title or lyrics..." oninput="app.filterProjectionSongs()">
+            </div>
+            <div class="proj-songs-list" id="projSongsList">
+              <!-- Loaded dynamically -->
+            </div>
+
+            <!-- Projection Master Controls -->
+            <div class="projection-master-actions">
+              <h4>Display Overrides</h4>
+              <div class="toggle-btn-row">
+                <button id="btnBlackout" class="btn btn-dark-action" onclick="app.toggleBlackout()">
+                  <i class="fa-solid fa-moon"></i> Blackout Screen
+                </button>
+                <button id="btnBlank" class="btn btn-dark-action" onclick="app.toggleBlank()">
+                  <i class="fa-solid fa-eye-slash"></i> Clear Text
+                </button>
+              </div>
+              <button class="btn btn-danger-action" onclick="app.endLiveSession()">
+                <i class="fa-solid fa-stop"></i> End Live Worship Session
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Live Slides Grid & Projector Screen Preview -->
+          <div class="projection-main-area">
+            <!-- Screen Preview Monitor -->
+            <div class="preview-monitor-card glass-card">
+              <div class="monitor-header">
+                <div class="monitor-tag"><span class="pulse-red"></span> LIVE SANCTUARY PROJECTOR OUTPUT</div>
+                <div class="monitor-info" id="activeSongTitle">No Song Loaded on Projector</div>
+              </div>
+              <div class="stage-screen" id="stageScreen">
+                <div class="stage-watermark">ChurchConnect Pro Live Engine</div>
+                <div class="stage-content" id="stageScreenContent">
+                  <p class="stage-placeholder">Select a song from the left list to begin projection</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Slide Selection Deck -->
+            <div class="slides-deck-card glass-card">
+              <div class="deck-header">
+                <h3><i class="fa-solid fa-sliders"></i> Lyrics Slide Deck (Click to Display)</h3>
+                <span class="hint-text">Tip: Use Arrow keys (Left/Right) to switch slides</span>
+              </div>
+              <div class="slides-grid" id="slidesGrid">
+                <p class="empty-hint">Load a song to view lyric slide triggers.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: MEMBERS DIRECTORY -->
+      <section id="tab-members" class="tab-pane">
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-users text-primary"></i> Registered Church Members & Families</h3>
+              <p class="subtitle-text">Manage member profiles, family heads, contact details, and duty assignments.</p>
+            </div>
+            <div class="header-tools">
+              <div class="search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="memberSearchInput" placeholder="Search by name, phone, family..." oninput="app.filterMembers()">
+              </div>
+              <select id="memberDeptFilter" class="form-select" onchange="app.filterMembers()">
+                <option value="">All Departments</option>
+                <option value="Media Team">Media Team</option>
+                <option value="Worship Team">Worship Team</option>
+                <option value="Choir">Choir</option>
+                <option value="Children's Ministry">Children's Ministry</option>
+                <option value="Security">Security</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Member & Family</th>
+                  <th>Contact</th>
+                  <th>Role</th>
+                  <th>Volunteering</th>
+                  <th>Active Duty Assignments</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="membersTableBody">
+                <tr><td colspan="6" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading members...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SONG CATALOG -->
+      <section id="tab-songs" class="tab-pane">
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-music text-purple"></i> Hymns & Worship Songs Catalog</h3>
+              <p class="subtitle-text">Multi-slide Telugu & English lyrics library with guitar chords support.</p>
+            </div>
+            <div class="header-tools">
+              <button class="btn btn-primary" onclick="app.openSongModal()">
+                <i class="fa-solid fa-plus"></i> New Song
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Language</th>
+                  <th>Category</th>
+                  <th>Slides</th>
+                  <th>Chords</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="songsTableBody">
+                <tr><td colspan="6" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading songs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: EVENTS -->
+      <section id="tab-events" class="tab-pane">
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-calendar-days text-amber"></i> Worship Services & Church Events</h3>
+              <p class="subtitle-text">Schedule Sunday services, prayer meetings, and track member RSVPs.</p>
+            </div>
+            <button class="btn btn-primary" onclick="app.openEventModal()">
+              <i class="fa-solid fa-plus"></i> Create Event
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Service / Event Title</th>
+                  <th>Speaker</th>
+                  <th>Venue & Location</th>
+                  <th>Date & Time</th>
+                  <th>RSVPs</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTableBody">
+                <tr><td colspan="6" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading events...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: NOTICES -->
+      <section id="tab-notices" class="tab-pane">
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-bullhorn text-emerald"></i> Church Notices & Bulletin Alerts</h3>
+              <p class="subtitle-text">Broadcast important notifications to member mobile devices.</p>
+            </div>
+            <button class="btn btn-primary" onclick="app.openNoticeModal()">
+              <i class="fa-solid fa-plus"></i> Post Notice
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Notice Title</th>
+                  <th>Description</th>
+                  <th>Date & Time</th>
+                  <th>Location</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="noticesTableBody">
+                <tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading notices...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: LIVE STREAM -->
+      <section id="tab-stream" class="tab-pane">
+        <div class="glass-card max-w-700">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-brands fa-youtube text-danger"></i> Sanctuary Live Stream Broadcast Settings</h3>
+              <p class="subtitle-text">Update the YouTube Live Video URL to sync live playback on all church apps.</p>
+            </div>
+          </div>
+          <div class="card-body form-body">
+            <div class="form-group">
+              <label>Current Active YouTube Stream URL</label>
+              <input type="text" id="streamUrlInput" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
+              <small class="hint-text">Paste YouTube Live URL (or normal video link). Mobile app will instantly play this stream.</small>
+            </div>
+            <button class="btn btn-danger-action w-full" onclick="app.saveStreamUrl()">
+              <i class="fa-brands fa-youtube"></i> Update Sanctuary Live Stream
+            </button>
+      </section>
+
+      <!-- TAB 8: BIBLE READING PLANS & MEMBER STATS -->
+      <section id="tab-bibleplans" class="tab-pane">
+        <div class="stats-grid mb-4">
+          <div class="stat-card stat-blue">
+            <div class="stat-icon"><i class="fa-solid fa-users-viewfinder"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">Enrolled Readers</span>
+              <h3 id="statPlanEnrolled">--</h3>
+              <small class="stat-sub">Active members reading</small>
+            </div>
+          </div>
+          <div class="stat-card stat-amber">
+            <div class="stat-icon"><i class="fa-solid fa-fire"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">Active Daily Streaks</span>
+              <h3 id="statPlanStreaks">--</h3>
+              <small class="stat-sub">Members with daily streak > 0</small>
+            </div>
+          </div>
+          <div class="stat-card stat-emerald">
+            <div class="stat-icon"><i class="fa-solid fa-square-check"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">Portions Completed</span>
+              <h3 id="statPlanCompleted">--</h3>
+              <small class="stat-sub">Daily chapters finished</small>
+            </div>
+          </div>
+          <div class="stat-card stat-purple">
+            <div class="stat-icon"><i class="fa-solid fa-brain"></i></div>
+            <div class="stat-data">
+              <span class="stat-label">AI Quiz System</span>
+              <h3 id="statPlanAi">Active</h3>
+              <small class="stat-sub">Passage verification (3 attempts)</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-grid-2">
+          <!-- Member Reading Leaderboard & Streaks -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-trophy text-amber"></i> Top Reading Members & Streaks</h3>
+              <button class="btn btn-sm btn-outline" onclick="app.loadBiblePlanStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Member ID</th>
+                    <th>Plan</th>
+                    <th>Current Day</th>
+                    <th>Completed</th>
+                    <th>Streak 🔥</th>
+                  </tr>
+                </thead>
+                <tbody id="planLeaderboardBody">
+                  <tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading stats...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Plan Template Uploader & Customizer -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-file-arrow-up text-primary"></i> Upload / Customize Reading Plan Template</h3>
+            </div>
+            <p class="subtitle-text mb-3">Paste or edit your customized Bible Reading Plan in JSON format to update mobile app schedules:</p>
+            <div class="form-group">
+              <label>Plan Identifier</label>
+              <select id="adminPlanSelect" class="form-select mb-2" onchange="app.onSelectPlanTemplate(this.value)">
+                <option value="1-year-canonical">1-Year Complete Bible Reading Plan (365 Days)</option>
+                <option value="2-year-canonical">2-Year Bible Reading Plan (730 Days)</option>
+                <option value="custom">Custom Reading Plan</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Plan JSON Template</label>
+              <textarea id="adminPlanJsonInput" class="form-control font-mono" rows="6" placeholder="Paste plan JSON template here..."></textarea>
+            </div>
+            <button class="btn btn-primary mt-2" onclick="app.savePlanTemplateSubmit()">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy Plan Template
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Daily Promise Editor (Telugu & English) -->
+        <div class="glass-card mt-4">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-dove text-primary"></i> Today's God's Promise Editor (రోజువారీ దేవుని వాగ్దానము)</h3>
+          </div>
+          <p class="subtitle-text mb-3">Set today's featured promise in Telugu. If not set, AI will automatically choose a daily scripture promise.</p>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Promise Verse in Telugu (తెలుగు వాగ్దాన వాక్యము) *</label>
+              <textarea id="adminPromiseTelugu" class="form-control" rows="2" placeholder="ఉదా: యెహోవా నా కాపరి; నాకు లేమి కలుగదు..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Scripture Reference (రిఫరెన్స్) *</label>
+              <input type="text" id="adminPromiseRef" class="form-control" placeholder="ఉదా: కీర్తనలు 23:1 / Psalms 23:1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Promise Verse in English (Optional)</label>
+            <input type="text" id="adminPromiseEnglish" class="form-control" placeholder="e.g. The Lord is my shepherd; I shall not want.">
+          </div>
+          <button class="btn btn-primary mt-2" onclick="app.saveDailyPromiseSubmit()">
+            <i class="fa-solid fa-check"></i> Publish Today's God's Promise (వాగ్దానాన్ని ప్రచురించు)
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 9: API EXPLORER -->
+      <section id="tab-api" class="tab-pane">
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-code text-primary"></i> REST API Interactive Explorer</h3>
+              <p class="subtitle-text">Quickly test all backend endpoints directly from the browser.</p>
+            </div>
+          </div>
+          <div class="api-grid">
+            <div class="api-item" onclick="app.testApi('/api/health')">
+              <span class="badge badge-get">GET</span>
+              <code>/api/health</code>
+              <small>System status & health check</small>
+            </div>
+            <div class="api-item" onclick="app.testApi('/api/songs')">
+              <span class="badge badge-get">GET</span>
+              <code>/api/songs</code>
+              <small>Fetch all Telugu & English songs</small>
+            </div>
+            <div class="api-item" onclick="app.testApi('/api/events')">
+              <span class="badge badge-get">GET</span>
+              <code>/api/events</code>
+              <small>List scheduled services & gatherings</small>
+            </div>
+            <div class="api-item" onclick="app.testApi('/api/notices')">
+              <span class="badge badge-get">GET</span>
+              <code>/api/notices</code>
+              <small>Retrieve church announcements</small>
+            </div>
+            <div class="api-item" onclick="app.testApi('/api/users')">
+              <span class="badge badge-get">GET</span>
+              <code>/api/users</code>
+              <small>Members directory & duty rosters</small>
+            </div>
+            <div class="api-item" onclick="app.testApi('/api/stream')">
+              <span class="badge badge-get">GET</span>
+              <code>/api/stream</code>
+              <small>Active Sanctuary live broadcast link</small>
+            </div>
+          </div>
+          <div class="api-response-box">
+            <h4>Response Output</h4>
+            <pre id="apiOutput">Click an endpoint above to execute request...</pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal for Song Creation / Edit -->
+  <div id="songModal" class="modal-overlay">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3 id="songModalTitle">Add New Worship Song</h3>
+        <button class="modal-close" onclick="app.closeModal('songModal')">&times;</button>
+      </div>
+      <div class="modal-body form-body">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Song Title *</label>
+            <input type="text" id="songTitleInput" class="form-control" placeholder="e.g. Amazing Grace / స్తోత్రం చెల్లింతుము">
+          </div>
+          <div class="form-group">
+            <label>Language</label>
+            <select id="songLangInput" class="form-select">
+              <option value="English">English</option>
+              <option value="Telugu">Telugu</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" id="songCategoryInput" class="form-control" placeholder="Worship Songs, Praise, Revival">
+          </div>
+          <div class="form-group">
+            <label>YouTube Video Link</label>
+            <input type="text" id="songYoutubeInput" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Guitar / Keyboard Chords (Optional)</label>
+          <textarea id="songChordsInput" class="form-control font-mono" rows="2" placeholder="e.g. G    C    G..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Lyrics Slides *</label>
+          <small class="hint-text mb-2">Separate slides using "---" or add slide by slide below:</small>
+          <div id="slidesEditorContainer">
+            <!-- Dynamic slide boxes -->
+          </div>
+          <button type="button" class="btn btn-sm btn-outline mt-2" onclick="app.addSlideInputBox()">
+            <i class="fa-solid fa-plus"></i> Add Slide
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('songModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveSongSubmit()">Save Song</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Duty Assignment -->
+  <div id="assignmentModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Assign Duty / Service Role</h3>
+        <button class="modal-close" onclick="app.closeModal('assignmentModal')">&times;</button>
+      </div>
+      <div class="modal-body form-body">
+        <input type="hidden" id="assignMemberId">
+        <div class="form-group">
+          <label>Member</label>
+          <input type="text" id="assignMemberName" class="form-control" readonly>
+        </div>
+        <div class="form-group">
+          <label>Duty Title *</label>
+          <input type="text" id="assignTitle" class="form-control" placeholder="e.g. Sunday Morning Media Lead">
+        </div>
+        <div class="form-group">
+          <label>Role *</label>
+          <input type="text" id="assignRole" class="form-control" placeholder="e.g. Projection & Sound Operator">
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Department</label>
+            <select id="assignDept" class="form-select">
+              <option value="Media Team">Media Team</option>
+              <option value="Worship Team">Worship Team</option>
+              <option value="Choir">Choir</option>
+              <option value="Children's Ministry">Children's Ministry</option>
+              <option value="Security">Security</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="assignDate" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes / Instructions</label>
+          <textarea id="assignNotes" class="form-control" rows="2" placeholder="Specific notes or reporting time..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('assignmentModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveAssignmentSubmit()">Confirm Assignment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Event Creation -->
+  <div id="eventModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Create Church Event / Service</h3>
+        <button class="modal-close" onclick="app.closeModal('eventModal')">&times;</button>
+      </div>
+      <div class="modal-body form-body">
+        <div class="form-group">
+          <label>Event Title *</label>
+          <input type="text" id="eventTitle" class="form-control" placeholder="e.g. Sunday Morning Worship Service">
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Speaker</label>
+            <input type="text" id="eventSpeaker" class="form-control" placeholder="e.g. Senior Pastor">
+          </div>
+          <div class="form-group">
+            <label>Venue *</label>
+            <input type="text" id="eventVenue" class="form-control" placeholder="e.g. Main Church Sanctuary">
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="eventDate" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Time</label>
+            <input type="text" id="eventTime" class="form-control" placeholder="09:30 AM - 11:30 AM">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Event Image / Banner URL (Optional)</label>
+          <input type="text" id="eventBanner" class="form-control" placeholder="https://example.com/event-banner.jpg">
+          <small class="hint-text">Paste a web link or image URL for the event poster</small>
+        </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <input type="checkbox" id="eventRequiresRSVP" style="width:18px; height:18px; cursor:pointer;">
+          <label for="eventRequiresRSVP" style="margin:0; cursor:pointer; font-weight:600;">Enable RSVP & Track Attendee Count (Only for events requiring headcount)</label>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="eventDesc" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('eventModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveEventSubmit()">Publish Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Notice Creation -->
+  <div id="noticeModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Post Church Notice / Alert</h3>
+        <button class="modal-close" onclick="app.closeModal('noticeModal')">&times;</button>
+      </div>
+      <div class="modal-body form-body">
+        <div class="form-group">
+          <label>Notice Title *</label>
+          <input type="text" id="noticeTitle" class="form-control" placeholder="e.g. Annual General Meeting">
+        </div>
+        <div class="form-group">
+          <label>Description *</label>
+          <textarea id="noticeDesc" class="form-control" rows="3" placeholder="Notice details..."></textarea>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Location / Wing</label>
+            <input type="text" id="noticeLoc" class="form-control" placeholder="e.g. Main Sanctuary">
+          </div>
+          <div class="form-group">
+            <label>Time</label>
+            <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 12:30 PM">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('noticeModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveNoticeSubmit()">Post Notice</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
