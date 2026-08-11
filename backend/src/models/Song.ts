@@ -36,10 +36,13 @@ const SongSchema = new Schema<ISong>({
   timestamps: true,
 });
 
-// Text indexing for fast searching without language stemmer collision
+// Text indexing for fast searching without language stemmer collision.
+// 'language_override: lang_ignore' points to a non-existent field so MongoDB
+// never tries to use the song's 'language' field (e.g. 'Telugu') as a stemmer
+// language, which would throw error code 17262.
 SongSchema.index(
-  { title: 'text', category: 'text', tags: 'text', 'lyrics.text': 'text' }, 
-  { default_language: 'none', language_override: 'none' }
+  { title: 'text', category: 'text', tags: 'text', 'lyrics.text': 'text' },
+  { default_language: 'none', language_override: 'lang_ignore' }
 );
 
 export const Song = mongoose.model<ISong>('Song', SongSchema);

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SFGC - Satellite City Full Gospel Church - TV Live Lyrics Display</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #050811;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #ffffff;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-image: 
+        radial-gradient(at 50% 50%, rgba(99, 102, 241, 0.12) 0px, transparent 60%),
+        radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.08) 0px, transparent 50%);
+    }
+    .tv-lyrics-container {
+      width: 90%;
+      max-width: 1600px;
+      height: 90%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .tv-lyrics-box {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .tv-lyric-line {
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1.4;
+      color: #ffffff;
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: -0.5px;
+    }
+    .tv-lyric-line.highlighted {
+      color: #fde047;
+      text-shadow: 0 0 35px rgba(253, 224, 71, 0.6);
+      transform: scale(1.05);
+    }
+    .tv-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: #475569;
+    }
+    .tv-placeholder i {
+      font-size: 64px;
+      color: #6366f1;
+      opacity: 0.8;
+    }
+    .tv-placeholder-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
+    }
+    .tv-override-screen {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 42px;
+      font-weight: 700;
+      letter-spacing: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- FULLSCREEN LYRICS CONTAINER (NO HEADERS, FOOTERS, OR CLUTTER) -->
+  <div class="tv-lyrics-container">
+    
+    <!-- IDLE PLACEHOLDER -->
+    <div class="tv-placeholder" id="placeholderView">
+      <i class="fa-solid fa-music"></i>
+      <div class="tv-placeholder-title">Live Lyrics Display Ready</div>
+    </div>
+
+    <!-- ACTIVE LYRICS DISPLAY -->
+    <div id="activeSlideView" style="display: none; width: 100%;">
+      <div class="tv-lyrics-box" id="lyricsBox"></div>
+    </div>
+
+  </div>
+
+  <script>
+    let socket;
+    try {
+      socket = io();
+
+      socket.on('connect', () => {
+        socket.emit('joinSession');
+        socket.emit('registerDisplay', {
+          name: 'Smart TV Display (' + window.location.hostname + ')',
+          type: 'Smart TV Web Cast',
+          ip: window.location.hostname
+        });
+      });
+
+      socket.on('sessionState', (state) => {
+        renderLiveLyrics(state);
+      });
+
+      socket.on('slideChanged', ({ currentSlideIndex, highlightedLineIndex }) => {
+        if (window.currentState) {
+          window.currentState.currentSlideIndex = currentSlideIndex;
+          window.currentState.highlightedLineIndex = highlightedLineIndex;
+          renderLiveLyrics(window.currentState);
+        }
+      });
+
+      socket.on('lineHighlighted', ({ lineIndex }) => {
+        if (window.currentState) {
+          window.currentState.highlightedLineIndex = lineIndex;
+          renderLiveLyrics(window.currentState);
+        }
+      });
+
+      socket.on('screenStateChanged', ({ blackScreen, blankScreen }) => {
+        if (window.currentState) {
+          window.currentState.blackScreen = blackScreen;
+          window.currentState.blankScreen = blankScreen;
+          renderLiveLyrics(window.currentState);
+        }
+      });
+
+      socket.on('sessionEnded', () => {
+        window.currentState = null;
+        renderLiveLyrics(null);
+      });
+
+    } catch (e) {
+      console.error('Socket connection error:', e);
+    }
+
+    function renderLiveLyrics(state) {
+      window.currentState = state;
+      const placeholder = document.getElementById('placeholderView');
+      const activeView = document.getElementById('activeSlideView');
+      const lyricsBox = document.getElementById('lyricsBox');
+
+      if (!state || !state.song) {
+        placeholder.style.display = 'flex';
+        activeView.style.display = 'none';
+        return;
+      }
+
+      if (state.blackScreen) {
+        placeholder.style.display = 'none';
+        activeView.style.display = 'block';
+        lyricsBox.innerHTML = '<div class="tv-override-screen" style="color: #1e293b;"></div>';
+        return;
+      }
+
+      if (state.blankScreen) {
+        placeholder.style.display = 'none';
+        activeView.style.display = 'block';
+        lyricsBox.innerHTML = '<div class="tv-override-screen" style="color: #334155;"></div>';
+        return;
+      }
+
+      placeholder.style.display = 'none';
+      activeView.style.display = 'block';
+
+      const slide = state.song.lyrics?.[state.currentSlideIndex || 0];
+
+      if (!slide || !slide.text) {
+        lyricsBox.innerHTML = '';
+        return;
+      }
+
+      const lines = slide.text.split('\n');
+      lyricsBox.innerHTML = lines.map((line, idx) => {
+        const isHL = state.highlightedLineIndex === idx;
+        return `<div class="tv-lyric-line ${isHL ? 'highlighted' : ''}">${line}</div>`;
+      }).join('');
+    }
+  </script>
+</body>
+</html>
+

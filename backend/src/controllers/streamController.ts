@@ -1,6 +1,45 @@
 import { Request, Response, NextFunction } from 'express';
+import os from 'os';
 import { LiveState } from '../models/LiveState';
 import { Notice } from '../models/Notice';
+import { config } from '../config/config';
+import { getConnectedDisplaysList } from '../sockets/liveLyricsSocket';
+
+// @route   GET /api/stream/cast-info
+// @desc    Get dynamic TV casting network endpoints, local IPs & connected Smart TV displays
+export const getCastInfo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const interfaces = os.networkInterfaces();
+    const localIps: string[] = [];
+
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] || []) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          localIps.push(iface.address);
+        }
+      }
+    }
+
+    const hostIp = localIps[0] || 'localhost';
+    const port = config.port || 5000;
+    const tvWebUrl = `http://${hostIp}:${port}/tv.html`;
+    const projectionUrl = `http://${hostIp}:${port}/#projection`;
+    const connectedDisplays = getConnectedDisplaysList();
+
+    res.status(200).json({
+      success: true,
+      hostIp,
+      port,
+      tvWebUrl,
+      projectionUrl,
+      localIps,
+      connectedDisplays,
+      pairingCode: `TV-${Math.floor(1000 + Math.random() * 9000)}`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // @route   GET /api/stream
 // @desc    Get sanctuary live stream and projection state

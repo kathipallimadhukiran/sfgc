@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, ScrollView, View, Platform, Share, TouchableOpacity, Image, Modal, RefreshControl, FlatList, Dimensions, Linking } from 'react-native';
+import { StyleSheet, ScrollView, View, Platform, Share, TouchableOpacity, Image, Modal, RefreshControl, FlatList, Dimensions, Linking, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, Title, Paragraph, Button, Avatar, Text, ActivityIndicator } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';
@@ -320,7 +320,10 @@ export default function HomeScreen() {
           <Text style={[styles.greetingText, { color: theme.textSecondary }]}>{getGreeting()},</Text>
           <Text style={[styles.usernameText, { color: theme.text }]}>{user ? user.name : t.guest} 👋</Text>
         </View>
-        <Text style={[styles.dateText, { color: theme.primary, backgroundColor: theme.accentBackground }]}>{formatDate()}</Text>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={[styles.dateText, { color: theme.primary, backgroundColor: theme.accentBackground }]}>{formatDate()}</Text>
+        </View>
       </View>
 
       {/* Live Lyrics Alerts Banner */}
@@ -893,7 +896,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: Platform.OS === 'ios' ? 52 : (StatusBar.currentHeight || 24) + 14,
   },
   greetingHeader: {
     flexDirection: 'row',
@@ -916,6 +921,31 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
+  },
+  headerBellBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  headerBellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#ef4444',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  headerBellBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 'bold',
   },
   liveContainer: {
     borderRadius: 16,

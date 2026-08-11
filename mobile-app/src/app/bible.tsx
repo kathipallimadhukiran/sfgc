@@ -66,8 +66,8 @@ export default function BibleScreen() {
   }, [bibleLanguage]);
   
   // Bible Reader state
-  const [selectedBook, setSelectedBook] = useState<BibleBook>(ALL_BIBLE_BOOKS[42]); // Default: John (యోహాను)
-  const [selectedChapter, setSelectedChapter] = useState('3');
+  const [selectedBook, setSelectedBook] = useState<BibleBook>(ALL_BIBLE_BOOKS[0]); // Default: John (యోహాను)
+  const [selectedChapter, setSelectedChapter] = useState('1');
   const [selectedVerse, setSelectedVerse] = useState('All');
 
   const params = useLocalSearchParams<{ autoOpenBook?: string; autoOpenChapter?: string }>();

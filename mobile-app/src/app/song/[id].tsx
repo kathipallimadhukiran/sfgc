@@ -1,18 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, ScrollView, View, Platform, Share, Dimensions } from 'react-native';
-import { Appbar, Card, Title, Paragraph, Button, Text, ToggleButton, IconButton, Divider } from 'react-native-paper';
+import { StyleSheet, ScrollView, View, Platform, Share, Dimensions, TouchableOpacity } from 'react-native';
+import { Appbar, Card, Title, Paragraph, Button, Text, ToggleButton, IconButton, Divider, Snackbar } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '@/context/AppContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { songsService } from '@/services/songsService';
 
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { favorites, toggleFavorite, songs } = useApp();
+  const { favorites, toggleFavorite, songs, user, addToSetlist, language } = useApp();
   const router = useRouter();
   const [song, setSong] = useState<any>(null);
   const [viewMode, setViewMode] = useState('lyrics'); // 'lyrics' or 'chords'
   const [fontSize, setFontSize] = useState(16);
   const [autoScrollActive, setAutoScrollActive] = useState(false);
+  const [snackVisible, setSnackVisible] = useState(false);
+  const [snackMsg, setSnackMsg] = useState('');
+  const isTel = language === 'Telugu';
+
+  const AUTHORIZED_ROLES = ['Admin', 'Super Admin', 'Worship Leader', 'Choir Leader', 'Media Team'];
+  const canOperate = user && AUTHORIZED_ROLES.includes(user.role);
   
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollIntervalRef = useRef<any>(null);
@@ -69,6 +76,18 @@ export default function SongDetailScreen() {
     }
   };
 
+  const handleAddToSetlist = () => {
+    if (!song) return;
+    addToSetlist(song);
+    setSnackMsg(isTel ? `"${song.title}" సేవా జాబితాకు జోడించబడింది.` : `"${song.title}" added to service setlist.`);
+    setSnackVisible(true);
+  };
+
+  const handleGoLive = () => {
+    if (!song) return;
+    router.push({ pathname: '/live-operator', params: { songId: song._id || song.id } });
+  };
+
   const handleCopy = () => {
     if (!song) return;
     // Simple clipboard trigger or alert for demonstration
@@ -99,11 +118,14 @@ export default function SongDetailScreen() {
       <Appbar.Header style={{ backgroundColor: '#c62828' }}>
         <Appbar.BackAction color="#fff" onPress={() => router.back()} />
         <Appbar.Content title={song.title} color="#fff" titleStyle={{ fontWeight: 'bold' }} />
-        <Appbar.Action 
-          color="#fff" 
-          icon={isFavorite ? 'heart' : 'heart-outline'} 
-          onPress={() => toggleFavorite(song._id)} 
+        <Appbar.Action
+          color="#fff"
+          icon={isFavorite ? 'heart' : 'heart-outline'}
+          onPress={() => toggleFavorite(song._id)}
         />
+        {canOperate && (
+          <Appbar.Action color="#ffd54f" icon="playlist-plus" onPress={handleAddToSetlist} />
+        )}
         <Appbar.Action color="#fff" icon="share-variant" onPress={handleShare} />
       </Appbar.Header>
 
@@ -159,6 +181,26 @@ export default function SongDetailScreen() {
         </Card>
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Go Live FAB for authorized roles */}
+      {canOperate && (
+        <TouchableOpacity style={styles.goLiveFab} onPress={handleGoLive}>
+          <MaterialCommunityIcons name="broadcast" size={20} color="#fff" />
+          <Text style={styles.goLiveFabText}>
+            {isTel ? 'లైవ్‌కి వెళ్ళు' : 'Go Live'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Snackbar */}
+      <Snackbar
+        visible={snackVisible}
+        onDismiss={() => setSnackVisible(false)}
+        duration={2500}
+        style={{ backgroundColor: '#1e1e3f' }}
+      >
+        <Text style={{ color: '#fff', fontSize: 13 }}>{snackMsg}</Text>
+      </Snackbar>
     </View>
   );
 }
@@ -214,5 +256,28 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     lineHeight: 24,
     color: '#333',
-  }
+  },
+  goLiveFab: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 30 : 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#dc2626',
+    borderRadius: 30,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    elevation: 8,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+  },
+  goLiveFabText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
 });

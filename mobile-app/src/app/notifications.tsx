@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform } from 'react-native';
+import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar } from 'react-native';
 import { Card, Title, Paragraph, Button, Text, Avatar, IconButton, Portal, Modal, FAB } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
 import { useApp } from '@/context/AppContext';
@@ -7,10 +7,25 @@ import { useRouter } from 'expo-router';
 import { noticesService } from '@/services/noticesService';
 
 export default function NotificationsScreen() {
-  const { notices, refreshData, loading, user, token } = useApp();
+  const { notices, refreshData, loading, user, token, startLiveSession } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const theme = useTheme();
+
+  const handleBroadcastNotice = (noticeTitle: string, noticeDesc: string) => {
+    const noteSongObj = {
+      _id: 'notice_broadcast_' + Date.now(),
+      title: noticeTitle,
+      language: 'Telugu' as const,
+      category: 'Announcement',
+      lyrics: [{ type: 'Announcement', text: `${noticeTitle}\n\n${noticeDesc}` }],
+    };
+    startLiveSession(noteSongObj, 0);
+    Alert.alert(
+      '📢 Broadcast Active',
+      `"${noticeTitle}" is now displaying live on all TV screens and lyrics displays!`
+    );
+  };
 
   // Add/Edit Notice form states
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -143,71 +158,99 @@ export default function NotificationsScreen() {
         </View>
 
         {notices && notices.length > 0 ? (
-          notices.map((notice) => (
-            <Card style={styles.card} key={notice._id}>
-              <Card.Content style={styles.cardContent}>
-                <View style={styles.iconContainer}>
-                  <Avatar.Icon
-                    size={42}
-                    icon={notice.title.toLowerCase().includes('fellowship') ? 'account-group' : 'bell-ring'}
-                    style={{ backgroundColor: theme.accentBackground }}
-                    color={theme.primary}
-                  />
-                </View>
-                <View style={styles.textContainer}>
-                  <View style={styles.titleRow}>
-                    <Title style={styles.cardTitle}>{notice.title}</Title>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <IconButton
-                        icon="share-variant"
-                        size={18}
-                        iconColor="#757575"
-                        style={{ margin: 0, padding: 0 }}
-                        onPress={() => handleShareNotice(notice)}
-                      />
-                      {canManageNotices && (
-                        <>
+          notices.map((notice) => {
+            const isVideoNotif = notice.title.includes('🎬') || notice.title.toLowerCase().includes('video');
+            return (
+              <Card
+                style={[
+                  styles.card,
+                  isVideoNotif && { borderColor: '#ef444450', borderWidth: 1 }
+                ]}
+                key={notice._id}
+                onPress={() => isVideoNotif && router.push('/live-stream')}
+              >
+                <Card.Content style={styles.cardContent}>
+                  <View style={styles.iconContainer}>
+                    <Avatar.Icon
+                      size={42}
+                      icon={isVideoNotif ? 'youtube' : (notice.title.toLowerCase().includes('fellowship') ? 'account-group' : 'bell-ring')}
+                      style={{ backgroundColor: isVideoNotif ? '#fee2e2' : theme.accentBackground }}
+                      color={isVideoNotif ? '#ef4444' : theme.primary}
+                    />
+                  </View>
+                  <View style={styles.textContainer}>
+                    <View style={styles.titleRow}>
+                      <Title style={[styles.cardTitle, isVideoNotif && { color: '#dc2626' }]}>
+                        {isVideoNotif ? `🎬 కొత్త వీడియో • ${notice.title.replace('🎬 ', '')}` : notice.title}
+                      </Title>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {!isVideoNotif && (
                           <IconButton
-                            icon="pencil"
-                            size={16}
-                            iconColor={theme.primary}
+                            icon="bullhorn-outline"
+                            size={18}
+                            iconColor="#eab308"
                             style={{ margin: 0, padding: 0 }}
-                            onPress={() => handleOpenEditModal(notice)}
+                            onPress={() => handleBroadcastNotice(notice.title, notice.description)}
                           />
-                          <IconButton
-                            icon="delete"
-                            size={16}
-                            iconColor={theme.primary}
-                            style={{ margin: 0, padding: 0 }}
-                            onPress={() => handleDeleteNotice(notice._id || notice.id || '', notice.title)}
-                          />
-                        </>
+                        )}
+                        <IconButton
+                          icon="share-variant"
+                          size={18}
+                          iconColor="#757575"
+                          style={{ margin: 0, padding: 0 }}
+                          onPress={() => handleShareNotice(notice)}
+                        />
+                        {canManageNotices && !isVideoNotif && (
+                          <>
+                            <IconButton
+                              icon="pencil"
+                              size={16}
+                              iconColor={theme.primary}
+                              style={{ margin: 0, padding: 0 }}
+                              onPress={() => handleOpenEditModal(notice)}
+                            />
+                            <IconButton
+                              icon="delete"
+                              size={16}
+                              iconColor={theme.primary}
+                              style={{ margin: 0, padding: 0 }}
+                              onPress={() => handleDeleteNotice(notice._id || notice.id || '', notice.title)}
+                            />
+                          </>
+                        )}
+                      </View>
+                    </View>
+                    <Paragraph style={styles.description}>
+                      {isVideoNotif ? `కొత్త YouTube వీడియో అందుబాటులో ఉంది: ${notice.description}` : notice.description}
+                    </Paragraph>
+                    
+                    <View style={styles.metaRow}>
+                      {notice.time && (
+                        <Text style={styles.metaText}>
+                          🕒 {notice.time}
+                        </Text>
+                      )}
+                      {notice.location && (
+                        <Text style={styles.metaText}>
+                          📍 {notice.location}
+                        </Text>
+                      )}
+                      {isVideoNotif && (
+                        <Text style={[styles.metaText, { color: '#ef4444', fontWeight: 'bold' }]}>
+                          ▶ చూడడానికి నొక్కండి
+                        </Text>
                       )}
                     </View>
                   </View>
-                  <Paragraph style={styles.description}>{notice.description}</Paragraph>
-                  
-                  <View style={styles.metaRow}>
-                    {notice.time && (
-                      <Text style={styles.metaText}>
-                        🕒 {notice.time}
-                      </Text>
-                    )}
-                    {notice.location && (
-                      <Text style={styles.metaText}>
-                        📍 {notice.location}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </Card.Content>
-            </Card>
-          ))
+                </Card.Content>
+              </Card>
+            );
+          })
         ) : (
           <View style={styles.emptyContainer}>
             <Avatar.Icon size={70} icon="bell-outline" style={{ backgroundColor: '#f5f5f5' }} color="#bdbdbd" />
             <Text variant="titleMedium" style={styles.emptyText}>
-              No new notices or alerts at the moment.
+              ప్రకటనలు ఏవీ లేవు (No notifications yet)
             </Text>
           </View>
         )}
@@ -303,7 +346,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   contentContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: Platform.OS === 'ios' ? 52 : (StatusBar.currentHeight || 24) + 14,
   },
   header: {
     marginBottom: 16,

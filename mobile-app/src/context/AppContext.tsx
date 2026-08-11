@@ -3,6 +3,7 @@ import React, {
   useState,
   useEffect,
   useContext,
+  useRef,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
@@ -13,6 +14,7 @@ import { eventsService, EventItem } from '../services/eventsService';
 import { noticesService, NoticeItem } from '../services/noticesService';
 import { authService } from '../services/authService';
 import { API_URL } from '../constants/config';
+import { router } from 'expo-router';
 
 // Fallback Mock data for daily verse
 const MOCK_VERSE =
@@ -110,6 +112,16 @@ interface AppContextProps {
   joinLiveSession: () => void;
   leaveLiveSession: () => void;
   updateLiveYoutubeLink: (youtubeLink: string) => Promise<void>;
+  startLiveSession: (song: SongItem, slideIndex?: number) => void;
+  endLiveSession: () => void;
+  socket: Socket | null;
+
+  // Song setlist / service schedule
+  setlist: SongItem[];
+  addToSetlist: (song: SongItem) => void;
+  removeFromSetlist: (songId: string) => void;
+  reorderSetlist: (fromIndex: number, toIndex: number) => void;
+  clearSetlist: () => void;
 
   loading: boolean;
   refreshData: () => Promise<void>;
@@ -148,6 +160,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
 
   const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  const [setlist, setSetlistState] = useState<SongItem[]>([]);
 
   const [language, setLanguageState] =
     useState<'Telugu' | 'English'>('Telugu');
@@ -266,6 +281,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           savedTheme === 'dark'
         ) {
           setThemeModeState(savedTheme);
+        }
+
+        // Setlist
+        const savedSetlist = await AsyncStorage.getItem('serviceSetlist');
+        if (savedSetlist) {
+          try {
+            setSetlistState(JSON.parse(savedSetlist));
+          } catch {
+            setSetlistState([]);
+          }
         }
 
         // --------------------------------------------------
@@ -406,8 +431,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       'userData'
     );
 
-    if (socket) {
-      socket.disconnect();
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
       setSocket(null);
     }
 
@@ -478,8 +504,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // --------------------------------------------------
+  // Setlist / Service Schedule
+  // --------------------------------------------------
+
+  const addToSetlist = (song: SongItem) => {
+    setSetlistState((prev) => {
+      const songId = song._id || song.id || '';
+      if (prev.some((s) => (s._id || s.id) === songId)) return prev; // already in setlist
+      const updated = [...prev, song];
+      AsyncStorage.setItem('serviceSetlist', JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  const removeFromSetlist = (songId: string) => {
+    setSetlistState((prev) => {
+      const updated = prev.filter((s) => (s._id || s.id) !== songId);
+      AsyncStorage.setItem('serviceSetlist', JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  const reorderSetlist = (fromIndex: number, toIndex: number) => {
+    setSetlistState((prev) => {
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= prev.length || toIndex >= prev.length) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      AsyncStorage.setItem('serviceSetlist', JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  const clearSetlist = () => {
+    setSetlistState([]);
+    AsyncStorage.removeItem('serviceSetlist').catch(() => {});
+  };
+
+  // --------------------------------------------------
   // Live session
   // --------------------------------------------------
+
+  const startLiveSession = (song: SongItem, slideIndex: number = 0) => {
+    if (socketRef.current) {
+      socketRef.current.emit('startSession', { song, slideIndex });
+    } else if (socket) {
+      socket.emit('startSession', { song, slideIndex });
+    }
+  };
+
+  const endLiveSession = () => {
+    if (socketRef.current) {
+      socketRef.current.emit('endSession');
+    } else if (socket) {
+      socket.emit('endSession');
+    }
+  };
 
   const joinLiveSession = () => {
     if (socket || !API_URL) {
@@ -491,6 +571,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         timeout: 4000,
       });
 
+      socketRef.current = newSocket;
       setSocket(newSocket);
 
       newSocket.on('connect', () => {
@@ -511,6 +592,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           newNotice.title,
           newNotice.description,
           [{ text: 'Dismiss', style: 'cancel' }]
+        );
+      });
+
+      newSocket.on('new_video_notification', (payload: {
+        notificationId: string;
+        type: string;
+        title: string;
+        message: string;
+        videoId: string;
+        youtubeVideoId: string;
+        thumbnail: string;
+        createdAt: string;
+      }) => {
+        // 1. Add notification item to local notices state immediately
+        const newNoticeItem: NoticeItem = {
+          _id: payload.notificationId,
+          title: `🎬 ${payload.title}`,
+          description: payload.message,
+          date: payload.createdAt,
+          time: new Date(payload.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          location: 'YouTube Sanctuary Media',
+        };
+
+        setNotices((prev) => {
+          if (prev.some((n) => n._id === newNoticeItem._id || n.id === newNoticeItem._id)) {
+            return prev;
+          }
+          return [newNoticeItem, ...prev];
+        });
+
+        // 2. Refresh application data asynchronously
+        refreshData();
+
+        // 3. Display lightweight in-app alert toast with action to watch video
+        Alert.alert(
+          `🎬 ${payload.title}`,
+          payload.message,
+          [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Watch Video', onPress: () => router.push('/live-stream') }
+          ]
         );
       });
 
@@ -580,18 +702,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         ({ youtubeLink }) => {
           setLiveSession(
             (prev: any) => {
+              if (!youtubeLink) {
+                return prev?.song ? { ...prev, activeYoutubeLink: '' } : null;
+              }
+
               if (!prev) {
-                return null;
+                return {
+                  activeYoutubeLink: youtubeLink,
+                  song: { title: 'Sanctuary Live Stream', youtubeLink },
+                };
               }
 
               return {
                 ...prev,
+                activeYoutubeLink: youtubeLink,
                 song: prev.song
                   ? {
                       ...prev.song,
                       youtubeLink,
                     }
                   : {
+                      title: 'Sanctuary Live Stream',
                       youtubeLink,
                     },
               };
@@ -618,7 +749,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   // --------------------------------------------------
 
   const leaveLiveSession = () => {
-    if (socket) {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setSocket(null);
+      setLiveSession(null);
+    } else if (socket) {
       socket.disconnect();
       setSocket(null);
       setLiveSession(null);
@@ -709,6 +845,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         joinLiveSession,
         leaveLiveSession,
         updateLiveYoutubeLink,
+        startLiveSession,
+        endLiveSession,
+        socket,
+
+        setlist,
+        addToSetlist,
+        removeFromSetlist,
+        reorderSetlist,
+        clearSetlist,
 
         loading,
         refreshData,

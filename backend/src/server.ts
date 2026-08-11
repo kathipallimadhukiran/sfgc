@@ -45,6 +45,11 @@ app.use(express.static(publicDir));
 // Mount REST API
 app.use('/api', apiRoutes);
 
+// Dynamic Smart TV Live Lyrics route
+app.get('/tv', (req: Request, res: Response) => {
+  res.sendFile(path.join(publicDir, 'tv.html'));
+});
+
 // Catch-all for Web Admin SPA
 app.get('*', (req: Request, res: Response) => {
   // If request is not an API call, return dashboard

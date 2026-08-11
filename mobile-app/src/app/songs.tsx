@@ -16,7 +16,8 @@ const CATEGORIES = [
 ];
 
 export default function SongsScreen() {
-  const { songs, favorites, toggleFavorite, liveSession, refreshData, user, token, language } = useApp();
+  const { songs, favorites, toggleFavorite, liveSession, refreshData, user, token, language,
+          addToSetlist, removeFromSetlist, reorderSetlist, clearSetlist, setlist } = useApp();
   const isTel = language === 'Telugu';
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -169,6 +170,11 @@ export default function SongsScreen() {
 
   // Authorization check for adding, editing and deleting lyrics
   const canManageSongs = user && ['Admin', 'Super Admin', 'Worship Leader', 'Choir Leader', 'Media Team'].includes(user.role);
+  const canOperate = canManageSongs;
+
+  // Setlist panel state
+  const [showSetlistPanel, setShowSetlistPanel] = useState(false);
+  const [setlistSnack, setSetlistSnack] = useState('');
 
   const handleOpenAddModal = () => {
     setEditingId(null);
@@ -231,17 +237,26 @@ export default function SongsScreen() {
     
     setSubmitting(true);
     try {
-      // Split lyrics by double-newline to generate slides
-      const slides = newLyrics.split('\n\n').map((block, idx) => {
-        let type = `Verse ${idx + 1}`;
-        if (block.toLowerCase().startsWith('chorus:\n') || block.toLowerCase().startsWith('chorus:')) {
-          type = 'Chorus';
-          block = block.replace(/^chorus:?\n?/i, '');
-        } else if (idx === 1) {
-          type = 'Chorus';
+      // Split by double-newline, filter empty blocks, detect slide types
+      const rawBlocks = newLyrics.split(/\n\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
+      let verseCount = 0;
+      const slides = rawBlocks.map((block: string) => {
+        const lc = block.toLowerCase();
+        let type: string;
+        let text = block;
+        if (lc.startsWith('chorus:')) {
+          type = 'Chorus'; text = block.replace(/^chorus:?\s*/i, '').trim();
+        } else if (lc.startsWith('bridge:')) {
+          type = 'Bridge'; text = block.replace(/^bridge:?\s*/i, '').trim();
+        } else if (lc.startsWith('pre-chorus:') || lc.startsWith('prechorus:')) {
+          type = 'Pre-Chorus'; text = block.replace(/^pre-?chorus:?\s*/i, '').trim();
+        } else if (lc.startsWith('outro:')) {
+          type = 'Outro'; text = block.replace(/^outro:?\s*/i, '').trim();
+        } else {
+          verseCount++; type = `Verse ${verseCount}`;
         }
-        return { type, text: block.trim() };
-      });
+        return { type, text };
+      }).filter((s: any) => s.text.length > 0);
 
       const payload = {
         title: newTitle,
@@ -283,6 +298,82 @@ export default function SongsScreen() {
   return (
     <Portal.Host>
       <View style={styles.container}>
+        {/* Setlist Panel for operators */}
+        {canOperate && showSetlistPanel && (
+          <View style={styles.setlistPanel}>
+            <View style={styles.setlistPanelHeader}>
+              <Text style={styles.setlistPanelTitle}>
+                🎵 {isTel ? 'సేవా పాటల జాబితా' : 'Service Setlist'}
+                {setlist.length > 0 && (
+                  <Text style={{ color: '#6366f1' }}> ({setlist.length})</Text>
+                )}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 4 }}>
+                {setlist.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.setlistClearBtn}
+                    onPress={() => {
+                      clearSetlist();
+                    }}
+                  >
+                    <MaterialCommunityIcons name="delete-sweep" size={16} color="#e53e3e" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowSetlistPanel(false)} style={styles.setlistCloseBtn}>
+                  <MaterialCommunityIcons name="chevron-up" size={18} color="#666" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            {setlist.length === 0 ? (
+              <Text style={styles.setlistEmpty}>
+                {isTel ? 'జాబితా ఖాళీగా ఉంది. పాట కార్డుపై + నొక్కి జోడించండి.' : 'Setlist is empty. Tap + on a song card to add it.'}
+              </Text>
+            ) : (
+              <ScrollView horizontal={false} style={{ maxHeight: 180 }}>
+                {setlist.map((item, index) => {
+                  const songKey = item._id || item.id || '';
+                  return (
+                    <View key={songKey + index} style={styles.setlistRow}>
+                      <View style={styles.setlistIndexBadge}>
+                        <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>{index + 1}</Text>
+                      </View>
+                      <Text style={styles.setlistRowTitle} numberOfLines={1}>{item.title}</Text>
+                      <View style={[styles.setlistLangBadge, item.language === 'Telugu' && { backgroundColor: '#7c3aed' }]}>
+                        <Text style={styles.setlistLangBadgeText}>{item.language === 'Telugu' ? 'TEL' : 'ENG'}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 2 }}>
+                        {index > 0 && (
+                          <TouchableOpacity onPress={() => reorderSetlist(index, index - 1)} style={styles.setlistReorderBtn}>
+                            <MaterialCommunityIcons name="chevron-up" size={14} color="#6366f1" />
+                          </TouchableOpacity>
+                        )}
+                        {index < setlist.length - 1 && (
+                          <TouchableOpacity onPress={() => reorderSetlist(index, index + 1)} style={styles.setlistReorderBtn}>
+                            <MaterialCommunityIcons name="chevron-down" size={14} color="#6366f1" />
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity onPress={() => removeFromSetlist(songKey)} style={styles.setlistRemoveBtn}>
+                          <MaterialCommunityIcons name="close" size={14} color="#e53e3e" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+            {setlist.length > 0 && (
+              <TouchableOpacity
+                style={styles.openOperatorBtn}
+                onPress={() => router.push('/live-lyrics')}
+              >
+                <MaterialCommunityIcons name="broadcast" size={16} color="#fff" />
+                <Text style={styles.openOperatorBtnText}>
+                  {isTel ? 'ఆపరేటర్ కన్సోల్ తెరవండి' : 'Open Operator Console'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
         {/* Live Worship Banner / Preview card */}
         <Card 
           style={[styles.liveWidgetCard, liveSession && styles.liveWidgetCardActive]}
@@ -492,6 +583,16 @@ export default function SongsScreen() {
                   {canManageSongs && (
                     <>
                       <IconButton
+                        icon="playlist-plus"
+                        iconColor={isLive ? '#ffd54f' : '#6366f1'}
+                        size={18}
+                        onPress={() => {
+                          addToSetlist(item);
+                          setSetlistSnack(isTel ? `"${item.title}" జాబితాకు జోడించబడింది` : `"${item.title}" added to setlist`);
+                        }}
+                        style={{ margin: 0 }}
+                      />
+                      <IconButton
                         icon="pencil"
                         iconColor={isLive ? '#fff' : theme.primary}
                         size={18}
@@ -523,36 +624,70 @@ export default function SongsScreen() {
 
         {/* Floating Action Button for Song Addition (Authorized roles only) */}
         {canManageSongs && (
-          <FAB
-            icon="plus"
-            style={[styles.fab, { backgroundColor: theme.primary }]}
-            color="#ffffff"
-            onPress={handleOpenAddModal}
-          />
+          <>
+            {/* Go Live Operator FAB */}
+            <TouchableOpacity
+              style={styles.goLiveOperatorFab}
+              onPress={() => setShowSetlistPanel(!showSetlistPanel)}
+            >
+              <MaterialCommunityIcons name="playlist-music" size={20} color="#fff" />
+              {setlist.length > 0 && (
+                <View style={styles.setlistBadge}>
+                  <Text style={styles.setlistBadgeText}>{setlist.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <FAB
+              icon="plus"
+              style={[styles.fab, { backgroundColor: theme.primary }]}
+              color="#ffffff"
+              onPress={handleOpenAddModal}
+            />
+          </>
         )}
 
-        {/* Add/Edit Song Modal Overlay */}
+        {/* Add/Edit Song Modal Overlay — Full Screen */}
         <Portal>
           <Modal
             visible={addModalVisible}
             onDismiss={() => setAddModalVisible(false)}
-            contentContainerStyle={styles.modalContainer}
+            contentContainerStyle={styles.modalFullScreen}
           >
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Title style={styles.modalTitle}>
-                {editingId ? 'Edit Chords & Lyrics' : 'Add Chords & Lyrics'}
-              </Title>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setAddModalVisible(false)} style={styles.modalCloseBtn}>
+                <MaterialCommunityIcons name="close" size={22} color="#666" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>
+                {editingId ? (isTel ? 'పాట సవరించు' : 'Edit Song') : (isTel ? 'కొత్త పాట జోడించు' : 'Add New Song')}
+              </Text>
+              <Button
+                mode="contained"
+                onPress={handleAddSongSubmit}
+                loading={submitting}
+                disabled={submitting}
+                buttonColor={theme.primary}
+                style={{ borderRadius: 8 }}
+                labelStyle={{ fontSize: 13, fontWeight: 'bold' }}
+              >
+                {isTel ? 'సేవ్ చేయి' : 'Save'}
+              </Button>
+            </View>
 
-              <Text style={styles.inputLabel}>Song Title *</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalBody} keyboardShouldPersistTaps="handled">
+
+              {/* Song Title */}
+              <Text style={styles.inputLabel}>{isTel ? 'పాట శీర్షిక *' : 'Song Title *'}</Text>
               <TextInput
-                placeholder="e.g., Hosanna in the highest"
-                placeholderTextColor="#666666"
+                placeholder={isTel ? 'ఉదా: హోసన్నా' : 'e.g., Hosanna in the Highest'}
+                placeholderTextColor="#aaa"
                 value={newTitle}
                 onChangeText={setNewTitle}
                 style={styles.textInput}
               />
 
-              <Text style={styles.inputLabel}>Language</Text>
+              {/* Language */}
+              <Text style={styles.inputLabel}>{isTel ? 'భాష' : 'Language'}</Text>
               <View style={styles.rowSelector}>
                 {['Telugu', 'English'].map(lang => (
                   <TouchableOpacity
@@ -561,13 +696,14 @@ export default function SongsScreen() {
                     onPress={() => setNewLang(lang)}
                   >
                     <Text style={[styles.selectorChipText, newLang === lang && styles.selectorChipTextActive]}>
-                      {lang}
+                      {lang === 'Telugu' ? (isTel ? 'తెలుగు' : 'Telugu') : (isTel ? 'ఇంగ్లీష్' : 'English')}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={styles.inputLabel}>Category</Text>
+              {/* Category */}
+              <Text style={styles.inputLabel}>{isTel ? 'వర్గం' : 'Category'}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {CATEGORIES.map(cat => (
@@ -577,70 +713,113 @@ export default function SongsScreen() {
                       onPress={() => setNewCat(cat)}
                     >
                       <Text style={[styles.selectorChipText, newCat === cat && styles.selectorChipTextActive]}>
-                        {cat}
+                        {getTranslatedCategory(cat)}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </ScrollView>
 
-              <Text style={styles.inputLabel}>YouTube Link (Optional)</Text>
+              {/* YouTube Link */}
+              <Text style={styles.inputLabel}>{isTel ? 'యూట్యూబ్ లింక్ (ఐచ్ఛికం)' : 'YouTube Link (Optional)'}</Text>
               <TextInput
-                placeholder="e.g. https://youtube.com/watch?v=..."
-                placeholderTextColor="#666666"
+                placeholder="https://youtube.com/watch?v=..."
+                placeholderTextColor="#aaa"
                 value={newYoutube}
                 onChangeText={setNewYoutube}
                 style={styles.textInput}
                 autoCapitalize="none"
+                keyboardType="url"
               />
 
-              <Text style={styles.inputLabel}>Guitar Chords Sheet (Optional)</Text>
+              {/* Chords */}
+              <Text style={styles.inputLabel}>{isTel ? 'గిటార్ కోర్డులు (ఐచ్ఛికం)' : 'Guitar Chords (Optional)'}</Text>
               <TextInput
-                placeholder="e.g. G       C       D..."
-                placeholderTextColor="#666666"
+                placeholder="G   C   D   Em  ..."
+                placeholderTextColor="#aaa"
                 value={newChords}
                 onChangeText={setNewChords}
                 multiline
-                numberOfLines={3}
-                style={[styles.textInput, { height: 70, textAlignVertical: 'top' }]}
+                style={[styles.textInput, styles.chordsInput]}
               />
 
-              <Text style={styles.inputLabel}>Lyrics (Slide Block Selector) *</Text>
-              <Text style={{ fontSize: 11, color: '#888', fontStyle: 'italic', marginTop: 2 }}>
-                Separate each slide/verse block with a blank line (press Enter twice).
-              </Text>
+              {/* Lyrics — large area */}
+              <View style={styles.lyricsLabelRow}>
+                <Text style={styles.inputLabel}>{isTel ? 'సాహిత్యం *' : 'Lyrics *'}</Text>
+                {newLyrics.length > 0 && (() => {
+                  const count = newLyrics.split(/\n\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0).length;
+                  return (
+                    <View style={styles.slideCountBadge}>
+                      <MaterialCommunityIcons name="layers" size={12} color={theme.primary} />
+                      <Text style={[styles.slideCountText, { color: theme.primary }]}>
+                        {count} {isTel ? 'స్లయిడ్లు' : count === 1 ? 'slide' : 'slides'}
+                      </Text>
+                    </View>
+                  );
+                })()}
+              </View>
+
+              {/* Instruction box */}
+              <View style={styles.lyricsHintBox}>
+                <MaterialCommunityIcons name="information-outline" size={14} color="#6366f1" style={{ marginTop: 1 }} />
+                <Text style={styles.lyricsHintText}>
+                  {isTel
+                    ? 'ప్రతి వర్సు/కోరస్ మధ్య రెండుసార్లు Enter నొక్కండి — ఒక్కో విభాగం ఒక స్లయిడ్ అవుతుంది.\nPrefix ఉపయోగించండి: chorus: bridge: outro:'
+                    : 'Press Enter twice between each verse/chorus — each block becomes one slide.\nOptional prefixes: chorus: bridge: outro: pre-chorus:'}
+                </Text>
+              </View>
+
               <TextInput
-                placeholder="Line 1 of verse 1&#10;Line 2 of verse 1&#10;&#10;Chorus line 1&#10;Chorus line 2"
-                placeholderTextColor="#666666"
+                placeholder={
+                  isTel
+                    ? 'Verse 1 మొదటి పంక్తి\nVerse 1 రెండవ పంక్తి\n\nchorus:\nకోరస్ మొదటి పంక్తి\nకోరస్ రెండవ పంక్తి\n\nVerse 2 మొదటి పంక్తి'
+                    : 'Line 1 of verse 1\nLine 2 of verse 1\n\nchorus:\nChorus line 1\nChorus line 2\n\nLine 1 of verse 2'
+                }
+                placeholderTextColor="#bbb"
                 value={newLyrics}
                 onChangeText={setNewLyrics}
                 multiline
-                numberOfLines={6}
-                style={[styles.textInput, { height: 120, textAlignVertical: 'top' }]}
+                style={styles.lyricsTextarea}
+                textAlignVertical="top"
+                scrollEnabled={false}
               />
 
-              <View style={styles.modalActions}>
-                <Button 
-                  mode="outlined" 
-                  onPress={() => setAddModalVisible(false)} 
-                  style={{ flex: 1, marginRight: 8, borderRadius: 8 }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  mode="contained" 
-                  onPress={handleAddSongSubmit} 
-                  loading={submitting}
-                  disabled={submitting}
-                  buttonColor={theme.primary}
-                  style={{ flex: 1, borderRadius: 8 }}
-                >
-                  Save
-                </Button>
-              </View>
+              {/* Slide preview when lyrics present */}
+              {newLyrics.trim().length > 0 && (() => {
+                const rawBlocks = newLyrics.split(/\n\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
+                return rawBlocks.length > 0 ? (
+                  <View style={styles.slidePreviewBox}>
+                    <Text style={styles.slidePreviewTitle}>
+                      {isTel ? '📋 స్లయిడ్ ప్రివ్యూ' : '📋 Slide Preview'}
+                    </Text>
+                    {rawBlocks.map((block: string, i: number) => {
+                      const lc = block.toLowerCase();
+                      let label = `Verse ${i + 1}`;
+                      let displayText = block;
+                      if (lc.startsWith('chorus:')) { label = 'Chorus'; displayText = block.replace(/^chorus:?\s*/i, ''); }
+                      else if (lc.startsWith('bridge:')) { label = 'Bridge'; displayText = block.replace(/^bridge:?\s*/i, ''); }
+                      else if (lc.startsWith('outro:')) { label = 'Outro'; displayText = block.replace(/^outro:?\s*/i, ''); }
+                      return (
+                        <View key={i} style={styles.slidePreviewItem}>
+                          <View style={styles.slidePreviewHeader}>
+                            <View style={styles.slidePreviewBadge}>
+                              <Text style={styles.slidePreviewBadgeText}>{label.toUpperCase()}</Text>
+                            </View>
+                            <Text style={styles.slidePreviewIndex}>#{i + 1}</Text>
+                          </View>
+                          <Text style={styles.slidePreviewText} numberOfLines={3}>{displayText.trim()}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null;
+              })()}
+
+              <View style={{ height: 32 }} />
             </ScrollView>
           </Modal>
         </Portal>
+
 
         {/* 2. Interactive Voice Search Modal */}
         <VoiceSearchModal
@@ -654,6 +833,16 @@ export default function SongsScreen() {
           titleTelugu="పాటల వాయిస్ శోధన"
           titleEnglish="Songs Voice Search"
         />
+
+        {/* Setlist Snack */}
+        {setlistSnack !== '' && (
+          <View style={styles.snackContainer}>
+            <Text style={styles.snackText}>{setlistSnack}</Text>
+            <TouchableOpacity onPress={() => setSetlistSnack('')}>
+              <MaterialCommunityIcons name="close" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </Portal.Host>
   );
@@ -929,30 +1118,170 @@ const styles = StyleSheet.create({
     padding: 20,
     maxHeight: '85%',
   },
+  modalFullScreen: {
+    backgroundColor: '#ffffff',
+    flex: 1,
+    marginTop: Platform.OS === 'ios' ? 44 : 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#6366f1',
-    marginBottom: 14,
+    color: '#1a1a1a',
+    flex: 1,
     textAlign: 'center',
+    marginHorizontal: 8,
   },
   inputLabel: {
     fontSize: 11,
     fontWeight: 'bold',
     color: '#666',
-    marginTop: 10,
+    marginTop: 14,
+    marginBottom: 4,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#757575',
-    borderRadius: 8,
+    borderColor: '#e0e0e0',
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-    backgroundColor: '#ffffff',
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    backgroundColor: '#fafafa',
     fontSize: 14,
     color: '#1a1a1a',
-    marginTop: 4,
+  },
+  chordsInput: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  lyricsLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  slideCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#eef2ff',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  slideCountText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  lyricsHintBox: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: '#eef2ff',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  lyricsHintText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#4338ca',
+    lineHeight: 17,
+  },
+  lyricsTextarea: {
+    borderWidth: 1.5,
+    borderColor: '#6366f1',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fafbff',
+    fontSize: 15,
+    color: '#1a1a1a',
+    lineHeight: 24,
+    minHeight: 220,
+  },
+  slidePreviewBox: {
+    marginTop: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+  },
+  slidePreviewTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#64748b',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#f1f5f9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  slidePreviewItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  slidePreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  slidePreviewBadge: {
+    backgroundColor: '#6366f1',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  slidePreviewBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  slidePreviewIndex: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  slidePreviewText: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 20,
   },
   rowSelector: {
     flexDirection: 'row',
@@ -983,5 +1312,148 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 20,
     marginBottom: 10,
-  }
+  },
+
+
+  // ── Setlist Panel ──
+  setlistPanel: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    elevation: 4,
+  },
+  setlistPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  setlistPanelTitle: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#333',
+  },
+  setlistClearBtn: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: '#fff5f5',
+  },
+  setlistCloseBtn: {
+    padding: 4,
+  },
+  setlistEmpty: {
+    color: '#999',
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 10,
+    fontStyle: 'italic',
+  },
+  setlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f3f3',
+    gap: 8,
+  },
+  setlistIndexBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  setlistRowTitle: {
+    flex: 1,
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '500',
+  },
+  setlistLangBadge: {
+    backgroundColor: '#1e5f74',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  setlistLangBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  setlistReorderBtn: {
+    padding: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(99,102,241,0.1)',
+  },
+  setlistRemoveBtn: {
+    padding: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(229,62,62,0.1)',
+  },
+  openOperatorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#dc2626',
+    borderRadius: 10,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  openOperatorBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  goLiveOperatorFab: {
+    position: 'absolute',
+    right: 80,
+    bottom: 16,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#dc2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+  },
+  setlistBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ffd54f',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  setlistBadgeText: {
+    color: '#111',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  snackContainer: {
+    position: 'absolute',
+    bottom: 80,
+    left: 16,
+    right: 16,
+    backgroundColor: '#1e1e3f',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    elevation: 8,
+  },
+  snackText: {
+    color: '#fff',
+    fontSize: 13,
+    flex: 1,
+  },
 });

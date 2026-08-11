@@ -23,7 +23,7 @@ export default function AppTabs() {
     >
       <Avatar.Text
         size={34}
-        label={user && user.name ? user.name.substring(0, 2).toUpperCase() : 'CC'}
+        label={user && user.name ? user.name.substring(0, 2).toUpperCase() : 'SFGC'}
         style={{ backgroundColor: isDark ? '#1e1b4b' : '#e0e7ff' }}
         labelStyle={{ color: '#6366f1', fontSize: 13, fontWeight: 'bold' }}
       />
@@ -146,7 +146,7 @@ export default function AppTabs() {
         name="index"
         options={{
           title: language === 'Telugu' ? 'హోమ్' : 'Home',
-          headerTitle: language === 'Telugu' ? 'చర్చ్ కనెక్ట్' : 'ChurchConnect',
+          headerTitle: language === 'Telugu' ? 'SFGC - శాటిలైట్ సిటీ ఫుల్ గోస్పెల్ చర్చి' : 'SFGC - Satellite City Full Gospel Church',
           headerLeft: profileAvatarHeaderLeft,
           tabBarIcon: ({ color }) => {
             const isSelected = color === activeColor;
@@ -257,6 +257,17 @@ export default function AppTabs() {
         name="song/[id]"
         options={{
           title: 'Song Details',
+          href: null,
+          tabBarStyle: { display: 'none' },
+          headerShown: false,
+        }}
+      />
+
+      {/* Hidden Screens: Live Operator Console */}
+      <Tabs.Screen
+        name="live-operator"
+        options={{
+          title: 'Live Operator Console',
           href: null,
           tabBarStyle: { display: 'none' },
           headerShown: false,

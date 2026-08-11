@@ -37,24 +37,59 @@ export const initLiveStateFromDB = async () => {
   }
 };
 
+export interface DisplayDevice {
+  id: string;
+  name: string;
+  type: string;
+  ip: string;
+  connectedAt: string;
+}
+
+const connectedDisplays: Map<string, DisplayDevice> = new Map();
+
+export const getConnectedDisplaysList = (): DisplayDevice[] => {
+  return Array.from(connectedDisplays.values());
+};
+
 export const setupLiveLyricsSocket = (io: SocketIOServer) => {
   io.on('connection', (socket: Socket) => {
     console.log(`🔌 Client connected to Socket.IO: ${socket.id}`);
 
+    // Register active Smart TV or projection screen
+    socket.on('registerDisplay', (payload: { name?: string; type?: string; ip?: string }) => {
+      const dev: DisplayDevice = {
+        id: socket.id,
+        name: payload.name || `Smart TV (${socket.id.substring(0, 5)})`,
+        type: payload.type || 'Smart TV Web Cast',
+        ip: payload.ip || (socket.handshake.address?.replace('::ffff:', '') || 'Local Network'),
+        connectedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      connectedDisplays.set(socket.id, dev);
+      socket.join('live_worship_room');
+      io.emit('displaysUpdated', Array.from(connectedDisplays.values()));
+      console.log(`📺 TV Display Registered: ${dev.name} (${dev.ip})`);
+    });
+
+    socket.on('getDisplays', () => {
+      socket.emit('displaysUpdated', Array.from(connectedDisplays.values()));
+    });
+
     // Immediately send current live session state to the newly connected mobile/web client
-    socket.emit('sessionState', currentLiveSession.song ? currentLiveSession : null);
+    const hasLiveContent = Boolean(currentLiveSession.song || currentLiveSession.activeYoutubeLink);
+    socket.emit('sessionState', hasLiveContent ? currentLiveSession : null);
     socket.emit('youtubeLinkUpdated', { youtubeLink: currentLiveSession.activeYoutubeLink });
 
     // Join session room
     socket.on('joinSession', () => {
       socket.join('live_worship_room');
-      socket.emit('sessionState', currentLiveSession.song ? currentLiveSession : null);
+      const isLiveActive = Boolean(currentLiveSession.song || currentLiveSession.activeYoutubeLink);
+      socket.emit('sessionState', isLiveActive ? currentLiveSession : null);
     });
 
     // Start Live Projection Session (Operator)
     socket.on('startSession', async (payload: { song: any; slideIndex?: number }) => {
       currentLiveSession.song = payload.song;
-      currentLiveSession.currentSlideIndex = payload.slideIndex || 0;
+      currentLiveSession.currentSlideIndex = typeof payload.slideIndex === 'number' ? payload.slideIndex : 0;
       currentLiveSession.highlightedLineIndex = -1;
       currentLiveSession.blackScreen = false;
       currentLiveSession.blankScreen = false;
@@ -150,7 +185,10 @@ export const setupLiveLyricsSocket = (io: SocketIOServer) => {
     });
 
     socket.on('disconnect', () => {
-      // client disconnected
+      if (connectedDisplays.has(socket.id)) {
+        connectedDisplays.delete(socket.id);
+        io.emit('displaysUpdated', Array.from(connectedDisplays.values()));
+      }
     });
   });
 };

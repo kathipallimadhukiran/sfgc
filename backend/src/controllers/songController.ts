@@ -73,7 +73,7 @@ export const createSong = async (req: Request, res: Response, next: NextFunction
       tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
       youtubeLink: youtubeLink || '',
       chords: chords || '',
-      lyrics,
+      lyrics: lyrics.filter((s: any) => s && s.text && s.text.trim() !== ''),
     });
 
     res.status(201).json({
@@ -90,9 +90,15 @@ export const createSong = async (req: Request, res: Response, next: NextFunction
 // @desc    Update a song
 export const updateSong = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // Filter empty lyric slides before update
+    const cleanBody = { ...req.body };
+    if (Array.isArray(cleanBody.lyrics)) {
+      cleanBody.lyrics = cleanBody.lyrics.filter((s: any) => s && s.text && s.text.trim() !== '');
+    }
+
     const updatedSong = await Song.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: cleanBody },
       { new: true, runValidators: true }
     );
 

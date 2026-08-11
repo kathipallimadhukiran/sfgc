@@ -36,6 +36,14 @@ class LiveVideosService {
       return { success: false, message: error?.message || 'Unable to delete video.' };
     }
   }
+
+  async updateVideo(id: string, data: Partial<Pick<LiveVideoItem, 'title' | 'categoryId'>>): Promise<{ success: boolean; video?: LiveVideoItem; message?: string }> {
+    try {
+      return await apiClient.put(`/api/stream/videos/${id}`, data);
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Unable to update video.' };
+    }
+  }
 }
 
 export const liveVideosService = new LiveVideosService();
