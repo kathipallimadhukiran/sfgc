@@ -136,6 +136,21 @@
           <p id="tabSubtitle">Real-time church metrics, administration, and live service control.</p>
         </div>
         <div class="top-actions">
+          <div class="notif-bell-wrapper" style="position: relative;">
+            <button class="btn btn-outline btn-icon-notif" id="btnAdminNotifBell" onclick="app.toggleNotifDropdown()" title="Member & Department Alerts">
+              <i class="fa-solid fa-bell"></i>
+              <span class="notif-badge-pill" id="notifBadgeCount" style="display: none;">0</span>
+            </button>
+            <div class="notif-dropdown-box" id="notifDropdownPanel" style="display: none;">
+              <div class="notif-dropdown-header">
+                <strong><i class="fa-solid fa-bell text-amber"></i> New Member & Department Alerts</strong>
+                <button class="btn-text-sm" onclick="app.clearNotifs()">Clear All</button>
+              </div>
+              <div class="notif-list-container" id="adminNotifList">
+                <div class="notif-empty-state">No new member notifications yet.</div>
+              </div>
+            </div>
+          </div>
           <button class="btn btn-outline" id="btnQuickRefresh" onclick="app.refreshAll()">
             <i class="fa-solid fa-rotate"></i> Refresh
           </button>
@@ -438,12 +453,23 @@
           <div class="card-body form-body">
             <div class="form-group">
               <label>Current Active YouTube Stream URL</label>
-              <input type="text" id="streamUrlInput" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
-              <small class="hint-text">Paste YouTube Live URL (or normal video link). Mobile app will instantly play this stream.</small>
+              <input type="text" id="streamUrlInput" class="form-control" placeholder="https://www.youtube.com/watch?v=..." oninput="app.updateStreamPreview(this.value)">
+              <small class="hint-text">Paste YouTube Live URL (or video link). Mobile app will instantly stream this feed.</small>
             </div>
-            <button class="btn btn-danger-action w-full" onclick="app.saveStreamUrl()">
+
+            <!-- YouTube Video Live Preview Box -->
+            <div id="streamPreviewContainer" style="margin-top:16px; margin-bottom:16px;">
+              <label style="display:block; font-size:12px; font-weight:700; color:#64748b; margin-bottom:8px;">🎥 LIVE BROADCAST PREVIEW MONITOR</label>
+              <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:14px; background:#000; border:1px solid rgba(255,255,255,0.12);">
+                <iframe id="streamPreviewIframe" src="" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              </div>
+            </div>
+
+            <button class="btn btn-danger-action w-full" id="btnSaveStream" onclick="app.saveStreamUrl()">
               <i class="fa-brands fa-youtube"></i> Update Sanctuary Live Stream
             </button>
+          </div>
+        </div>
       </section>
 
       <!-- TAB 8: BIBLE READING PLANS & MEMBER STATS -->
@@ -508,27 +534,99 @@
             </div>
           </div>
 
-          <!-- Plan Template Uploader & Customizer -->
-          <div class="glass-card">
-            <div class="card-header">
-              <h3><i class="fa-solid fa-file-arrow-up text-primary"></i> Upload / Customize Reading Plan Template</h3>
+        <!-- Interactive 365-Day Visual Bible Reading Plan Builder & Manager -->
+        <div class="glass-card mt-4">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-calendar-check text-primary"></i> 365-Day Bible Reading Plan Visual Builder & Manager</h3>
+              <p class="subtitle-text">Configure day-by-day readings (Day 1 up to Day 365). Select Book, Chapters, and Summary, and save directly to MongoDB.</p>
             </div>
-            <p class="subtitle-text mb-3">Paste or edit your customized Bible Reading Plan in JSON format to update mobile app schedules:</p>
+          </div>
+
+          <div class="form-row-2">
             <div class="form-group">
-              <label>Plan Identifier</label>
-              <select id="adminPlanSelect" class="form-select mb-2" onchange="app.onSelectPlanTemplate(this.value)">
-                <option value="1-year-canonical">1-Year Complete Bible Reading Plan (365 Days)</option>
-                <option value="2-year-canonical">2-Year Bible Reading Plan (730 Days)</option>
-                <option value="custom">Custom Reading Plan</option>
+              <label>Select Plan Template to Edit</label>
+              <select id="adminPlanPresetSelect" class="form-select" onchange="app.loadPlanBuilderPreset(this.value)">
+                <option value="1-year-canonical">📖 1-Year Canonical Plan (365 Days)</option>
+                <option value="2-year-canonical">📖 2-Year Bible Reading Plan (730 Days)</option>
+                <option value="custom-360-plan">📖 Custom 360-Day Church Reading Plan</option>
               </select>
             </div>
             <div class="form-group">
-              <label>Plan JSON Template</label>
-              <textarea id="adminPlanJsonInput" class="form-control font-mono" rows="6" placeholder="Paste plan JSON template here..."></textarea>
+              <label>Plan Identifier (Key ID)</label>
+              <input type="text" id="builderPlanId" class="form-control" value="1-year-canonical">
             </div>
-            <button class="btn btn-primary mt-2" onclick="app.savePlanTemplateSubmit()">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy Plan Template
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Plan Title (English)</label>
+              <input type="text" id="builderTitleEnglish" class="form-control" value="1-Year Complete Bible Reading Plan">
+            </div>
+            <div class="form-group">
+              <label>Plan Title (Telugu / తెలుగు శీర్షిక)</label>
+              <input type="text" id="builderTitleTelugu" class="form-control" value="1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక">
+            </div>
+          </div>
+
+          <!-- Day-by-Day Reading Portion Adder Box -->
+          <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 20px; margin-top: 16px; margin-bottom: 20px;">
+            <h4 style="color:#a5b4fc; font-size:14px; margin-bottom:12px;"><i class="fa-solid fa-plus-circle"></i> Add / Edit Reading Portion for Selected Day</h4>
+            
+            <div style="display:grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap:12px;">
+              <div class="form-group">
+                <label>Day # (1–365)</label>
+                <input type="number" id="builderDayNum" class="form-control" min="1" max="730" value="1" onchange="app.onBuilderDayChange(this.value)">
+              </div>
+              <div class="form-group">
+                <label>Bible Book (గ్రంథము)</label>
+                <select id="builderBookSelect" class="form-select" onchange="app.onBuilderBookChange(this.value)">
+                  <!-- 66 Books populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Start Chapter</label>
+                <input type="number" id="builderStartCh" class="form-control" min="1" max="150" value="1" oninput="app.updatePortionSummaryPreview()">
+              </div>
+              <div class="form-group">
+                <label>End Chapter</label>
+                <input type="number" id="builderEndCh" class="form-control" min="1" max="150" value="3" oninput="app.updatePortionSummaryPreview()">
+              </div>
+            </div>
+
+            <div class="form-group mt-2">
+              <label>Portion Summary (తెలుగు / English Summary)</label>
+              <input type="text" id="builderSummary" class="form-control" placeholder="ఉదా: ఆదికాండము 1–3 / Genesis 1–3">
+            </div>
+
+            <button type="button" class="btn btn-outline mt-2" onclick="app.addPortionToCurrentPlan()">
+              <i class="fa-solid fa-plus"></i> Add Reading Portion to Day
             </button>
+          </div>
+
+          <!-- Portions List Table -->
+          <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Book (English & Telugu)</th>
+                  <th>Chapters</th>
+                  <th>Summary</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="builderPortionsTableBody">
+                <tr><td colspan="5" class="text-center py-3 text-muted">No reading portions added yet. Select day and add portions above.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:center; margin-top:20px;">
+            <button class="btn btn-primary" id="btnSaveBuilderPlan" onclick="app.saveVisualPlanSubmit()">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy 365-Day Plan to Database
+            </button>
+            <span id="builderTotalCountBadge" class="badge badge-primary" style="font-size:13px; padding:8px 12px;">0 Days Configured</span>
           </div>
         </div>
 
@@ -811,6 +909,65 @@
     </div>
   </div>
 
+  <!-- Modal for Editing Member Access & Department Volunteering -->
+  <div id="editMemberModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-gear text-primary"></i> Edit Member Role Access & Department Interests</h3>
+        <button class="modal-close" onclick="app.closeModal('editMemberModal')">&times;</button>
+      </div>
+      <div class="modal-body form-body">
+        <input type="hidden" id="editMemberId">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Member Name</label>
+            <input type="text" id="editMemberName" class="form-control" readonly>
+          </div>
+          <div class="form-group">
+            <label>Member Email</label>
+            <input type="email" id="editMemberEmail" class="form-control" readonly>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Assign Role Access Level *</label>
+          <select id="editMemberRoleSelect" class="form-select">
+            <option value="Member">Member (Standard User Access)</option>
+            <option value="Admin">Admin (Full Control Dashboard)</option>
+            <option value="Super Admin">Super Admin</option>
+            <option value="Worship Leader">Worship Leader</option>
+            <option value="Media Team">Media Team Lead</option>
+            <option value="Event Coordinator">Event Coordinator</option>
+            <option value="Notice Manager">Notice Manager</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Department Volunteering Interests (కార్యాలయాల స్వచ్ఛంద విభాగాలు)</label>
+          <small class="hint-text mb-2">Check departments this member belongs to or is interested in joining:</small>
+          <div class="dept-checkbox-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
+            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Media Team" class="edit-dept-check"> 📹 Media Team & Sound</label>
+            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Worship Team" class="edit-dept-check"> 🎵 Worship Team</label>
+            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Choir" class="edit-dept-check"> 🎼 Choir Ministry</label>
+            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Children's Ministry" class="edit-dept-check"> 🧒 Children's Sunday School</label>
+            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Youth Ministry" class="edit-dept-check"> ⚡ Youth Ministry</label>
+            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Security & Ushering" class="edit-dept-check"> 🛡️ Security & Ushering</label>
+            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Evangelism" class="edit-dept-check"> 📖 Evangelism & Outreach</label>
+          </div>
+        </div>
+
+        <div class="form-group mt-2">
+          <label>Add New Custom Department Tag</label>
+          <input type="text" id="editMemberCustomDept" class="form-control" placeholder="e.g. Prayer Warriors, Maintenance...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('editMemberModal')">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveMemberAccess" onclick="app.saveMemberAccessSubmit()">Save Access & Department</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal for Notice Creation -->
   <div id="noticeModal" class="modal-overlay">
     <div class="modal-box">
@@ -836,6 +993,18 @@
             <label>Time</label>
             <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 12:30 PM">
           </div>
+        </div>
+        <div class="form-group">
+          <label>Notice Banner / Poster Image</label>
+          <input type="file" id="noticeBannerFile" accept="image/*" class="form-control mb-2" onchange="app.handleNoticeFileUpload(event)">
+          <input type="text" id="noticeImage" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleNoticeUrlInput(this.value)">
+          <div id="noticeImagePreviewContainer" style="display:none; margin-top:8px; text-align:center;">
+            <img id="noticeImagePreview" src="" style="max-height:120px; max-width:100%; border-radius:8px; border:1px solid #ddd; object-fit:cover;">
+          </div>
+        </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <input type="checkbox" id="noticeIsPinned" style="width:18px; height:18px; cursor:pointer;">
+          <label for="noticeIsPinned" style="margin:0; cursor:pointer; font-weight:600; color:#2d3748;">📌 Pin Notice to Top of Announcement Feed</label>
         </div>
       </div>
       <div class="modal-footer">

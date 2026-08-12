@@ -74,6 +74,24 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 
     const token = generateToken(newUser);
 
+    // Emit real-time Socket.IO notification to Admin Panel
+    try {
+      const io = (req as any).app.get('io');
+      if (io) {
+        io.emit('newMemberRegistered', {
+          id: newUser._id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          departments: newUser.departments,
+          mobileNumber: newUser.mobileNumber,
+          createdAt: newUser.createdAt
+        });
+      }
+    } catch (socketErr) {
+      console.log('Socket notification error ignored:', socketErr);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Account registered successfully.',
@@ -195,6 +213,22 @@ export const saveVolunteering = async (req: AuthRequest, res: Response, next: Ne
       { $set: { departments } },
       { new: true }
     );
+
+    // Emit real-time notification to Admin Panel
+    try {
+      const io = (req as any).app.get('io');
+      if (io) {
+        io.emit('departmentInterestNotification', {
+          userId: req.user._id,
+          userName: updatedUser?.name || 'Member',
+          userEmail: updatedUser?.email,
+          departments,
+          updatedAt: new Date()
+        });
+      }
+    } catch (socketErr) {
+      console.log('Socket notification error ignored:', socketErr);
+    }
 
     res.status(200).json({
       success: true,

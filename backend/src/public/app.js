@@ -1,4 +1,73 @@
 // ChurchConnect Web Admin & Live Lyrics Projection SPA Controller
+const BIBLE_BOOKS_66 = [
+  { eng: 'Genesis', tel: 'ఆదికాండము' },
+  { eng: 'Exodus', tel: 'నిర్గమకాండము' },
+  { eng: 'Leviticus', tel: 'లేవీయకాండము' },
+  { eng: 'Numbers', tel: 'సంఖ్యాకాండము' },
+  { eng: 'Deuteronomy', tel: 'ద్వితీయోపదేశకాండము' },
+  { eng: 'Joshua', tel: 'యెహోషువ' },
+  { eng: 'Judges', tel: 'న్యాయాధిపతులు' },
+  { eng: 'Ruth', tel: 'రూతు' },
+  { eng: '1 Samuel', tel: '1 సమూయేలు' },
+  { eng: '2 Samuel', tel: '2 సమూయేలు' },
+  { eng: '1 Kings', tel: '1 రాజులు' },
+  { eng: '2 Kings', tel: '2 రాజులు' },
+  { eng: '1 Chronicles', tel: '1 దినవృత్తాంతములు' },
+  { eng: '2 Chronicles', tel: '2 దినవృత్తాంతములు' },
+  { eng: 'Ezra', tel: 'ఎజ్రా' },
+  { eng: 'Nehemiah', tel: 'నెహెమ్యా' },
+  { eng: 'Esther', tel: 'ఎస్తేరు' },
+  { eng: 'Job', tel: 'యోబు' },
+  { eng: 'Psalms', tel: 'కీర్తనలు' },
+  { eng: 'Proverbs', tel: 'సామెతలు' },
+  { eng: 'Ecclesiastes', tel: 'ప్రసంగి' },
+  { eng: 'Song of Solomon', tel: 'పరమగీతము' },
+  { eng: 'Isaiah', tel: 'యెషయా' },
+  { eng: 'Jeremiah', tel: 'యిర్మీయా' },
+  { eng: 'Lamentations', tel: 'విలాపవాక్యములు' },
+  { eng: 'Ezekiel', tel: 'యెహెజ్కేలు' },
+  { eng: 'Daniel', tel: 'దానియేలు' },
+  { eng: 'Hosea', tel: 'హోషేయ' },
+  { eng: 'Joel', tel: 'యోవేలు' },
+  { eng: 'Amos', tel: 'ఆమోసు' },
+  { eng: 'Obadiah', tel: 'ఓబద్యా' },
+  { eng: 'Jonah', tel: 'యోనా' },
+  { eng: 'Micah', tel: 'మీకా' },
+  { eng: 'Nahum', tel: 'నహూము' },
+  { eng: 'Habakkuk', tel: 'హబక్కూకు' },
+  { eng: 'Zephaniah', tel: 'జెఫన్యా' },
+  { eng: 'Haggai', tel: 'హగ్గయి' },
+  { eng: 'Zechariah', tel: 'జెకర్యా' },
+  { eng: 'Malachi', tel: 'మలాకీ' },
+  { eng: 'Matthew', tel: 'మత్తయి సువార్త' },
+  { eng: 'Mark', tel: 'మార్కు సువార్త' },
+  { eng: 'Luke', tel: 'లూకా సువార్త' },
+  { eng: 'John', tel: 'యోహాను సువార్త' },
+  { eng: 'Acts', tel: 'అపొస్తలుల కార్యములు' },
+  { eng: 'Romans', tel: 'రోమీయులకు' },
+  { eng: '1 Corinthians', tel: '1 కొరింథీయులకు' },
+  { eng: '2 Corinthians', tel: '2 కొరింథీయులకు' },
+  { eng: 'Galatians', tel: 'గలతీయులకు' },
+  { eng: 'Ephesians', tel: 'ఎఫెసీయులకు' },
+  { eng: 'Philippians', tel: 'ఫిలిప్పీయులకు' },
+  { eng: 'Colossians', tel: 'కొలస్సీయులకు' },
+  { eng: '1 Thessalonians', tel: '1 దెస్సలొనీకయులకు' },
+  { eng: '2 Thessalonians', tel: '2 దెస్సలొనీకయులకు' },
+  { eng: '1 Timothy', tel: '1 తిమోతికి' },
+  { eng: '2 Timothy', tel: '2 తిమోతికి' },
+  { eng: 'Titus', tel: 'తీతుకు' },
+  { eng: 'Philemon', tel: 'ఫిలేమోనుకు' },
+  { eng: 'Hebrews', tel: 'హెబ్రీయులకు' },
+  { eng: 'James', tel: 'యాకోబు' },
+  { eng: '1 Peter', tel: '1 పేతురు' },
+  { eng: '2 Peter', tel: '2 పేతురు' },
+  { eng: '1 John', tel: '1 యోహాను' },
+  { eng: '2 John', tel: '2 యోహాను' },
+  { eng: '3 John', tel: '3 యోహాను' },
+  { eng: 'Jude', tel: 'యూదా' },
+  { eng: 'Revelation', tel: 'ప్రకటన గ్రంథము' }
+];
+
 class ChurchApp {
   constructor() {
     this.socket = null;
@@ -6,6 +75,8 @@ class ChurchApp {
     this.members = [];
     this.events = [];
     this.notices = [];
+    this.notifications = [];
+    this.builderPortions = [];
     this.activeSong = null;
     this.activeSlideIndex = 0;
     this.activeLineIndex = -1;
@@ -18,6 +89,7 @@ class ChurchApp {
     this.initSocket();
     this.initNavigation();
     this.initKeyboardShortcuts();
+    this.initPlanBuilder();
 
     const isAuthenticated = await this.initAuth();
     if (isAuthenticated) {
@@ -700,9 +772,17 @@ class ChurchApp {
             : '<span class="text-muted">No active duties</span>'}
         </td>
         <td>
-          <button class="btn btn-sm btn-outline" onclick="app.openAssignmentModal('${m._id}', '${m.name.replace(/'/g, "\\'")}')">
-            <i class="fa-solid fa-plus"></i> Assign Duty
-          </button>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <button class="btn btn-sm btn-outline" style="padding:4px 8px;" onclick="app.openAssignmentModal('${m._id}', '${m.name.replace(/'/g, "\\'")}')" title="Assign Duty">
+              <i class="fa-solid fa-plus"></i> Duty
+            </button>
+            <button class="btn btn-sm btn-outline" style="padding:4px 8px;" onclick="app.openEditMemberModal('${m._id}')" title="Edit Role & Departments">
+              <i class="fa-solid fa-user-gear"></i> Access
+            </button>
+            <button class="btn btn-sm btn-danger-action" style="padding:4px 8px;" onclick="app.deleteMember('${m._id}')" title="Delete Member">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         </td>
       </tr>
     `).join('');
@@ -735,12 +815,90 @@ class ChurchApp {
         <td>${(m.departments || []).join(', ') || '-'}</td>
         <td>${(m.assignments || []).length} assigned</td>
         <td>
-          <button class="btn btn-sm btn-outline" onclick="app.openAssignmentModal('${m._id}', '${m.name}')">
-            <i class="fa-solid fa-plus"></i> Assign
-          </button>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <button class="btn btn-sm btn-outline" style="padding:4px 8px;" onclick="app.openAssignmentModal('${m._id}', '${m.name.replace(/'/g, "\\'")}')">
+              <i class="fa-solid fa-plus"></i> Duty
+            </button>
+            <button class="btn btn-sm btn-outline" style="padding:4px 8px;" onclick="app.openEditMemberModal('${m._id}')">
+              <i class="fa-solid fa-user-gear"></i> Access
+            </button>
+            <button class="btn btn-sm btn-danger-action" style="padding:4px 8px;" onclick="app.deleteMember('${m._id}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         </td>
       </tr>
     `).join('');
+  }
+
+  async deleteMember(id) {
+    if (!confirm('Are you sure you want to delete this member profile? This action cannot be undone.')) return;
+    try {
+      const res = await this.authFetch(`/api/users/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert('Member profile deleted successfully.');
+        await this.refreshAll();
+      } else {
+        alert('Delete failed: ' + (data.message || 'Error'));
+      }
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  }
+
+  openEditMemberModal(id) {
+    const m = this.members.find(u => u._id === id);
+    if (!m) return;
+
+    document.getElementById('editMemberId').value = m._id;
+    document.getElementById('editMemberName').value = m.name;
+    document.getElementById('editMemberEmail').value = m.email;
+    document.getElementById('editMemberRoleSelect').value = m.role || 'Member';
+    document.getElementById('editMemberCustomDept').value = '';
+
+    const checks = document.querySelectorAll('.edit-dept-check');
+    const userDepts = m.departments || [];
+    checks.forEach(c => {
+      c.checked = userDepts.includes(c.value);
+    });
+
+    document.getElementById('editMemberModal').classList.add('active');
+  }
+
+  async saveMemberAccessSubmit() {
+    const id = document.getElementById('editMemberId').value;
+    const role = document.getElementById('editMemberRoleSelect').value;
+    const customDept = document.getElementById('editMemberCustomDept').value.trim();
+
+    const selectedDepts = [];
+    const checks = document.querySelectorAll('.edit-dept-check:checked');
+    checks.forEach(c => selectedDepts.push(c.value));
+
+    if (customDept && !selectedDepts.includes(customDept)) {
+      selectedDepts.push(customDept);
+    }
+
+    this.setButtonLoading('btnSaveMemberAccess', true, 'Saving Access Level...');
+
+    try {
+      const res = await this.authFetch(`/api/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ role, departments: selectedDepts })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('🎉 Member role & department access updated successfully!');
+        this.closeModal('editMemberModal');
+        await this.refreshAll();
+      } else {
+        alert('Failed: ' + (data.message || 'Error'));
+      }
+    } catch (e) {
+      alert('Update failed: ' + e.message);
+    } finally {
+      this.setButtonLoading('btnSaveMemberAccess', false, '', 'Save Access & Department');
+    }
   }
 
   openAssignmentModal(memberId, memberName) {
@@ -1041,7 +1199,62 @@ class ChurchApp {
     document.getElementById('noticeDesc').value = '';
     document.getElementById('noticeLoc').value = 'Main Sanctuary';
     document.getElementById('noticeTime').value = 'Immediate';
+    document.getElementById('noticeImage').value = '';
+    document.getElementById('noticeIsPinned').checked = false;
+    const fileInput = document.getElementById('noticeBannerFile');
+    if (fileInput) fileInput.value = '';
+    this.handleNoticeUrlInput('');
     document.getElementById('noticeModal').classList.add('active');
+  }
+
+  handleNoticeFileUpload(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        document.getElementById('noticeImage').value = compressedDataUrl;
+        this.handleNoticeUrlInput(compressedDataUrl);
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  handleNoticeUrlInput(val) {
+    const imgEl = document.getElementById('noticeImagePreview');
+    const container = document.getElementById('noticeImagePreviewContainer');
+    if (imgEl && container) {
+      if (val && val.trim()) {
+        imgEl.src = val.trim();
+        container.style.display = 'block';
+      } else {
+        container.style.display = 'none';
+      }
+    }
   }
 
   async saveNoticeSubmit() {
@@ -1049,6 +1262,8 @@ class ChurchApp {
     const description = document.getElementById('noticeDesc').value.trim();
     const location = document.getElementById('noticeLoc').value.trim();
     const time = document.getElementById('noticeTime').value.trim();
+    const image = document.getElementById('noticeImage').value.trim();
+    const isPinned = document.getElementById('noticeIsPinned').checked;
 
     if (!title || !description) {
       alert('Title and description are required.');
@@ -1060,7 +1275,7 @@ class ChurchApp {
     try {
       const res = await this.authFetch('/api/notices', {
         method: 'POST',
-        body: JSON.stringify({ title, description, location, time })
+        body: JSON.stringify({ title, description, location, time, image, isPinned })
       });
       const data = await res.json();
       if (data.success) {
@@ -1086,12 +1301,36 @@ class ChurchApp {
   }
 
   // STREAM METHODS
+  updateStreamPreview(url) {
+    const iframe = document.getElementById('streamPreviewIframe');
+    if (!iframe) return;
+
+    if (!url || !url.trim()) {
+      iframe.src = '';
+      return;
+    }
+
+    let videoId = '';
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.trim().match(regExp);
+
+    if (match && match[2].length === 11) {
+      videoId = match[2];
+      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
+    } else {
+      iframe.src = url.trim();
+    }
+  }
+
   async saveStreamUrl() {
     const url = document.getElementById('streamUrlInput').value.trim();
     if (!url) {
       alert('Please enter a valid YouTube stream URL.');
       return;
     }
+
+    const btn = document.getElementById('btnSaveStream') || document.querySelector("button[onclick='app.saveStreamUrl()']");
+    this.setButtonLoading(btn, true, 'Updating Live Stream...');
 
     try {
       const res = await this.authFetch('/api/stream', {
@@ -1107,23 +1346,185 @@ class ChurchApp {
       }
     } catch (e) {
       alert('Stream link update failed: ' + e.message);
+    } finally {
+      this.setButtonLoading(btn, false, '', '<i class="fa-brands fa-youtube"></i> Update Sanctuary Live Stream');
     }
   }
 
-  // API TESTER
-  async testApi(endpoint) {
-    const out = document.getElementById('apiOutput');
-    out.innerText = `Executing GET ${endpoint}...`;
+  // BIBLE READING PLANS & VISUAL BUILDER
+  initPlanBuilder() {
+    const select = document.getElementById('builderBookSelect');
+    if (!select) return;
+    select.innerHTML = BIBLE_BOOKS_66.map(b => `
+      <option value="${b.eng}">${b.tel} (${b.eng})</option>
+    `).join('');
+
+    this.builderPortions = [];
+    this.loadPlanBuilderPreset('1-year-canonical');
+  }
+
+  loadPlanBuilderPreset(presetId) {
+    if (presetId === '1-year-canonical') {
+      document.getElementById('builderPlanId').value = '1-year-canonical';
+      document.getElementById('builderTitleEnglish').value = '1-Year Complete Bible Reading Plan';
+      document.getElementById('builderTitleTelugu').value = '1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక';
+      
+      this.builderPortions = [
+        { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 3, versesSummary: 'ఆదికాండము 1–3 / Genesis 1–3' },
+        { day: 2, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 4, endChapter: 7, versesSummary: 'ఆదికాండము 4–7 / Genesis 4–7' },
+        { day: 3, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 8, endChapter: 11, versesSummary: 'ఆదికాండము 8–11 / Genesis 8–11' },
+      ];
+    } else if (presetId === '2-year-canonical') {
+      document.getElementById('builderPlanId').value = '2-year-canonical';
+      document.getElementById('builderTitleEnglish').value = '2-Year Bible Reading Plan';
+      document.getElementById('builderTitleTelugu').value = '2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక';
+      this.builderPortions = [
+        { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 2, versesSummary: 'ఆదికాండము 1–2 / Genesis 1–2' },
+        { day: 2, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 3, endChapter: 3, versesSummary: 'ఆదికాండము 3 / Genesis 3' },
+      ];
+    } else {
+      document.getElementById('builderPlanId').value = 'custom-360-plan';
+      document.getElementById('builderTitleEnglish').value = '360-Day Church Bible Study Plan';
+      document.getElementById('builderTitleTelugu').value = '360 రోజుల సంఘ బైబిల్ అధ్యయన ప్రణాళిక';
+      this.builderPortions = [
+        { day: 1, book: 'Matthew', bookTelugu: 'మత్తయి సువార్త', startChapter: 1, endChapter: 2, versesSummary: 'మత్తయి సువార్త 1–2 / Matthew 1–2' },
+      ];
+    }
+
+    this.renderBuilderPortionsTable();
+  }
+
+  updatePortionSummaryPreview() {
+    const bookEng = document.getElementById('builderBookSelect').value;
+    const b = BIBLE_BOOKS_66.find(item => item.eng === bookEng) || { eng: bookEng, tel: bookEng };
+    const startCh = document.getElementById('builderStartCh').value || 1;
+    const endCh = document.getElementById('builderEndCh').value || startCh;
+
+    const chStr = startCh === endCh ? `${startCh}` : `${startCh}–${endCh}`;
+    const autoSummary = `${b.tel} ${chStr} / ${b.eng} ${chStr}`;
+    document.getElementById('builderSummary').value = autoSummary;
+  }
+
+  onBuilderBookChange(val) {
+    this.updatePortionSummaryPreview();
+  }
+
+  onBuilderDayChange(val) {
+    const dayNum = Number(val) || 1;
+    const existing = this.builderPortions.find(p => p.day === dayNum);
+    if (existing) {
+      document.getElementById('builderBookSelect').value = existing.book;
+      document.getElementById('builderStartCh').value = existing.startChapter;
+      document.getElementById('builderEndCh').value = existing.endChapter;
+      document.getElementById('builderSummary').value = existing.versesSummary;
+    } else {
+      this.updatePortionSummaryPreview();
+    }
+  }
+
+  addPortionToCurrentPlan() {
+    const day = Number(document.getElementById('builderDayNum').value) || 1;
+    const bookEng = document.getElementById('builderBookSelect').value;
+    const b = BIBLE_BOOKS_66.find(item => item.eng === bookEng) || { eng: bookEng, tel: bookEng };
+    const startChapter = Number(document.getElementById('builderStartCh').value) || 1;
+    const endChapter = Number(document.getElementById('builderEndCh').value) || startChapter;
+    const versesSummary = document.getElementById('builderSummary').value.trim() || `${b.tel} ${startChapter}–${endChapter}`;
+
+    const newPortion = {
+      day,
+      book: bookEng,
+      bookTelugu: b.tel,
+      startChapter,
+      endChapter,
+      versesSummary
+    };
+
+    const existingIdx = this.builderPortions.findIndex(p => p.day === day);
+    if (existingIdx > -1) {
+      this.builderPortions[existingIdx] = newPortion;
+    } else {
+      this.builderPortions.push(newPortion);
+    }
+
+    this.builderPortions.sort((a, b) => a.day - b.day);
+    this.renderBuilderPortionsTable();
+
+    document.getElementById('builderDayNum').value = day + 1;
+    this.onBuilderDayChange(day + 1);
+  }
+
+  removeBuilderPortion(dayNum) {
+    this.builderPortions = this.builderPortions.filter(p => p.day !== dayNum);
+    this.renderBuilderPortionsTable();
+  }
+
+  renderBuilderPortionsTable() {
+    const tbody = document.getElementById('builderPortionsTableBody');
+    const badge = document.getElementById('builderTotalCountBadge');
+    if (!tbody) return;
+
+    if (badge) badge.innerText = `${this.builderPortions.length} Days Configured`;
+
+    if (this.builderPortions.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-3 text-muted">No reading portions added yet. Select day and add portions above.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = this.builderPortions.map(p => `
+      <tr>
+        <td><strong>Day ${p.day}</strong></td>
+        <td>${p.bookTelugu} (${p.book})</td>
+        <td>Ch ${p.startChapter}${p.endChapter !== p.startChapter ? ` – ${p.endChapter}` : ''}</td>
+        <td><small>${p.versesSummary}</small></td>
+        <td>
+          <button class="btn btn-sm btn-danger-action" style="padding:4px 8px;" onclick="app.removeBuilderPortion(${p.day})">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async saveVisualPlanSubmit() {
+    const planId = document.getElementById('builderPlanId').value.trim();
+    const titleEnglish = document.getElementById('builderTitleEnglish').value.trim();
+    const titleTelugu = document.getElementById('builderTitleTelugu').value.trim();
+
+    if (!planId || !titleEnglish || this.builderPortions.length === 0) {
+      alert('Please provide Plan ID, Title, and at least 1 configured day portion.');
+      return;
+    }
+
+    this.setButtonLoading('btnSaveBuilderPlan', true, 'Deploying 365-Day Plan...');
+
     try {
-      const res = await fetch(endpoint);
+      const payload = {
+        planId,
+        titleEnglish,
+        titleTelugu,
+        durationDays: this.builderPortions.length || 365,
+        dailyPortions: this.builderPortions,
+        category: 'canonical'
+      };
+
+      const res = await this.authFetch('/api/bible-plans/admin/update-plan', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
       const json = await res.json();
-      out.innerText = JSON.stringify(json, null, 2);
+      if (json.success) {
+        alert(`🎉 Plan "${titleEnglish}" with ${this.builderPortions.length} days saved and deployed successfully to all mobile devices!`);
+        await this.loadBiblePlanStats();
+      } else {
+        alert('Failed: ' + (json.message || 'Error'));
+      }
     } catch (e) {
-      out.innerText = 'API Call Failed: ' + e.message;
+      alert('Plan save failed: ' + e.message);
+    } finally {
+      this.setButtonLoading('btnSaveBuilderPlan', false, '', '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy 365-Day Plan to Database');
     }
   }
 
-  // BIBLE READING PLANS & STATS
   async loadBiblePlanStats() {
     try {
       const res = await fetch('/api/bible-plans/admin/statistics');
@@ -1154,78 +1555,6 @@ class ChurchApp {
     }
   }
 
-  onSelectPlanTemplate(planId) {
-    const input = document.getElementById('adminPlanJsonInput');
-    if (planId === '1-year-canonical') {
-      input.value = JSON.stringify({
-        planId: '1-year-canonical',
-        titleTelugu: '1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక',
-        titleEnglish: '1-Year Complete Bible Reading Plan',
-        descriptionTelugu: 'ఆదికాండము నుండి ప్రకటన గ్రంథము వరకు 365 రోజులలో బైబిల్ అంతా క్రమంగా అధ్యయనం చేయండి.',
-        descriptionEnglish: 'Read through all 66 books and 1,189 chapters of the Holy Bible in 365 days.',
-        durationDays: 365,
-        category: 'canonical',
-        dailyPortions: [
-          { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 3, versesSummary: 'ఆదికాండము 1–3 / Genesis 1–3' },
-          { day: 2, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 4, endChapter: 7, versesSummary: 'ఆదికాండము 4–7 / Genesis 4–7' },
-        ]
-      }, null, 2);
-    } else if (planId === '2-year-canonical') {
-      input.value = JSON.stringify({
-        planId: '2-year-canonical',
-        titleTelugu: '2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక',
-        titleEnglish: '2-Year Bible Reading Plan',
-        descriptionTelugu: 'రోజుకు 1-2 అధ్యాయాలు చదువుతూ 730 రోజులలో సులభంగా పూర్తి చేయండి.',
-        descriptionEnglish: 'Read 1-2 chapters daily at a relaxed pace across 730 days.',
-        durationDays: 730,
-        category: 'canonical',
-        dailyPortions: [
-          { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 2, versesSummary: 'ఆదికాండము 1–2 / Genesis 1–2' },
-          { day: 2, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 3, endChapter: 3, versesSummary: 'ఆదికాండము 3 / Genesis 3' },
-        ]
-      }, null, 2);
-    } else {
-      input.value = JSON.stringify({
-        planId: 'custom-youth-plan',
-        titleTelugu: 'యూత్ బైబిల్ పఠన ప్రణాళిక',
-        titleEnglish: 'Youth Bible Study Plan',
-        descriptionTelugu: 'యువత కోసం ప్రత్యేక బైబిల్ అధ్యయన ప్రణాళిక',
-        descriptionEnglish: 'Special 30-day study plan for youth',
-        durationDays: 30,
-        category: 'custom',
-        dailyPortions: [
-          { day: 1, book: 'Proverbs', bookTelugu: 'సామెతలు', startChapter: 1, endChapter: 1, versesSummary: 'సామెతలు 1 / Proverbs 1' },
-          { day: 2, book: 'Proverbs', bookTelugu: 'సామెతలు', startChapter: 2, endChapter: 2, versesSummary: 'సామెతలు 2 / Proverbs 2' },
-        ]
-      }, null, 2);
-    }
-  }
-
-  async savePlanTemplateSubmit() {
-    const raw = document.getElementById('adminPlanJsonInput').value.trim();
-    if (!raw) {
-      alert('Please enter or paste plan JSON template.');
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-      const res = await this.authFetch('/api/bible-plans/admin/update-plan', {
-        method: 'POST',
-        body: JSON.stringify(parsed)
-      });
-      const json = await res.json();
-      if (json.success) {
-        alert('🎉 Bible Reading Plan template saved & deployed successfully to all mobile devices!');
-        await this.loadBiblePlanStats();
-      } else {
-        alert('Failed: ' + json.message);
-      }
-    } catch (e) {
-      alert('Invalid JSON template or error: ' + e.message);
-    }
-  }
-
   async saveDailyPromiseSubmit() {
     const verseTelugu = document.getElementById('adminPromiseTelugu').value.trim();
     const referenceTelugu = document.getElementById('adminPromiseRef').value.trim();
@@ -1235,6 +1564,9 @@ class ChurchApp {
       alert('Telugu Promise Verse and Reference are required.');
       return;
     }
+
+    const btn = document.querySelector("button[onclick='app.saveDailyPromiseSubmit()']");
+    this.setButtonLoading(btn, true, 'Publishing Promise...');
 
     try {
       const res = await this.authFetch('/api/bible-plans/daily-promise', {
@@ -1249,6 +1581,8 @@ class ChurchApp {
       }
     } catch (e) {
       alert('Error saving promise: ' + e.message);
+    } finally {
+      this.setButtonLoading(btn, false, '', '<i class="fa-solid fa-paper-plane"></i> Publish Today\'s Promise');
     }
   }
 
