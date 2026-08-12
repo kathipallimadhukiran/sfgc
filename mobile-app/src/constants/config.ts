@@ -9,32 +9,13 @@ export const MONGODB_DATABASE = process.env.EXPO_PUBLIC_MONGODB_DATABASE || 'chu
 const resolveBackendUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
-  // If envUrl is a remote cloud URL (e.g. https://...), use it directly
-  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+  // If envUrl is set, use it directly
+  if (envUrl && envUrl.length > 0) {
     return envUrl;
   }
 
-  // On Web, localhost:5000 is always correct
-  if (Platform.OS === 'web') {
-    return 'http://localhost:5000';
-  }
-
-  // On Native (Android / iOS):
-  // 1. Automatically detect the development host IP from Expo bundler connection
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
-  if (hostUri) {
-    const hostIp = hostUri.split(':')[0];
-    if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
-      return `http://${hostIp}:5000`;
-    }
-  }
-
-  // 2. Android Emulator fallback
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000';
-  }
-
-  return 'http://localhost:5000';
+  // Default to live Render cloud backend
+  return 'https://sfgc-church.onrender.com';
 };
 
 export const API_URL = resolveBackendUrl();

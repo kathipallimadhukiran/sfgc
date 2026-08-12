@@ -34,19 +34,31 @@ const migrateIndexes = async () => {
 
 export const connectDB = async (): Promise<typeof mongoose | null> => {
   try {
-    const conn = await mongoose.connect(config.mongoUri, {
-      serverSelectionTimeoutMS: 5000,
+    // Add event listeners for connection monitoring
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB Connection Error:', err.message);
     });
-    console.log(`\u2705 MongoDB Connected Successfully: ${conn.connection.host}/${conn.connection.name}`);
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB Disconnected. Attempting reconnection...');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB Reconnected successfully.');
+    });
+
+    const conn = await mongoose.connect(config.mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+    });
+    console.log(`✅ MongoDB Connected Successfully: ${conn.connection.host}/${conn.connection.name}`);
 
     // Run one-time index migration to fix language override error
     await migrateIndexes();
 
     return conn;
   } catch (error: any) {
-    console.warn(`\u26a0\ufe0f MongoDB Connection Warning: ${error.message}`);
-    console.log(`\u2139\ufe0f Running in resilient mode. Ensure MongoDB is running on ${config.mongoUri}`);
+    console.error(`❌ MongoDB Connection Failed: ${error.message}`);
+    console.log(`ℹ️ Ensure MONGODB_URI is correct and 0.0.0.0/0 is added in MongoDB Atlas Network Access.`);
     return null;
   }
 };
-

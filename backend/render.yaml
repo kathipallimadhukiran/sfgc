@@ -13,7 +13,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        value: mongodb+srv://kathipallimadhu_db_user:RqjWyCG22Ymr8R14@cluster0.tcnvbwf.mongodb.net/SFGC/
+        value: mongodb+srv://kathipallimadhu_db_user:RqjWyCG22Ymr8R14@cluster0.tcnvbwf.mongodb.net/churchconnect?retryWrites=true&w=majority
       - key: JWT_SECRET
         value: church_connect_super_secret_jwt_key_2025_blessed_secure
       - key: JWT_EXPIRE

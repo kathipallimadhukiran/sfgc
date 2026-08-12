@@ -6,6 +6,12 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   let message = err.message || 'Internal Server Error';
 
+  // Mongoose buffering error when database connection is down
+  if (err.name === 'MongooseError' || (err.message && err.message.includes('buffering timed out'))) {
+    statusCode = 503;
+    message = 'Database service temporarily unavailable. Please check MongoDB Atlas connection and IP access list.';
+  }
+
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
     statusCode = 400;
