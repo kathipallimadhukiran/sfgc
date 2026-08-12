@@ -16,10 +16,17 @@ for (const envPath of envPaths) {
   }
 }
 
+export const sanitizeMongoUri = (uri: string): string => {
+  if (!uri) return uri;
+  return uri.trim().replace(/\/+(\?|$)/g, '$1');
+};
+
+const rawMongoUri = process.env.MONGODB_URI || 'mongodb+srv://kathipallimadhu_db_user:RqjWyCG22Ymr8R14@cluster0.tcnvbwf.mongodb.net/churchconnect?retryWrites=true&w=majority';
+
 export const config = {
   port: Number(process.env.PORT) || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  mongoUri: process.env.MONGODB_URI || 'mongodb+srv://kathipallimadhu_db_user:RqjWyCG22Ymr8R14@cluster0.tcnvbwf.mongodb.net/churchconnect?retryWrites=true&w=majority',
+  mongoUri: sanitizeMongoUri(rawMongoUri),
   jwtSecret: process.env.JWT_SECRET || 'church_connect_super_secret_jwt_key_2025_blessed_secure',
   jwtExpire: process.env.JWT_EXPIRE || '30d',
   clientOrigin: process.env.CLIENT_ORIGIN || '*',
