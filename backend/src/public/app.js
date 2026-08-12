@@ -18,7 +18,177 @@ class ChurchApp {
     this.initSocket();
     this.initNavigation();
     this.initKeyboardShortcuts();
-    await this.refreshAll();
+
+    const isAuthenticated = await this.initAuth();
+    if (isAuthenticated) {
+      await this.refreshAll();
+    }
+  }
+
+  // Token & Admin Auth Helpers
+  getToken() {
+    return localStorage.getItem('churchAdminToken') || '';
+  }
+
+  setToken(token) {
+    if (token) {
+      localStorage.setItem('churchAdminToken', token);
+    } else {
+      localStorage.removeItem('churchAdminToken');
+    }
+  }
+
+  async initAuth() {
+    const token = this.getToken();
+    const savedUser = localStorage.getItem('churchAdminUser');
+    if (token && savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        this.currentUser = user;
+        this.showMainLayout(user);
+        return true;
+      } catch (e) {
+        console.warn('Saved user parse error:', e);
+      }
+    }
+
+    if (token) {
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          localStorage.setItem('churchAdminUser', JSON.stringify(data.user));
+          this.currentUser = data.user;
+          this.showMainLayout(data.user);
+          return true;
+        }
+      } catch (err) {
+        console.warn('Auth verify error:', err);
+      }
+    }
+
+    this.showLoginScreen();
+    return false;
+  }
+
+  showMainLayout(user) {
+    const loginScreen = document.getElementById('adminLoginScreen');
+    const appLayout = document.getElementById('adminAppLayout');
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (appLayout) appLayout.style.display = 'flex';
+
+    const nameEl = document.getElementById('adminUserName');
+    const roleEl = document.getElementById('adminUserRole');
+    if (nameEl) nameEl.innerText = user?.name || 'Church Administrator';
+    if (roleEl) roleEl.innerText = user?.role || 'Administrator';
+  }
+
+  showLoginScreen() {
+    const loginScreen = document.getElementById('adminLoginScreen');
+    const appLayout = document.getElementById('adminAppLayout');
+    if (loginScreen) loginScreen.style.display = 'flex';
+    if (appLayout) appLayout.style.display = 'none';
+  }
+
+  async handleLoginSubmit(e) {
+    if (e) e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const errEl = document.getElementById('loginErrorMsg');
+    const btnSubmit = document.getElementById('btnLoginSubmit');
+
+    if (!email || !password) {
+      if (errEl) { errEl.innerText = 'Please enter both email and password.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    if (errEl) errEl.style.display = 'none';
+    if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...'; }
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        this.setToken(data.token);
+        localStorage.setItem('churchAdminUser', JSON.stringify(data.user));
+        this.currentUser = data.user;
+        this.showMainLayout(data.user);
+        await this.refreshAll();
+      } else {
+        if (errEl) { errEl.innerText = data.message || 'Invalid email or password.'; errEl.style.display = 'block'; }
+      }
+    } catch (err) {
+      if (errEl) { errEl.innerText = 'Server connection error: ' + err.message; errEl.style.display = 'block'; }
+    } finally {
+      if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In to Admin Panel'; }
+    }
+  }
+
+  quickFillLogin(email, password) {
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginPassword').value = password;
+  }
+
+  togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input || !btn) return;
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+      input.type = 'text';
+      if (icon) icon.className = 'fa-solid fa-eye-slash';
+    } else {
+      input.type = 'password';
+      if (icon) icon.className = 'fa-solid fa-eye';
+    }
+  }
+
+  logout() {
+    this.setToken('');
+    localStorage.removeItem('churchAdminUser');
+    this.currentUser = null;
+    this.showLoginScreen();
+  }
+
+  setButtonLoading(btnOrId, isLoading, loadingText, defaultHtml) {
+    const btn = typeof btnOrId === 'string' ? document.getElementById(btnOrId) : btnOrId;
+    if (!btn) return;
+
+    if (isLoading) {
+      if (!btn.dataset.originalHtml) {
+        btn.dataset.originalHtml = btn.innerHTML;
+      }
+      btn.disabled = true;
+      btn.style.opacity = '0.85';
+      btn.style.cursor = 'not-allowed';
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${loadingText || 'Saving...'}`;
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.innerHTML = defaultHtml || btn.dataset.originalHtml || 'Save';
+    }
+  }
+
+  async authFetch(url, options = {}) {
+    let token = this.getToken();
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    options.headers = headers;
+
+    const res = await fetch(url, options);
+    if (res.status === 401) {
+      this.logout();
+      throw new Error('Session expired. Please log in again.');
+    }
+    return res;
   }
 
   // Socket.IO Real-time Connection
@@ -466,10 +636,11 @@ class ChurchApp {
       return;
     }
 
+    this.setButtonLoading('btnSubmitSong', true, 'Saving Song to Database...');
+
     try {
-      const res = await fetch('/api/songs', {
+      const res = await this.authFetch('/api/songs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, language, category, youtubeLink, chords, lyrics })
       });
       const data = await res.json();
@@ -482,13 +653,15 @@ class ChurchApp {
       }
     } catch (e) {
       alert('Failed to save song: ' + e.message);
+    } finally {
+      this.setButtonLoading('btnSubmitSong', false, '', 'Save Song');
     }
   }
 
   async deleteSong(id) {
     if (!confirm('Are you sure you want to delete this song?')) return;
     try {
-      await fetch(`/api/songs/${id}`, { method: 'DELETE' });
+      await this.authFetch(`/api/songs/${id}`, { method: 'DELETE' });
       await this.refreshAll();
     } catch (e) {
       alert('Delete failed: ' + e.message);
@@ -592,10 +765,11 @@ class ChurchApp {
       return;
     }
 
+    this.setButtonLoading('btnSubmitAssignment', true, 'Assigning Duty Role...');
+
     try {
-      const res = await fetch(`/api/users/${id}/assignments`, {
+      const res = await this.authFetch(`/api/users/${id}/assignments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, role, department, date, notes })
       });
       const data = await res.json();
@@ -608,6 +782,8 @@ class ChurchApp {
       }
     } catch (e) {
       alert('Assignment failed: ' + e.message);
+    } finally {
+      this.setButtonLoading('btnSubmitAssignment', false, '', 'Confirm Assignment');
     }
   }
 
@@ -625,10 +801,10 @@ class ChurchApp {
       <tr>
         <td>
           <div style="display:flex; align-items:center; gap:10px;">
-            ${(ev.banner || ev.imageUrl) ? `<img src="${ev.banner || ev.imageUrl}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">` : ''}
+            ${(ev.banner || ev.imageUrl) ? `<img src="${ev.banner || ev.imageUrl}" style="width:44px; height:44px; border-radius:6px; object-fit:cover; border:1px solid #eee;">` : ''}
             <div>
               <strong>${ev.title}</strong>
-              <div style="font-size:11px; color:#888;">${ev.speaker ? `🎙️ ${ev.speaker}` : ''}</div>
+              <div style="font-size:11px; color:#666;">${ev.speaker ? `🎙️ ${ev.speaker}` : ''}</div>
             </div>
           </div>
         </td>
@@ -636,11 +812,14 @@ class ChurchApp {
         <td>${new Date(ev.date).toLocaleDateString()} ${ev.time ? `• ${ev.time}` : ''}</td>
         <td>
           ${ev.requiresRSVP 
-            ? `<span class="badge badge-success"><i class="fa-solid fa-users"></i> ${(ev.rsvps || []).length} Attending</span>` 
-            : `<span class="badge badge-secondary">Open Service (No RSVP)</span>`}
+            ? `<span class="badge badge-success"><i class="fa-solid fa-users"></i> ${(ev.rsvps || []).length} RSVP Attending</span>` 
+            : `<span class="badge badge-secondary">Open Gathering (No RSVP)</span>`}
         </td>
         <td>
-          <button class="btn btn-sm btn-danger-action" style="padding: 6px 10px;" onclick="app.deleteEvent('${ev._id}')">
+          <button class="btn btn-sm btn-outline" style="padding: 6px 10px; margin-right: 4px;" onclick="app.editEvent('${ev._id}')" title="Edit Event">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </button>
+          <button class="btn btn-sm btn-danger-action" style="padding: 6px 10px;" onclick="app.deleteEvent('${ev._id}')" title="Delete Event">
             <i class="fa-solid fa-trash"></i>
           </button>
         </td>
@@ -648,25 +827,141 @@ class ChurchApp {
     `).join('');
   }
 
-  openEventModal() {
-    document.getElementById('eventTitle').value = '';
-    document.getElementById('eventSpeaker').value = '';
-    document.getElementById('eventVenue').value = 'Main Church Sanctuary';
-    document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('eventTime').value = '09:30 AM - 11:30 AM';
-    document.getElementById('eventBanner').value = '';
-    document.getElementById('eventRequiresRSVP').checked = false;
-    document.getElementById('eventDesc').value = '';
+  openEventModal(evt = null) {
+    document.getElementById('eventId').value = evt ? (evt._id || '') : '';
+    document.getElementById('eventModalTitle').innerText = evt ? 'Edit Church Event / Service' : 'Create Church Event / Service';
+    document.getElementById('eventTitle').value = evt ? (evt.title || '') : '';
+
+    // Handle Speaker Dropdown / Custom Input
+    const speakerVal = evt ? (evt.speaker || '') : '';
+    const speakerSelect = document.getElementById('eventSpeakerSelect');
+    const speakerCustom = document.getElementById('eventSpeakerCustom');
+    if (['Pastor John Doe', 'Pastor David', 'Evangelist Billy Graham'].includes(speakerVal)) {
+      speakerSelect.value = speakerVal;
+      speakerCustom.style.display = 'none';
+      speakerCustom.value = '';
+    } else if (speakerVal) {
+      speakerSelect.value = 'custom';
+      speakerCustom.style.display = 'block';
+      speakerCustom.value = speakerVal;
+    } else {
+      speakerSelect.value = 'Pastor John Doe';
+      speakerCustom.style.display = 'none';
+      speakerCustom.value = '';
+    }
+
+    // Handle Venue Dropdown / Custom Input
+    const venueVal = evt ? (evt.venue || '') : 'Main Sanctuary';
+    const venueSelect = document.getElementById('eventVenueSelect');
+    const venueCustom = document.getElementById('eventVenueCustom');
+    if (['Main Sanctuary', 'Youth Chapel', 'Branch Church 2'].includes(venueVal)) {
+      venueSelect.value = venueVal;
+      venueCustom.style.display = 'none';
+      venueCustom.value = '';
+    } else {
+      venueSelect.value = 'custom';
+      venueCustom.style.display = 'block';
+      venueCustom.value = venueVal;
+    }
+
+    document.getElementById('eventDate').value = evt ? (evt.date || '').split('T')[0] : new Date().toISOString().split('T')[0];
+    document.getElementById('eventTime').value = evt ? (evt.time || '') : '09:30 AM - 11:30 AM';
+    document.getElementById('eventBanner').value = evt ? (evt.banner || evt.imageUrl || '') : '';
+    document.getElementById('eventMapsLocation').value = evt ? (evt.mapsLocation || '') : '';
+    document.getElementById('eventRequiresRSVP').checked = evt ? Boolean(evt.requiresRSVP) : false;
+    document.getElementById('eventDesc').value = evt ? (evt.description || '') : '';
+
+    const fileInput = document.getElementById('eventBannerFile');
+    if (fileInput) fileInput.value = '';
+
+    this.handleBannerUrlInput(evt ? (evt.banner || evt.imageUrl || '') : '');
     document.getElementById('eventModal').classList.add('active');
   }
 
+  editEvent(id) {
+    const evt = this.events.find(e => e._id === id);
+    if (evt) {
+      this.openEventModal(evt);
+    }
+  }
+
+  handleSpeakerSelectChange(val) {
+    const customInput = document.getElementById('eventSpeakerCustom');
+    if (customInput) customInput.style.display = (val === 'custom') ? 'block' : 'none';
+  }
+
+  handleVenueSelectChange(val) {
+    const customInput = document.getElementById('eventVenueCustom');
+    if (customInput) customInput.style.display = (val === 'custom') ? 'block' : 'none';
+  }
+
+  handleBannerFileUpload(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Compress image to JPEG 75% quality (~40KB - 80KB)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        document.getElementById('eventBanner').value = compressedDataUrl;
+        this.handleBannerUrlInput(compressedDataUrl);
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  handleBannerUrlInput(val) {
+    const imgEl = document.getElementById('eventBannerPreview');
+    const container = document.getElementById('eventBannerPreviewContainer');
+    if (imgEl && container) {
+      if (val && val.trim()) {
+        imgEl.src = val.trim();
+        container.style.display = 'block';
+      } else {
+        container.style.display = 'none';
+      }
+    }
+  }
+
   async saveEventSubmit() {
+    const id = document.getElementById('eventId').value;
     const title = document.getElementById('eventTitle').value.trim();
-    const speaker = document.getElementById('eventSpeaker').value.trim();
-    const venue = document.getElementById('eventVenue').value.trim();
+
+    const speakerSelect = document.getElementById('eventSpeakerSelect').value;
+    const speakerCustom = document.getElementById('eventSpeakerCustom').value.trim();
+    const speaker = (speakerSelect === 'custom') ? speakerCustom : speakerSelect;
+
+    const venueSelect = document.getElementById('eventVenueSelect').value;
+    const venueCustom = document.getElementById('eventVenueCustom').value.trim();
+    const venue = (venueSelect === 'custom') ? venueCustom : venueSelect;
+
     const date = document.getElementById('eventDate').value;
     const time = document.getElementById('eventTime').value.trim();
     const banner = document.getElementById('eventBanner').value.trim();
+    const mapsLocation = document.getElementById('eventMapsLocation').value.trim();
     const requiresRSVP = document.getElementById('eventRequiresRSVP').checked;
     const description = document.getElementById('eventDesc').value.trim();
 
@@ -675,28 +970,42 @@ class ChurchApp {
       return;
     }
 
+    const payload = { title, speaker, venue, date, time, banner, imageUrl: banner, mapsLocation, requiresRSVP, description };
+
+    this.setButtonLoading('btnSubmitEvent', true, id ? 'Updating Event...' : 'Publishing Event...');
+
     try {
-      const res = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, speaker, venue, date, time, banner, requiresRSVP, description })
+      const url = id ? `/api/events/${id}` : '/api/events';
+      const method = id ? 'PUT' : 'POST';
+      const res = await this.authFetch(url, {
+        method,
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
-        alert('🎉 Event published successfully!');
+        alert(id ? '🎉 Event updated successfully!' : '🎉 Event published successfully!');
         this.closeModal('eventModal');
         await this.refreshAll();
+      } else {
+        alert('Event operation failed: ' + (data.message || 'Unknown error'));
       }
     } catch (e) {
-      alert('Event creation failed: ' + e.message);
+      alert('Event operation failed: ' + e.message);
+    } finally {
+      this.setButtonLoading('btnSubmitEvent', false, '', id ? 'Update Event' : 'Publish Event');
     }
   }
 
   async deleteEvent(id) {
     if (!confirm('Delete this event?')) return;
     try {
-      await fetch(`/api/events/${id}`, { method: 'DELETE' });
-      await this.refreshAll();
+      const res = await this.authFetch(`/api/events/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        await this.refreshAll();
+      } else {
+        alert('Delete failed: ' + (data.message || 'Unknown error'));
+      }
     } catch (e) {
       alert('Delete failed: ' + e.message);
     }
@@ -746,10 +1055,11 @@ class ChurchApp {
       return;
     }
 
+    this.setButtonLoading('btnSubmitNotice', true, 'Broadcasting Notice...');
+
     try {
-      const res = await fetch('/api/notices', {
+      const res = await this.authFetch('/api/notices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, description, location, time })
       });
       const data = await res.json();
@@ -760,13 +1070,15 @@ class ChurchApp {
       }
     } catch (e) {
       alert('Notice creation failed: ' + e.message);
+    } finally {
+      this.setButtonLoading('btnSubmitNotice', false, '', 'Post Notice');
     }
   }
 
   async deleteNotice(id) {
     if (!confirm('Delete this notice?')) return;
     try {
-      await fetch(`/api/notices/${id}`, { method: 'DELETE' });
+      await this.authFetch(`/api/notices/${id}`, { method: 'DELETE' });
       await this.refreshAll();
     } catch (e) {
       alert('Delete failed: ' + e.message);
@@ -782,9 +1094,8 @@ class ChurchApp {
     }
 
     try {
-      const res = await fetch('/api/stream', {
+      const res = await this.authFetch('/api/stream', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ activeYoutubeLink: url, isStreamingLive: true })
       });
       const data = await res.json();
@@ -899,9 +1210,8 @@ class ChurchApp {
 
     try {
       const parsed = JSON.parse(raw);
-      const res = await fetch('/api/bible-plans/admin/update-plan', {
+      const res = await this.authFetch('/api/bible-plans/admin/update-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsed)
       });
       const json = await res.json();
@@ -927,9 +1237,8 @@ class ChurchApp {
     }
 
     try {
-      const res = await fetch('/api/bible-plans/daily-promise', {
+      const res = await this.authFetch('/api/bible-plans/daily-promise', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verseTelugu, referenceTelugu, verseEnglish })
       });
       const json = await res.json();

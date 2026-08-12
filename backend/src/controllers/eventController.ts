@@ -7,11 +7,23 @@ import { AuthRequest } from '../middleware/auth';
 // @desc    Get all events ordered by date
 export const getEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Auto-delete events that ended 4 hours after scheduled start time (e.g. 1pm event auto-deleted at 5pm)
+    // Auto-delete events that ended 4 hours after scheduled start time
     const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     await Event.deleteMany({ date: { $lt: fourHoursAgo } });
 
-    const events = await Event.find().sort({ date: 1 });
+    // Clean up any old uncompressed bloated base64 strings in database (>150KB string length)
+    const allEvents = await Event.find().sort({ date: 1 });
+    let payloadFixed = false;
+    for (const ev of allEvents) {
+      if (ev.banner && ev.banner.length > 150000) {
+        ev.banner = ''; // Purge mega base64 string to restore instant response speed
+        await ev.save();
+        payloadFixed = true;
+        console.log(`⚡ Auto-cleaned bloated image payload for event: ${ev.title}`);
+      }
+    }
+
+    const events = payloadFixed ? await Event.find().sort({ date: 1 }) : allEvents;
     res.status(200).json({
       success: true,
       count: events.length,
