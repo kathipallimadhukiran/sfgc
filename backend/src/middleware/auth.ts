@@ -56,8 +56,8 @@ export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction
     return;
   }
 
-  const role = req.user.role;
-  if (role !== 'Admin' && role !== 'Super Admin') {
+  const role = (req.user.role || '').toLowerCase();
+  if (role !== 'admin' && role !== 'super admin') {
     res.status(403).json({ success: false, message: 'Admin privileges required for this action.' });
     return;
   }
@@ -72,7 +72,10 @@ export const requireRole = (allowedRoles: string[]) => {
       return;
     }
 
-    if (!allowedRoles.includes(req.user.role) && req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
+    const userRole = (req.user.role || '').toLowerCase();
+    const lowerAllowed = allowedRoles.map(r => r.toLowerCase());
+
+    if (!lowerAllowed.includes(userRole) && userRole !== 'admin' && userRole !== 'super admin') {
       res.status(403).json({ success: false, message: `Access restricted to roles: ${allowedRoles.join(', ')}` });
       return;
     }

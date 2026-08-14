@@ -731,9 +731,19 @@
         document.getElementById('selectPresetPlan').value = planFromUrl;
       }
       renderBookReorderList();
+      history.replaceState({ step: 1 }, '', '#step-1');
     });
 
-    function goToStep(stepNum) {
+    window.addEventListener('popstate', (e) => {
+      if (e.state && e.state.step) {
+        goToStep(e.state.step, false);
+      }
+    });
+
+    function goToStep(stepNum, pushState = true) {
+      if (pushState) {
+        history.pushState({ step: stepNum }, '', `#step-${stepNum}`);
+      }
       for (let i = 1; i <= 5; i++) {
         const panel = document.getElementById(`stepPanel${i}`);
         const indicator = document.getElementById(`stepIndicator${i}`);

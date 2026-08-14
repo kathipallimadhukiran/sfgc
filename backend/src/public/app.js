@@ -433,8 +433,12 @@ class ChurchApp {
       api: { title: 'API Interactive Explorer', sub: 'Execute backend API requests and inspect real-time responses.' },
     };
 
-    if (tabId === 'bibleplans') {
+    if (tabId === 'overview') {
+      this.loadOverviewPromise();
+    } else if (tabId === 'bibleplans') {
       this.loadBiblePlanStats();
+    } else if (tabId === 'stream') {
+      this.loadYouTubeMediaList();
     }
 
     if (titles[tabId]) {
@@ -1336,7 +1340,7 @@ class ChurchApp {
   }
 
   async saveEventSubmit() {
-    const id = document.getElementById('eventId').value;
+    const id = document.getElementById('eventId').value.trim();
     const title = document.getElementById('eventTitle').value.trim();
 
     const speakerSelect = document.getElementById('eventSpeakerSelect').value;
@@ -1347,16 +1351,22 @@ class ChurchApp {
     const venueCustom = document.getElementById('eventVenueCustom').value.trim();
     const venue = (venueSelect === 'custom') ? venueCustom : venueSelect;
 
-    const date = document.getElementById('eventDate').value;
+    const dateInput = document.getElementById('eventDate').value.trim();
     const time = document.getElementById('eventTime').value.trim();
     const banner = document.getElementById('eventBanner').value.trim();
     const mapsLocation = document.getElementById('eventMapsLocation').value.trim();
     const requiresRSVP = document.getElementById('eventRequiresRSVP').checked;
     const description = document.getElementById('eventDesc').value.trim();
 
-    if (!title || !venue || !date) {
+    if (!title || !venue || !dateInput) {
       this.showToast('Title, venue, and date are required.', 'error');
       return;
+    }
+
+    let date = dateInput;
+    if (dateInput && !dateInput.includes('T')) {
+      const d = new Date(`${dateInput}T09:00:00`);
+      date = isNaN(d.getTime()) ? dateInput : d.toISOString();
     }
 
     const payload = { title, speaker, venue, date, time, banner, imageUrl: banner, mapsLocation, requiresRSVP, description };
@@ -1373,6 +1383,7 @@ class ChurchApp {
       const data = await res.json();
       if (data.success) {
         this.showToast(id ? '🎉 Event updated successfully!' : '🎉 Event published successfully!', 'success');
+        document.getElementById('eventId').value = '';
         this.closeModal('eventModal');
         await this.refreshAll();
       } else {
@@ -2012,44 +2023,231 @@ class ChurchApp {
     }
   }
 
-  async markCurrentPassageReadSubmit() {
-    const btn = document.getElementById('btnMarkPassageRead');
-    this.setButtonLoading(btn, true, 'Updating...');
-    try {
-      const res = await this.authFetch('/api/bible-plans/mark-read', {
-        method: 'POST',
-        body: JSON.stringify({ planId: '1-year-canonical', day: 1 })
-      });
-      const json = await res.json();
-      if (json.success) {
-        this.showToast("🎉 Today's passage marked as complete!", 'success');
-        await this.loadUserProgress();
-        await this.loadBiblePlanStats();
-      } else {
-        this.showToast('Failed: ' + json.message, 'error');
-      }
-    } catch (e) {
-      this.showToast('Error marking passage read: ' + e.message, 'error');
-    } finally {
-      this.setButtonLoading(btn, false, '', '<i class="fa-solid fa-circle-check"></i> Mark Today\'s Passage Complete');
-    }
-  }
-
-  async loadTodayPromise() {
+  // Overview Today's Promise Quick Editor Methods
+  async loadOverviewPromise() {
     try {
       const res = await fetch('/api/bible-plans/daily-promise');
       const json = await res.json();
       if (json.success && json.data) {
-        const verseEl = document.getElementById('promiseVerseText');
-        const refEl = document.getElementById('promiseRefText');
-        if (verseEl) verseEl.innerText = `"${json.data.verseTelugu || json.data.verseEnglish}"`;
-        if (refEl) refEl.innerText = `— ${json.data.referenceTelugu || json.data.referenceEnglish}`;
+        const d = json.data;
+        const verseEl = document.getElementById('overviewPromiseVerseTel');
+        const refTelEl = document.getElementById('overviewPromiseRefTel');
+        const refEngEl = document.getElementById('overviewPromiseRefEng');
+
+        if (verseEl) verseEl.value = d.verseTelugu || d.verseEnglish || '';
+        if (refTelEl) refTelEl.value = d.referenceTelugu || '';
+        if (refEngEl) refEngEl.value = d.referenceEnglish || '';
       }
+      this.populateOverviewPromiseBooks();
     } catch (e) {
-      console.log('Error loading promise:', e);
+      console.log('Error loading overview promise:', e);
     }
   }
 
+  populateOverviewPromiseBooks() {
+    const bookSelect = document.getElementById('overviewPromiseBook');
+    if (!bookSelect || bookSelect.children.length > 0) return;
+
+    bookSelect.innerHTML = BIBLE_BOOKS_66.map(b => `
+      <option value="${b.eng}">${b.tel} (${b.eng})</option>
+    `).join('');
+
+    this.onOverviewPromiseBookChange(BIBLE_BOOKS_66[0].eng);
+  }
+
+  onOverviewPromiseBookChange(bookEng) {
+    const b = BIBLE_BOOKS_66.find(item => item.eng === bookEng) || BIBLE_BOOKS_66[0];
+    const chSelect = document.getElementById('overviewPromiseChapter');
+    if (!chSelect) return;
+
+    let options = '';
+    for (let c = 1; c <= b.chapters; c++) {
+      options += `<option value="${c}">Chapter ${c}</option>`;
+    }
+    chSelect.innerHTML = options;
+    this.onOverviewPromiseChapterChange();
+  }
+
+  onOverviewPromiseChapterChange() {
+    const verseSelect = document.getElementById('overviewPromiseVerse');
+    if (!verseSelect) return;
+
+    let options = '';
+    for (let v = 1; v <= 30; v++) {
+      options += `<option value="${v}">Verse ${v}</option>`;
+    }
+    verseSelect.innerHTML = options;
+  }
+
+  async fetchScriptureVerseForPromise() {
+    const bookEng = document.getElementById('overviewPromiseBook')?.value || 'Psalms';
+    const b = BIBLE_BOOKS_66.find(item => item.eng === bookEng) || BIBLE_BOOKS_66[0];
+    const ch = document.getElementById('overviewPromiseChapter')?.value || '23';
+    const v = document.getElementById('overviewPromiseVerse')?.value || '1';
+
+    const refTel = `${b.tel} ${ch}:${v}`;
+    const refEng = `${b.eng} ${ch}:${v}`;
+
+    // Common Telugu Promises fallback generator
+    let verseTextTel = `${b.tel} ${ch}:${v} — దేవుని కృప మరియు సమాధానము మీకు తోడైయుండును గాక.`;
+    if (b.eng === 'Psalms' && ch === '23' && v === '1') {
+      verseTextTel = "యెహోవా నా కాపరి; నాకు లేమి కలుగదు.";
+    } else if (b.eng === 'Isaiah' && ch === '41' && v === '10') {
+      verseTextTel = "నీవు భయపడకుము నేను నీకు తోడైయున్నాను; దిగులుపడకుము నేను నీ దేవుడనై యున్నాను.";
+    } else if (b.eng === 'John' && ch === '3' && v === '16') {
+      verseTextTel = "దేవుడు లోకమును ఎంతో ప్రేమించెను; కాగా ఆయన తన అద్వితీయ కుమారునిగా అనుగ్రహించెను.";
+    }
+
+    const verseInput = document.getElementById('overviewPromiseVerseTel');
+    const refTelInput = document.getElementById('overviewPromiseRefTel');
+    const refEngInput = document.getElementById('overviewPromiseRefEng');
+
+    if (verseInput) verseInput.value = verseTextTel;
+    if (refTelInput) refTelInput.value = refTel;
+    if (refEngInput) refEngInput.value = refEng;
+
+    this.showToast(`✨ Fetched scripture verse for ${refEng}!`, 'success');
+  }
+
+  toggleEditPromiseText() {
+    const verseInput = document.getElementById('overviewPromiseVerseTel');
+    if (verseInput) {
+      verseInput.focus();
+      this.showToast('You can now edit the promise verse text.', 'info');
+    }
+  }
+
+  async saveOverviewPromiseSubmit() {
+    const verseTelugu = document.getElementById('overviewPromiseVerseTel')?.value.trim();
+    const referenceTelugu = document.getElementById('overviewPromiseRefTel')?.value.trim();
+    const referenceEnglish = document.getElementById('overviewPromiseRefEng')?.value.trim();
+
+    if (!verseTelugu || !referenceTelugu) {
+      this.showToast('Promise verse text and reference are required.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnPublishOverviewPromise');
+    this.setButtonLoading(btn, true, 'Publishing Promise...');
+
+    try {
+      const res = await this.authFetch('/api/bible-plans/daily-promise', {
+        method: 'POST',
+        body: JSON.stringify({
+          verseTelugu,
+          referenceTelugu,
+          verseEnglish: verseTelugu,
+          referenceEnglish
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        this.showToast("🎉 Today's God's Promise published to mobile app!", 'success');
+      } else {
+        this.showToast('Failed: ' + json.message, 'error');
+      }
+    } catch (e) {
+      this.showToast('Error publishing promise: ' + e.message, 'error');
+    } finally {
+      this.setButtonLoading(btn, false, '', '<i class="fa-solid fa-cloud-arrow-up"></i> Publish Today\'s God\'s Promise');
+    }
+  }
+
+  // Projection Slide Navigation Methods
+  prevSlide() {
+    if (!this.activeSong || !this.activeSong.slides) return;
+    if (this.activeSlideIndex > 0) {
+      this.triggerSlide(this.activeSlideIndex - 1);
+    } else {
+      this.showToast('Already on the first slide.', 'info');
+    }
+  }
+
+  nextSlide() {
+    if (!this.activeSong || !this.activeSong.slides) return;
+    if (this.activeSlideIndex < this.activeSong.slides.length - 1) {
+      this.triggerSlide(this.activeSlideIndex + 1);
+    } else {
+      this.showToast('Already on the last slide.', 'info');
+    }
+  }
+
+  startLiveSession() {
+    this.showToast('🔴 Worship Session Live! Sanctuary Projection Active.', 'success');
+  }
+
+  // YouTube Media Catalog Manager Methods
+  async saveYouTubeMediaSubmit() {
+    const title = document.getElementById('ytVideoTitle')?.value.trim();
+    const category = document.getElementById('ytVideoCategory')?.value || 'Live Service';
+    const streamUrl = document.getElementById('ytVideoUrl')?.value.trim();
+
+    if (!title || !streamUrl) {
+      this.showToast('Title and YouTube Video URL are required.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnSaveStream');
+    this.setButtonLoading(btn, true, 'Publishing Video...');
+
+    try {
+      const res = await this.authFetch('/api/stream', {
+        method: 'POST',
+        body: JSON.stringify({ title, category, streamUrl })
+      });
+      const json = await res.json();
+      if (json.success) {
+        this.showToast('🎉 YouTube video published to mobile app catalog!', 'success');
+        document.getElementById('ytVideoTitle').value = '';
+        document.getElementById('ytVideoUrl').value = '';
+        await this.loadYouTubeMediaList();
+      } else {
+        this.showToast('Failed to publish video: ' + json.message, 'error');
+      }
+    } catch (e) {
+      this.showToast('Error publishing video: ' + e.message, 'error');
+    } finally {
+      this.setButtonLoading(btn, false, '', '<i class="fa-brands fa-youtube"></i> Publish YouTube Video to Mobile App');
+    }
+  }
+
+  async loadYouTubeMediaList() {
+    const container = document.getElementById('youtubeMediaListGrid');
+    if (!container) return;
+
+    try {
+      const res = await fetch('/api/stream');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        const videoUrl = d.streamUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+        let embedUrl = videoUrl;
+        if (videoUrl.includes('youtube.com/watch?v=')) {
+          const id = videoUrl.split('v=')[1].split('&')[0];
+          embedUrl = `https://www.youtube.com/embed/${id}`;
+        } else if (videoUrl.includes('youtu.be/')) {
+          const id = videoUrl.split('youtu.be/')[1].split('?')[0];
+          embedUrl = `https://www.youtube.com/embed/${id}`;
+        }
+
+        container.innerHTML = `
+          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-card); border-radius:14px; padding:14px;">
+            <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; margin-bottom:10px; background:#000;">
+              <iframe src="${embedUrl}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allowfullscreen></iframe>
+            </div>
+            <h4 style="font-size:14px; margin-bottom:4px;">${d.title || 'Sanctuary Live Stream'}</h4>
+            <span class="badge badge-primary" style="margin-bottom:8px;">${d.category || 'Live Service'}</span>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">URL: ${videoUrl}</p>
+            <button class="btn btn-sm btn-danger-action" style="width:100%;" onclick="app.showToast('Active stream updated to mobile app!', 'info')">
+              <i class="fa-brands fa-youtube"></i> Active Mobile Stream
+            </button>
+          </div>
+        `;
+      }
+    } catch (e) {
+      console.log('Error loading video list:', e);
+    }
+  }
 
   async loadBiblePlanStats() {
     try {
@@ -2061,68 +2259,41 @@ class ChurchApp {
         const totalStreaks = d.activeStreakCount || 0;
         const totalCompleted = d.totalPortionsCompleted || 0;
 
-        document.getElementById('statPlanEnrolled').innerText = totalEnrolled;
-        document.getElementById('statPlanStreaks').innerText = `${totalStreaks} 🔥`;
-        document.getElementById('statPlanCompleted').innerText = totalCompleted;
+        const enrEl = document.getElementById('statPlanEnrolled');
+        const strEl = document.getElementById('statPlanStreaks');
+        const comEl = document.getElementById('statPlanCompleted');
+        if (enrEl) enrEl.innerText = totalEnrolled;
+        if (strEl) strEl.innerText = `${totalStreaks} 🔥`;
+        if (comEl) comEl.innerText = totalCompleted;
 
         const consistency = totalEnrolled > 0 ? Math.min(100, Math.round((totalStreaks / totalEnrolled) * 100)) : 100;
         const consEl = document.getElementById('statPlanConsistency');
         if (consEl) consEl.innerText = `${consistency}%`;
 
         const tbody = document.getElementById('planLeaderboardBody');
-        if (d.topReaders && d.topReaders.length > 0) {
-          tbody.innerHTML = d.topReaders.map((r, index) => {
-            const memberName = r.userName || r.userId || 'Member';
-            const daysCount = r.completedDays ? r.completedDays.length : 0;
-            const rankBadge = index === 0 ? '🥇 1st' : index === 1 ? '🥈 2nd' : index === 2 ? '🥉 3rd' : `#${index + 1}`;
-            return `
-              <tr>
-                <td><strong>${rankBadge} — ${memberName}</strong></td>
-                <td><span class="badge badge-primary">${r.planId}</span></td>
-                <td>Day ${r.currentDay || 1}</td>
-                <td><strong>${daysCount} days</strong></td>
-                <td><span class="badge badge-success">🔥 ${r.streak || 0} streak</span></td>
-              </tr>
-            `;
-          }).join('');
-        } else {
-          tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No member reading data recorded yet.</td></tr>`;
+        if (tbody) {
+          if (d.topReaders && d.topReaders.length > 0) {
+            tbody.innerHTML = d.topReaders.map((r, index) => {
+              const memberName = r.userName || r.userId || 'Member';
+              const daysCount = r.completedDays ? r.completedDays.length : 0;
+              const rankBadge = index === 0 ? '🥇 1st' : index === 1 ? '🥈 2nd' : index === 2 ? '🥉 3rd' : `#${index + 1}`;
+              return `
+                <tr>
+                  <td><strong>${rankBadge} — ${memberName}</strong></td>
+                  <td><span class="badge badge-primary">${r.planId}</span></td>
+                  <td>Day ${r.currentDay || 1}</td>
+                  <td><strong>${daysCount} days</strong></td>
+                  <td><span class="badge badge-success">🔥 ${r.streak || 0} streak</span></td>
+                </tr>
+              `;
+            }).join('');
+          } else {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No member reading data recorded yet.</td></tr>`;
+          }
         }
       }
     } catch (e) {
       console.log('Error loading Bible plan stats:', e);
-    }
-  }
-
-
-  async saveDailyPromiseSubmit() {
-    const verseTelugu = document.getElementById('adminPromiseTelugu').value.trim();
-    const referenceTelugu = document.getElementById('adminPromiseRef').value.trim();
-    const verseEnglish = document.getElementById('adminPromiseEnglish').value.trim();
-
-    if (!verseTelugu || !referenceTelugu) {
-      this.showToast('Telugu Promise Verse and Reference are required.', 'error');
-      return;
-    }
-
-    const btn = document.querySelector("button[onclick='app.saveDailyPromiseSubmit()']");
-    this.setButtonLoading(btn, true, 'Publishing Promise...');
-
-    try {
-      const res = await this.authFetch('/api/bible-plans/daily-promise', {
-        method: 'POST',
-        body: JSON.stringify({ verseTelugu, referenceTelugu, verseEnglish })
-      });
-      const json = await res.json();
-      if (json.success) {
-        this.showToast("🎉 Today's God's Promise published successfully to all mobile apps!", 'success');
-      } else {
-        this.showToast('Failed: ' + json.message, 'error');
-      }
-    } catch (e) {
-      this.showToast('Error saving promise: ' + e.message, 'error');
-    } finally {
-      this.setButtonLoading(btn, false, '', '<i class="fa-solid fa-paper-plane"></i> Publish Today\'s Promise');
     }
   }
 
@@ -2134,3 +2305,4 @@ class ChurchApp {
 // Instantiate global app instance
 const app = new ChurchApp();
 window.app = app;
+

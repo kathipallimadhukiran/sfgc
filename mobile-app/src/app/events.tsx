@@ -519,7 +519,12 @@ export default function EventsScreen() {
 
         {(() => {
           const activeEvents = (events || [])
-            .filter((e) => new Date(e.date).getTime() + 4 * 3600 * 1000 >= currentTime)
+            .filter((e) => {
+              const eventDate = new Date(e.date);
+              // Allow event to remain active for the full calendar day until 23:59:59
+              const endOfDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), 23, 59, 59).getTime();
+              return endOfDay >= currentTime;
+            })
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
           return activeEvents && activeEvents.length > 0 ? (

@@ -5,9 +5,6 @@ import { Notice } from '../models/Notice';
 // @desc    Get all notices
 export const getNotices = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    await Notice.deleteMany({ createdAt: { $lt: twentyFourHoursAgo } });
-
     const notices = await Notice.find().sort({ isPinned: -1, createdAt: -1 });
     res.status(200).json({
       success: true,

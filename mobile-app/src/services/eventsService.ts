@@ -30,14 +30,21 @@ class EventsService {
 
   // Get all events
   async getEvents(): Promise<{ success: boolean; events: EventItem[] }> {
-    const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+    // Keep events for today and future days (start of today in local time)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const minTimestamp = todayStart.getTime() - (24 * 60 * 60 * 1000); // Keep up to 24h past events
+
     try {
       // 1. Attempt backend fetch
       try {
         const res = await apiClient.get('/api/events');
         if (res.success && Array.isArray(res.events)) {
           const validEvents = res.events
-            .filter((e: any) => new Date(e.date).getTime() >= fourHoursAgo)
+            .filter((e: any) => {
+              const eventTime = new Date(e.date).getTime();
+              return !isNaN(eventTime) ? eventTime >= minTimestamp : true;
+            })
             .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
           await mongoService.setLocalCollection(COLLECTION, validEvents);
           return { success: true, events: validEvents };
@@ -53,7 +60,10 @@ class EventsService {
       });
       const realEvents = events
         .filter((e: any) => !String(e._id || e.id || '').startsWith('seed_event_'))
-        .filter((e: any) => new Date(e.date).getTime() >= fourHoursAgo)
+        .filter((e: any) => {
+          const eventTime = new Date(e.date).getTime();
+          return !isNaN(eventTime) ? eventTime >= minTimestamp : true;
+        })
         .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
       return { success: true, events: realEvents };
     } catch (err) {

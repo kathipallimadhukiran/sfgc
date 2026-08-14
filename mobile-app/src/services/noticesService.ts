@@ -57,8 +57,7 @@ class NoticesService {
         sort: { createdAt: -1 }
       });
       const realNotices = notices
-        .filter((n: any) => !String(n._id || n.id || '').startsWith('seed_'))
-        .filter((n: any) => new Date(n.createdAt || n.date || Date.now()).getTime() >= (Date.now() - 24 * 60 * 60 * 1000));
+        .filter((n: any) => !String(n._id || n.id || '').startsWith('seed_'));
       return { success: true, notices: realNotices };
     } catch (err) {
       console.error('Error getting notices:', err);

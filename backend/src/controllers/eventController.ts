@@ -7,23 +7,7 @@ import { AuthRequest } from '../middleware/auth';
 // @desc    Get all events ordered by date
 export const getEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Auto-delete events that ended 4 hours after scheduled start time
-    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
-    await Event.deleteMany({ date: { $lt: fourHoursAgo } });
-
-    // Clean up any old uncompressed bloated base64 strings in database (>150KB string length)
-    const allEvents = await Event.find().sort({ date: 1 });
-    let payloadFixed = false;
-    for (const ev of allEvents) {
-      if (ev.banner && ev.banner.length > 150000) {
-        ev.banner = ''; // Purge mega base64 string to restore instant response speed
-        await ev.save();
-        payloadFixed = true;
-        console.log(`⚡ Auto-cleaned bloated image payload for event: ${ev.title}`);
-      }
-    }
-
-    const events = payloadFixed ? await Event.find().sort({ date: 1 }) : allEvents;
+    const events = await Event.find().sort({ date: 1 });
     res.status(200).json({
       success: true,
       count: events.length,
@@ -75,7 +59,11 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
 
     // Auto-post Church Notification / Announcement to all members
     try {
-      const eventDateStr = new Date(date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      const parsedDate = new Date(date);
+      const eventDateStr = !isNaN(parsedDate.getTime()) 
+        ? parsedDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+        : date;
+
       const newNotice = await Notice.create({
         title: `📢 New Event: ${title.trim()}`,
         description: `📅 ${eventDateStr} ${time ? `at ${time}` : ''} | 📍 ${venue.trim()}${speaker ? ` | 🎙️ Speaker: ${speaker.trim()}` : ''}\n${description ? description.trim() : 'Warm welcome to attend and be blessed in God\'s presence!'}`,
@@ -86,9 +74,10 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
         isPinned: false,
       });
 
-      // Broadcast notice to connected clients
+      // Broadcast newEvent & newNotice to connected clients
       const io = (req as any).app.get('io');
       if (io) {
+        io.emit('newEvent', newEvent);
         io.emit('newNotice', newNotice);
       }
     } catch (noticeErr) {
@@ -123,6 +112,12 @@ export const updateEvent = async (req: Request, res: Response, next: NextFunctio
     if (!updatedEvent) {
       res.status(404).json({ success: false, message: 'Event not found.' });
       return;
+    }
+
+    // Broadcast updated event to connected clients
+    const io = (req as any).app.get('io');
+    if (io) {
+      io.emit('newEvent', updatedEvent);
     }
 
     res.status(200).json({

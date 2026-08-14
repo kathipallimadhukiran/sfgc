@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { BiblePlan, UserPlanProgress } from '../models/biblePlanModel';
 import { DailyPromise } from '../models/DailyPromise';
+import { Notice } from '../models/Notice';
 
 // Helper function to shuffle options randomly so correct answer is NOT always Option A (0)
 const shuffleQuestion = (q: any) => {
@@ -710,6 +711,37 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
       },
       { upsert: true, new: true }
     );
+
+    // Auto-post Church Notification / Announcement to all mobile members
+    let newNotice = null;
+    try {
+      newNotice = await Notice.create({
+        title: `🌅 నేటి వాగ్దానం (Daily Promise)`,
+        description: `📖 "${verseTelugu.trim()}" - ${referenceTelugu.trim()}${verseEnglish ? `\n\n"${verseEnglish.trim()}" - ${referenceEnglish || ''}` : ''}`,
+        date: new Date().toISOString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        location: 'Daily Scripture Verse',
+        isPinned: false,
+      });
+    } catch (noticeErr) {
+      console.log('Notice creation for Daily Promise ignored:', noticeErr);
+    }
+
+    // Broadcast real-time socket events
+    const io = (req as any).app?.get('io');
+    if (io) {
+      io.emit('new_promise_notification', {
+        title: '🌅 Today\'s Daily Promise',
+        verseTelugu,
+        referenceTelugu,
+        verseEnglish,
+        referenceEnglish,
+        promise,
+      });
+      if (newNotice) {
+        io.emit('newNotice', newNotice);
+      }
+    }
 
     res.status(200).json({ success: true, message: 'Daily Promise updated successfully', data: promise });
   } catch (error: any) {

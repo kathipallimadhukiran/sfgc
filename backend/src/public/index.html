@@ -207,6 +207,73 @@
 
         <!-- Two Column Content Grid -->
         <div class="content-grid-2">
+          <!-- Today's God's Promise Quick Editor Card -->
+          <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05)); border: 1px solid rgba(245, 158, 11, 0.3); grid-column: 1 / -1;">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-dove text-amber"></i> Today's God's Promise (దేవుని వాగ్దానము) Quick Editor</h3>
+                <p class="subtitle-text">Select Scripture book, chapter & verse to publish or schedule daily God's promise.</p>
+              </div>
+              <button class="btn btn-sm btn-outline" onclick="app.loadOverviewPromise()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+
+            <!-- Smart Scripture Picker Controls -->
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; margin-bottom: 12px;">
+              <div class="form-group mb-0">
+                <label style="font-size:11px; font-weight:700;">Bible Book (గ్రంథము)</label>
+                <select id="overviewPromiseBook" class="form-select" style="padding:8px 10px; font-size:13px;" onchange="app.onOverviewPromiseBookChange(this.value)">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group mb-0">
+                <label style="font-size:11px; font-weight:700;">Chapter</label>
+                <select id="overviewPromiseChapter" class="form-select" style="padding:8px 10px; font-size:13px;" onchange="app.onOverviewPromiseChapterChange()"></select>
+              </div>
+              <div class="form-group mb-0">
+                <label style="font-size:11px; font-weight:700;">Verse</label>
+                <select id="overviewPromiseVerse" class="form-select" style="padding:8px 10px; font-size:13px;"></select>
+              </div>
+              <div class="form-group mb-0" style="display:flex; align-items:flex-end;">
+                <button type="button" class="btn btn-primary btn-block" style="padding:9px 12px; font-size:12px;" onclick="app.fetchScriptureVerseForPromise()">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> Fetch Verse
+                </button>
+              </div>
+            </div>
+
+            <!-- Display / Editable Text Boxes -->
+            <div style="background:rgba(15,23,42,0.6); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="font-size:12px; font-weight:700; color:#cbd5e1;">Telugu Promise Verse (తెలుగు వాగ్దానము)</label>
+                <button type="button" class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px;" onclick="app.toggleEditPromiseText()">
+                  <i class="fa-solid fa-pen"></i> Edit Verse Text
+                </button>
+              </div>
+              <textarea id="overviewPromiseVerseTel" class="form-control" rows="2" style="font-size:14px; color:#fef08a; font-weight:600; background:rgba(0,0,0,0.3);" placeholder="ఉదా: యెహోవా నా కాపరి; నాకు లేమి కలుగదు."></textarea>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#94a3b8;">Telugu Reference</label>
+                  <input type="text" id="overviewPromiseRefTel" class="form-control" style="font-size:13px;" placeholder="ఉదా: కీర్తనలు 23:1">
+                </div>
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#94a3b8;">English Reference</label>
+                  <input type="text" id="overviewPromiseRefEng" class="form-control" style="font-size:13px;" placeholder="e.g. Psalms 23:1">
+                </div>
+              </div>
+            </div>
+
+            <!-- Schedule & Publish Controls -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <label style="font-size:12px; margin:0;">Schedule Date (Optional):</label>
+                <input type="date" id="overviewPromiseScheduleDate" class="form-control" style="width:auto; padding:6px 10px; font-size:12px;">
+              </div>
+              <button type="button" class="btn btn-emerald-action" id="btnPublishOverviewPromise" onclick="app.saveOverviewPromiseSubmit()">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Publish Today's God's Promise
+              </button>
+            </div>
+          </div>
+
           <!-- Recent Notices Card -->
           <div class="glass-card">
             <div class="card-header">
@@ -249,7 +316,27 @@
 
             <!-- Projection Master Controls -->
             <div class="projection-master-actions">
-              <h4>Display Overrides</h4>
+              <h4 style="margin-bottom:8px;"><i class="fa-solid fa-play"></i> Worship Session Controls</h4>
+              <div class="toggle-btn-row mb-2">
+                <button id="btnStartWorshipSession" class="btn btn-emerald-action" style="flex:1;" onclick="app.startLiveSession()">
+                  <i class="fa-solid fa-play"></i> Start Session
+                </button>
+                <button id="btnEndWorshipSession" class="btn btn-danger-action" style="flex:1;" onclick="app.endLiveSession()">
+                  <i class="fa-solid fa-stop"></i> End Session
+                </button>
+              </div>
+
+              <h4 style="margin-top:12px; margin-bottom:8px;"><i class="fa-solid fa-sliders"></i> Slide Navigation</h4>
+              <div class="toggle-btn-row mb-2">
+                <button class="btn btn-outline" style="flex:1;" onclick="app.prevSlide()">
+                  <i class="fa-solid fa-chevron-left"></i> Previous Slide
+                </button>
+                <button class="btn btn-primary" style="flex:1;" onclick="app.nextSlide()">
+                  Next Slide <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+
+              <h4 style="margin-top:12px; margin-bottom:8px;">Display Overrides</h4>
               <div class="toggle-btn-row">
                 <button id="btnBlackout" class="btn btn-dark-action" onclick="app.toggleBlackout()">
                   <i class="fa-solid fa-moon"></i> Blackout Screen
@@ -258,9 +345,6 @@
                   <i class="fa-solid fa-eye-slash"></i> Clear Text
                 </button>
               </div>
-              <button class="btn btn-danger-action" onclick="app.endLiveSession()">
-                <i class="fa-solid fa-stop"></i> End Live Worship Session
-              </button>
             </div>
           </div>
 
@@ -284,7 +368,10 @@
             <div class="slides-deck-card glass-card">
               <div class="deck-header">
                 <h3><i class="fa-solid fa-sliders"></i> Lyrics Slide Deck (Click to Display)</h3>
-                <span class="hint-text">Tip: Use Arrow keys (Left/Right) to switch slides</span>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn btn-sm btn-outline" onclick="app.prevSlide()"><i class="fa-solid fa-arrow-left"></i> Prev</button>
+                  <button class="btn btn-sm btn-primary" onclick="app.nextSlide()">Next <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
               </div>
               <div class="slides-grid" id="slidesGrid">
                 <p class="empty-hint">Load a song to view lyric slide triggers.</p>
@@ -441,33 +528,62 @@
         </div>
       </section>
 
-      <!-- TAB 7: LIVE STREAM -->
+      <!-- TAB 7: YOUTUBE VIDEOS & MEDIA MANAGER -->
       <section id="tab-stream" class="tab-pane">
-        <div class="glass-card max-w-700">
+        <div class="glass-card mb-4">
           <div class="card-header">
             <div>
-              <h3><i class="fa-brands fa-youtube text-danger"></i> Sanctuary Live Stream Broadcast Settings</h3>
-              <p class="subtitle-text">Update the YouTube Live Video URL to sync live playback on all church apps.</p>
+              <h3><i class="fa-brands fa-youtube text-danger"></i> YouTube Videos & Sermon Media Manager</h3>
+              <p class="subtitle-text">Add YouTube video links to publish live sermons, worship sessions, and service recordings to the mobile app.</p>
             </div>
           </div>
           <div class="card-body form-body">
-            <div class="form-group">
-              <label>Current Active YouTube Stream URL</label>
-              <input type="text" id="streamUrlInput" class="form-control" placeholder="https://www.youtube.com/watch?v=..." oninput="app.updateStreamPreview(this.value)">
-              <small class="hint-text">Paste YouTube Live URL (or video link). Mobile app will instantly stream this feed.</small>
-            </div>
-
-            <!-- YouTube Video Live Preview Box -->
-            <div id="streamPreviewContainer" style="margin-top:16px; margin-bottom:16px;">
-              <label style="display:block; font-size:12px; font-weight:700; color:#64748b; margin-bottom:8px;">🎥 LIVE BROADCAST PREVIEW MONITOR</label>
-              <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:14px; background:#000; border:1px solid rgba(255,255,255,0.12);">
-                <iframe id="streamPreviewIframe" src="" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <form id="youtubeMediaForm" onsubmit="event.preventDefault(); app.saveYouTubeMediaSubmit();" autocomplete="off">
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label>Video Title *</label>
+                  <input type="text" id="ytVideoTitle" class="form-control" placeholder="e.g. Sunday Morning Live Worship & Sermon" required>
+                </div>
+                <div class="form-group">
+                  <label>Media Category *</label>
+                  <select id="ytVideoCategory" class="form-select">
+                    <option value="Live Service">🔴 Live Sunday Service</option>
+                    <option value="Sermon">📖 Sermon / Message</option>
+                    <option value="Worship">🎵 Worship Session</option>
+                    <option value="Youth Gathering">⚡ Youth Service</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            <button class="btn btn-danger-action w-full" id="btnSaveStream" onclick="app.saveStreamUrl()">
-              <i class="fa-brands fa-youtube"></i> Update Sanctuary Live Stream
-            </button>
+              <div class="form-group">
+                <label>YouTube Video URL / Link *</label>
+                <input type="text" id="ytVideoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..." oninput="app.updateStreamPreview(this.value)" required>
+                <small class="hint-text">Paste standard YouTube URL. The app will extract the video ID and sync playback to all mobile devices.</small>
+              </div>
+
+              <!-- YouTube Video Preview Monitor -->
+              <div id="streamPreviewContainer" style="margin-top:12px; margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:#64748b; margin-bottom:6px;">🎥 VIDEO PREVIEW MONITOR</label>
+                <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:14px; background:#000; border:1px solid rgba(255,255,255,0.12);">
+                  <iframe id="streamPreviewIframe" src="" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-danger-action w-full" id="btnSaveStream">
+                <i class="fa-brands fa-youtube"></i> Publish YouTube Video to Mobile App
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- YouTube Video Catalog List -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-compact-disc text-primary"></i> Published YouTube Video Library</h3>
+            <button class="btn btn-sm btn-outline" onclick="app.loadYouTubeMediaList()"><i class="fa-solid fa-rotate"></i> Refresh Library</button>
+          </div>
+          <div id="youtubeMediaListGrid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:14px;">
+            <p class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading video library...</p>
           </div>
         </div>
       </section>
@@ -475,61 +591,22 @@
       <!-- TAB 8: BIBLE READING PLANS & MEMBER STATS -->
       <section id="tab-bibleplans" class="tab-pane">
         
-        <!-- Active User Bible Reading & Today's Portion Card -->
-        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(99, 102, 241, 0.3);">
-          <div class="card-header">
+        <!-- Advanced Configuration Portal Bar -->
+        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(99, 102, 241, 0.35);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
             <div>
-              <span class="badge badge-primary mb-1">Active Bible Reading Plan</span>
-              <h3 id="userActivePlanTitle">1-Year Complete Bible Reading Plan</h3>
-              <p class="subtitle-text" id="userActivePlanSubtitle">Day 1 Portion • 1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక</p>
+              <span class="badge badge-primary mb-1">Advanced Administration Portal</span>
+              <h3 style="font-size: 20px; margin-bottom: 4px;"><i class="fa-solid fa-gear text-primary"></i> SFGC Advanced Bible Configuration Portal</h3>
+              <p style="font-size: 13px; color: var(--text-muted);">Step-by-step plan generator, mathematical chapter distribution, custom book reordering, and schedule editor.</p>
             </div>
-            <button class="btn btn-primary" id="btnMarkPassageRead" onclick="app.markCurrentPassageReadSubmit()">
-              <i class="fa-solid fa-circle-check"></i> Mark Today's Passage Complete
-            </button>
-          </div>
-
-          <div style="margin-top: 16px; margin-bottom: 12px;">
-            <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:6px;">
-              <span>Reading Progress</span>
-              <span id="userProgressPercentText">0% Completed</span>
+            <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline" onclick="app.copyPublicShareLink()">
+                <i class="fa-solid fa-link text-amber"></i> Copy Configuration Link
+              </button>
+              <button type="button" class="btn btn-primary" onclick="app.openShareLinkPage()">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Launch Configuration Portal
+              </button>
             </div>
-            <div style="background: rgba(255,255,255,0.1); border-radius:10px; height:10px; overflow:hidden;">
-              <div id="userProgressBarFill" style="background: linear-gradient(90deg, #6366f1, #10b981); height:100%; width:0%; transition: width 0.4s ease;"></div>
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 14px; text-align:center;">
-            <div style="background:rgba(255,255,255,0.04); padding:10px; border-radius:10px;">
-              <small style="color:var(--text-muted); display:block;">Completed Days</small>
-              <strong id="userCompletedDaysCount" style="font-size:16px;">0 Days</strong>
-            </div>
-            <div style="background:rgba(255,255,255,0.04); padding:10px; border-radius:10px;">
-              <small style="color:var(--text-muted); display:block;">Remaining Days</small>
-              <strong id="userRemainingDaysCount" style="font-size:16px;">365 Days</strong>
-            </div>
-            <div style="background:rgba(255,255,255,0.04); padding:10px; border-radius:10px;">
-              <small style="color:var(--text-muted); display:block;">Current Streak</small>
-              <strong id="userCurrentStreakCount" style="font-size:16px; color:#f59e0b;">🔥 0 Days</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- Today's God's Promise Feature Card -->
-        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05)); border: 1px solid rgba(245, 158, 11, 0.3);">
-          <div class="card-header">
-            <div>
-              <h3><i class="fa-solid fa-dove text-amber"></i> Today's God's Promise (దేవుని వాగ్దానము)</h3>
-              <p class="subtitle-text">Scripture promise for meditation and daily strength.</p>
-            </div>
-            <button class="btn btn-sm btn-outline" onclick="app.loadTodayPromise()"><i class="fa-solid fa-rotate"></i> Refresh Promise</button>
-          </div>
-          <div style="padding: 12px 0;">
-            <blockquote id="promiseVerseText" style="font-size: 16px; font-weight: 600; color: #fef08a; line-height: 1.6; margin-bottom: 8px;">
-              "యెహోవా నా కాపరి; నాకు లేమి కలుగదు."
-            </blockquote>
-            <p id="promiseRefText" style="font-size: 13px; color: var(--text-muted); font-weight: 600;">
-              — కీర్తనలు 23:1 (Psalms 23:1)
-            </p>
           </div>
         </div>
 
@@ -569,7 +646,7 @@
           </div>
         </div>
 
-        <!-- Member Reading Leaderboard (Positioned Below Statistics) -->
+        <!-- Member Reading Leaderboard -->
         <div class="glass-card mb-4">
           <div class="card-header">
             <h3><i class="fa-solid fa-trophy text-amber"></i> Top Reading Members & Streaks</h3>
@@ -592,79 +669,12 @@
             </table>
           </div>
         </div>
-
-        <!-- Bible Plans Cards Grid -->
-        <div class="glass-card mb-4">
-          <div class="card-header">
-            <div>
-              <h3><i class="fa-solid fa-calendar-check text-primary"></i> Church Bible Reading Plans Directory</h3>
-              <p class="subtitle-text">1-3 Year & short-term Bible Reading Plans available for church members.</p>
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px;">
-            <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 16px; padding: 18px;">
-              <span class="badge badge-primary mb-2">365 Days</span>
-              <h4 style="font-size:16px; margin-bottom:4px;">📖 1-Year Complete Bible Plan</h4>
-              <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక</p>
-              <button type="button" class="btn btn-sm btn-primary" style="width:100%;" onclick="app.openShareLinkPage('1-year-canonical')">
-                <i class="fa-solid fa-sliders"></i> Configure & Share Link
-              </button>
-            </div>
-            <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 16px; padding: 18px;">
-              <span class="badge badge-primary mb-2" style="background: rgba(139, 92, 246, 0.2); color: #c084fc;">730 Days</span>
-              <h4 style="font-size:16px; margin-bottom:4px;">📖 2-Year Bible Reading Plan</h4>
-              <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక</p>
-              <button type="button" class="btn btn-sm btn-primary" style="width:100%;" onclick="app.openShareLinkPage('2-year-canonical')">
-                <i class="fa-solid fa-sliders"></i> Configure & Share Link
-              </button>
-            </div>
-            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 16px; padding: 18px;">
-              <span class="badge badge-success mb-2">1095 Days</span>
-              <h4 style="font-size:16px; margin-bottom:4px;">📖 3-Year Bible Reading Plan</h4>
-              <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">3 సంవత్సరాల దేవుని వాక్య పఠన ప్రణాళిక</p>
-              <button type="button" class="btn btn-sm btn-primary" style="width:100%;" onclick="app.openShareLinkPage('3-year-canonical')">
-                <i class="fa-solid fa-sliders"></i> Configure & Share Link
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bottom Configuration Navigation Bar -->
-        <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid var(--border-card); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-          <div>
-            <h4 style="font-size: 16px; margin-bottom: 2px;"><i class="fa-solid fa-gear text-primary"></i> Advanced Bible Configuration Portal</h4>
-            <p style="font-size: 12px; color: var(--text-muted);">Access step-by-step plan generator, automatic chapter calculator, and configuration copy links.</p>
-          </div>
-          <div style="display:flex; gap: 10px; flex-wrap: wrap;">
-            <button type="button" class="btn btn-outline" onclick="app.copyPublicShareLink()">
-              <i class="fa-solid fa-link text-amber"></i> Copy Configuration Link
-            </button>
-            <button type="button" class="btn btn-primary" onclick="app.openShareLinkPage()">
+      </section>
               <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Bible Configuration Site
             </button>
           </div>
         </div>
 
-        <!-- Custom Daily Promise Editor Modal / Form -->
-        <div class="glass-card mt-4">
-          <div class="card-header">
-            <h3><i class="fa-solid fa-pen-to-square text-primary"></i> Publish Today's God's Promise (రోజువారీ వాగ్దానము)</h3>
-          </div>
-          <div class="form-row-2">
-            <div class="form-group">
-              <label>Promise Verse in Telugu *</label>
-              <textarea id="adminPromiseTelugu" class="form-control" rows="2" placeholder="ఉదా: యెహోవా నా కాపరి; నాకు లేమి కలుగదు..."></textarea>
-            </div>
-            <div class="form-group">
-              <label>Scripture Reference *</label>
-              <input type="text" id="adminPromiseRef" class="form-control" placeholder="ఉదా: కీర్తనలు 23:1 / Psalms 23:1">
-            </div>
-          </div>
-          <button class="btn btn-primary mt-2" onclick="app.saveDailyPromiseSubmit()">
-            <i class="fa-solid fa-check"></i> Publish Today's Promise
-          </button>
-        </div>
       </section>
 
 

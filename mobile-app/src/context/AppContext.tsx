@@ -329,6 +329,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     loadCache();
+    initGlobalSocket();
   }, []);
 
   // --------------------------------------------------
@@ -561,14 +562,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const joinLiveSession = () => {
-    if (socket || !API_URL) {
-      return;
-    }
+  const initGlobalSocket = () => {
+    if (socketRef.current || !API_URL) return;
 
     try {
       const newSocket = io(API_URL, {
         timeout: 4000,
+        transports: ['websocket', 'polling'],
       });
 
       socketRef.current = newSocket;
@@ -579,20 +579,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       newSocket.on('newNotice', (newNotice: NoticeItem) => {
-        // Update local notices list immediately
         setNotices((prev) => {
-          if (prev.some((n) => n._id === newNotice._id || n.id === newNotice._id)) {
+          if (prev.some((n) => (n._id || n.id) === (newNotice._id || newNotice.id))) {
             return prev;
           }
           return [newNotice, ...prev];
         });
 
-        // Trigger alert notification
         Alert.alert(
           newNotice.title,
           newNotice.description,
           [{ text: 'Dismiss', style: 'cancel' }]
         );
+      });
+
+      newSocket.on('newEvent', (newEvent: EventItem) => {
+        setEvents((prev) => {
+          const id = newEvent._id || newEvent.id;
+          const idx = prev.findIndex((e) => (e._id || e.id) === id);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = newEvent;
+            return updated;
+          }
+          return [newEvent, ...prev];
+        });
+        refreshData();
       });
 
       newSocket.on('new_video_notification', (payload: {
@@ -605,7 +617,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         thumbnail: string;
         createdAt: string;
       }) => {
-        // 1. Add notification item to local notices state immediately
         const newNoticeItem: NoticeItem = {
           _id: payload.notificationId,
           title: `🎬 ${payload.title}`,
@@ -616,16 +627,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         };
 
         setNotices((prev) => {
-          if (prev.some((n) => n._id === newNoticeItem._id || n.id === newNoticeItem._id)) {
+          if (prev.some((n) => (n._id || n.id) === newNoticeItem._id)) {
             return prev;
           }
           return [newNoticeItem, ...prev];
         });
 
-        // 2. Refresh application data asynchronously
         refreshData();
 
-        // 3. Display lightweight in-app alert toast with action to watch video
         Alert.alert(
           `🎬 ${payload.title}`,
           payload.message,
@@ -741,6 +750,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log(
         'Live session socket connection skipped'
       );
+    }
+  };
+
+  const joinLiveSession = () => {
+    if (socketRef.current) {
+      socketRef.current.emit('joinSession');
+    } else {
+      initGlobalSocket();
     }
   };
 
