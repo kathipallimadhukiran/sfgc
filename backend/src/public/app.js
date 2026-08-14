@@ -1,71 +1,71 @@
-// ChurchConnect Web Admin & Live Lyrics Projection SPA Controller
+// SFGC Web Admin & Live Lyrics Projection SPA Controller
 const BIBLE_BOOKS_66 = [
-  { eng: 'Genesis', tel: 'ఆదికాండము' },
-  { eng: 'Exodus', tel: 'నిర్గమకాండము' },
-  { eng: 'Leviticus', tel: 'లేవీయకాండము' },
-  { eng: 'Numbers', tel: 'సంఖ్యాకాండము' },
-  { eng: 'Deuteronomy', tel: 'ద్వితీయోపదేశకాండము' },
-  { eng: 'Joshua', tel: 'యెహోషువ' },
-  { eng: 'Judges', tel: 'న్యాయాధిపతులు' },
-  { eng: 'Ruth', tel: 'రూతు' },
-  { eng: '1 Samuel', tel: '1 సమూయేలు' },
-  { eng: '2 Samuel', tel: '2 సమూయేలు' },
-  { eng: '1 Kings', tel: '1 రాజులు' },
-  { eng: '2 Kings', tel: '2 రాజులు' },
-  { eng: '1 Chronicles', tel: '1 దినవృత్తాంతములు' },
-  { eng: '2 Chronicles', tel: '2 దినవృత్తాంతములు' },
-  { eng: 'Ezra', tel: 'ఎజ్రా' },
-  { eng: 'Nehemiah', tel: 'నెహెమ్యా' },
-  { eng: 'Esther', tel: 'ఎస్తేరు' },
-  { eng: 'Job', tel: 'యోబు' },
-  { eng: 'Psalms', tel: 'కీర్తనలు' },
-  { eng: 'Proverbs', tel: 'సామెతలు' },
-  { eng: 'Ecclesiastes', tel: 'ప్రసంగి' },
-  { eng: 'Song of Solomon', tel: 'పరమగీతము' },
-  { eng: 'Isaiah', tel: 'యెషయా' },
-  { eng: 'Jeremiah', tel: 'యిర్మీయా' },
-  { eng: 'Lamentations', tel: 'విలాపవాక్యములు' },
-  { eng: 'Ezekiel', tel: 'యెహెజ్కేలు' },
-  { eng: 'Daniel', tel: 'దానియేలు' },
-  { eng: 'Hosea', tel: 'హోషేయ' },
-  { eng: 'Joel', tel: 'యోవేలు' },
-  { eng: 'Amos', tel: 'ఆమోసు' },
-  { eng: 'Obadiah', tel: 'ఓబద్యా' },
-  { eng: 'Jonah', tel: 'యోనా' },
-  { eng: 'Micah', tel: 'మీకా' },
-  { eng: 'Nahum', tel: 'నహూము' },
-  { eng: 'Habakkuk', tel: 'హబక్కూకు' },
-  { eng: 'Zephaniah', tel: 'జెఫన్యా' },
-  { eng: 'Haggai', tel: 'హగ్గయి' },
-  { eng: 'Zechariah', tel: 'జెకర్యా' },
-  { eng: 'Malachi', tel: 'మలాకీ' },
-  { eng: 'Matthew', tel: 'మత్తయి సువార్త' },
-  { eng: 'Mark', tel: 'మార్కు సువార్త' },
-  { eng: 'Luke', tel: 'లూకా సువార్త' },
-  { eng: 'John', tel: 'యోహాను సువార్త' },
-  { eng: 'Acts', tel: 'అపొస్తలుల కార్యములు' },
-  { eng: 'Romans', tel: 'రోమీయులకు' },
-  { eng: '1 Corinthians', tel: '1 కొరింథీయులకు' },
-  { eng: '2 Corinthians', tel: '2 కొరింథీయులకు' },
-  { eng: 'Galatians', tel: 'గలతీయులకు' },
-  { eng: 'Ephesians', tel: 'ఎఫెసీయులకు' },
-  { eng: 'Philippians', tel: 'ఫిలిప్పీయులకు' },
-  { eng: 'Colossians', tel: 'కొలస్సీయులకు' },
-  { eng: '1 Thessalonians', tel: '1 దెస్సలొనీకయులకు' },
-  { eng: '2 Thessalonians', tel: '2 దెస్సలొనీకయులకు' },
-  { eng: '1 Timothy', tel: '1 తిమోతికి' },
-  { eng: '2 Timothy', tel: '2 తిమోతికి' },
-  { eng: 'Titus', tel: 'తీతుకు' },
-  { eng: 'Philemon', tel: 'ఫిలేమోనుకు' },
-  { eng: 'Hebrews', tel: 'హెబ్రీయులకు' },
-  { eng: 'James', tel: 'యాకోబు' },
-  { eng: '1 Peter', tel: '1 పేతురు' },
-  { eng: '2 Peter', tel: '2 పేతురు' },
-  { eng: '1 John', tel: '1 యోహాను' },
-  { eng: '2 John', tel: '2 యోహాను' },
-  { eng: '3 John', tel: '3 యోహాను' },
-  { eng: 'Jude', tel: 'యూదా' },
-  { eng: 'Revelation', tel: 'ప్రకటన గ్రంథము' }
+  { eng: 'Genesis', tel: 'ఆదికాండము', chapters: 50 },
+  { eng: 'Exodus', tel: 'నిర్గమకాండము', chapters: 40 },
+  { eng: 'Leviticus', tel: 'లేవీయకాండము', chapters: 27 },
+  { eng: 'Numbers', tel: 'సంఖ్యాకాండము', chapters: 36 },
+  { eng: 'Deuteronomy', tel: 'ద్వితీయోపదేశకాండము', chapters: 34 },
+  { eng: 'Joshua', tel: 'యెహోషువ', chapters: 24 },
+  { eng: 'Judges', tel: 'న్యాయాధిపతులు', chapters: 21 },
+  { eng: 'Ruth', tel: 'రూతు', chapters: 4 },
+  { eng: '1 Samuel', tel: '1 సమూయేలు', chapters: 31 },
+  { eng: '2 Samuel', tel: '2 సమూయేలు', chapters: 24 },
+  { eng: '1 Kings', tel: '1 రాజులు', chapters: 22 },
+  { eng: '2 Kings', tel: '2 రాజులు', chapters: 25 },
+  { eng: '1 Chronicles', tel: '1 దినవృత్తాంతములు', chapters: 29 },
+  { eng: '2 Chronicles', tel: '2 దినవృత్తాంతములు', chapters: 36 },
+  { eng: 'Ezra', tel: 'ఎజ్రా', chapters: 10 },
+  { eng: 'Nehemiah', tel: 'నెహెమ్యా', chapters: 13 },
+  { eng: 'Esther', tel: 'ఎస్తేరు', chapters: 10 },
+  { eng: 'Job', tel: 'యోబు', chapters: 42 },
+  { eng: 'Psalms', tel: 'కీర్తనలు', chapters: 150 },
+  { eng: 'Proverbs', tel: 'సామెతలు', chapters: 31 },
+  { eng: 'Ecclesiastes', tel: 'ప్రసంగి', chapters: 12 },
+  { eng: 'Song of Solomon', tel: 'పరమగీతము', chapters: 8 },
+  { eng: 'Isaiah', tel: 'యెషయా', chapters: 66 },
+  { eng: 'Jeremiah', tel: 'యిర్మీయా', chapters: 52 },
+  { eng: 'Lamentations', tel: 'విలాపవాక్యములు', chapters: 5 },
+  { eng: 'Ezekiel', tel: 'యెహెజ్కేలు', chapters: 48 },
+  { eng: 'Daniel', tel: 'దానియేలు', chapters: 12 },
+  { eng: 'Hosea', tel: 'హోషేయ', chapters: 14 },
+  { eng: 'Joel', tel: 'యోవేలు', chapters: 3 },
+  { eng: 'Amos', tel: 'ఆమోసు', chapters: 9 },
+  { eng: 'Obadiah', tel: 'ఓబద్యా', chapters: 1 },
+  { eng: 'Jonah', tel: 'యోనా', chapters: 4 },
+  { eng: 'Micah', tel: 'మీకా', chapters: 7 },
+  { eng: 'Nahum', tel: 'నహూము', chapters: 3 },
+  { eng: 'Habakkuk', tel: 'హబక్కూకు', chapters: 3 },
+  { eng: 'Zephaniah', tel: 'జెఫన్యా', chapters: 3 },
+  { eng: 'Haggai', tel: 'హగ్గయి', chapters: 2 },
+  { eng: 'Zechariah', tel: 'జెకర్యా', chapters: 14 },
+  { eng: 'Malachi', tel: 'మలాకీ', chapters: 4 },
+  { eng: 'Matthew', tel: 'మత్తయి సువార్త', chapters: 28 },
+  { eng: 'Mark', tel: 'మార్కు సువార్త', chapters: 16 },
+  { eng: 'Luke', tel: 'లూకా సువార్త', chapters: 24 },
+  { eng: 'John', tel: 'యోహాను సువార్త', chapters: 21 },
+  { eng: 'Acts', tel: 'అపొస్తలుల కార్యములు', chapters: 28 },
+  { eng: 'Romans', tel: 'రోమీయులకు', chapters: 16 },
+  { eng: '1 Corinthians', tel: '1 కొరింథీయులకు', chapters: 16 },
+  { eng: '2 Corinthians', tel: '2 కొరింథీయులకు', chapters: 13 },
+  { eng: 'Galatians', tel: 'గలతీయులకు', chapters: 6 },
+  { eng: 'Ephesians', tel: 'ఎఫెసీయులకు', chapters: 6 },
+  { eng: 'Philippians', tel: 'ఫిలిప్పీయులకు', chapters: 4 },
+  { eng: 'Colossians', tel: 'కొలస్సీయులకు', chapters: 4 },
+  { eng: '1 Thessalonians', tel: '1 దెస్సలొనీకయులకు', chapters: 5 },
+  { eng: '2 Thessalonians', tel: '2 దెస్సలొనీకయులకు', chapters: 3 },
+  { eng: '1 Timothy', tel: '1 తిమోతికి', chapters: 6 },
+  { eng: '2 Timothy', tel: '2 తిమోతికి', chapters: 4 },
+  { eng: 'Titus', tel: 'తీతుకు', chapters: 3 },
+  { eng: 'Philemon', tel: 'ఫిలేమోనుకు', chapters: 1 },
+  { eng: 'Hebrews', tel: 'హెబ్రీయులకు', chapters: 13 },
+  { eng: 'James', tel: 'యాకోబు', chapters: 5 },
+  { eng: '1 Peter', tel: '1 పేతురు', chapters: 5 },
+  { eng: '2 Peter', tel: '2 పేతురు', chapters: 3 },
+  { eng: '1 John', tel: '1 యోహాను', chapters: 5 },
+  { eng: '2 John', tel: '2 యోహాను', chapters: 1 },
+  { eng: '3 John', tel: '3 యోహాను', chapters: 1 },
+  { eng: 'Jude', tel: 'యూదా', chapters: 1 },
+  { eng: 'Revelation', tel: 'ప్రకటన గ్రంథము', chapters: 22 }
 ];
 
 class ChurchApp {
@@ -198,13 +198,96 @@ class ChurchApp {
     } catch (err) {
       if (errEl) { errEl.innerText = 'Server connection error: ' + err.message; errEl.style.display = 'block'; }
     } finally {
-      if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In to Admin Panel'; }
+      if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerHTML = '<span>Sign In to Admin Panel</span> <i class="fa-solid fa-arrow-right"></i>'; }
+    }
+  }
+
+  async performModalLogin() {
+    const email = document.getElementById('modalLoginEmail')?.value.trim();
+    const password = document.getElementById('modalLoginPassword')?.value.trim();
+
+    if (!email || !password) {
+      this.showToast('Please enter both email and password.', 'error');
+      return;
+    }
+
+    this.setButtonLoading('btnModalLoginSubmit', true, 'Authenticating...');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        this.setToken(data.token);
+        localStorage.setItem('churchAdminUser', JSON.stringify(data.user));
+        this.currentUser = data.user;
+        this.showMainLayout(data.user);
+        this.closeModal('loginModal');
+        this.showToast('🎉 Logged in as Admin successfully!', 'success');
+        await this.refreshAll();
+      } else {
+        this.showToast(data.message || 'Invalid email or password.', 'error');
+      }
+    } catch (err) {
+      this.showToast('Server connection error: ' + err.message, 'error');
+    } finally {
+      this.setButtonLoading('btnModalLoginSubmit', false, '', 'Sign In as Admin');
+    }
+  }
+
+  showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast-item toast-${type}`;
+    const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
+    toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 400);
+    }, 3500);
+  }
+
+  toggleNotifDropdown() {
+    const panel = document.getElementById('notifDropdownPanel');
+    if (panel) {
+      panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+    }
+  }
+
+  clearNotifs() {
+    this.notifications = [];
+    const list = document.getElementById('adminNotifList');
+    const badge = document.getElementById('notifBadgeCount');
+    if (list) list.innerHTML = '<div class="notif-empty-state">No new member notifications yet.</div>';
+    if (badge) badge.style.display = 'none';
+    this.showToast('Notifications cleared', 'info');
+  }
+
+  async testApi(endpoint) {
+    const output = document.getElementById('apiOutput');
+    if (!output) return;
+    output.innerText = `Executing request: GET ${endpoint}...`;
+    try {
+      const res = await this.authFetch(endpoint);
+      const data = await res.json();
+      output.innerText = JSON.stringify(data, null, 2);
+      this.showToast(`Fetched ${endpoint} successfully!`, 'success');
+    } catch (err) {
+      output.innerText = `API Request Error (${endpoint}):\n${err.message}`;
+      this.showToast(`API call failed: ${err.message}`, 'error');
     }
   }
 
   quickFillLogin(email, password) {
-    document.getElementById('loginEmail').value = email;
-    document.getElementById('loginPassword').value = password;
+    const emailEl = document.getElementById('loginEmail') || document.getElementById('modalLoginEmail');
+    const passEl = document.getElementById('loginPassword') || document.getElementById('modalLoginPassword');
+    if (emailEl) emailEl.value = email;
+    if (passEl) passEl.value = password;
   }
 
   togglePasswordVisibility(inputId, btn) {
@@ -225,6 +308,7 @@ class ChurchApp {
     localStorage.removeItem('churchAdminUser');
     this.currentUser = null;
     this.showLoginScreen();
+    this.showToast('Logged out of Admin Portal.', 'info');
   }
 
   setButtonLoading(btnOrId, isLoading, loadingText, defaultHtml) {
@@ -269,7 +353,7 @@ class ChurchApp {
       this.socket = io();
 
       this.socket.on('connect', () => {
-        console.log('✅ Connected to ChurchConnect Live Socket Engine');
+        console.log('✅ Connected to SFGC Live Socket Engine');
         const pingEl = document.getElementById('serverPing');
         if (pingEl) pingEl.innerText = 'Connected | Socket Active';
       });
@@ -404,6 +488,9 @@ class ChurchApp {
       this.renderMembersTable();
       this.renderEventsTable();
       this.renderNoticesTable();
+      await this.loadBiblePlanStats();
+      await this.loadUserProgress();
+      await this.loadTodayPromise();
     } catch (err) {
       console.error('Error refreshing backend data:', err);
     }
@@ -647,96 +734,194 @@ class ChurchApp {
         <td>${song.lyrics?.length || 0} Slides</td>
         <td>${song.chords ? '<i class="fa-solid fa-check text-emerald"></i> Available' : '<span class="text-muted">-</span>'}</td>
         <td>
-          <button class="btn btn-sm btn-outline" onclick="app.loadSongToProjector('${song._id}'); app.switchTab('projection');">
-            <i class="fa-solid fa-desktop"></i> Project
-          </button>
-          <button class="btn btn-sm btn-danger-action" style="padding: 6px 10px;" onclick="app.deleteSong('${song._id}')">
-            <i class="fa-solid fa-trash"></i>
-          </button>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <button class="btn btn-sm btn-outline" style="padding: 4px 8px;" onclick="app.loadSongToProjector('${song._id}'); app.switchTab('projection');" title="Project Live">
+              <i class="fa-solid fa-desktop"></i> Project
+            </button>
+            <button class="btn btn-sm btn-outline" style="padding: 4px 8px;" onclick="app.openSongModal('${song._id}')" title="Edit Song">
+              <i class="fa-solid fa-pen"></i> Edit
+            </button>
+            <button class="btn btn-sm btn-danger-action" style="padding: 4px 8px;" onclick="app.deleteSong('${song._id}')" title="Delete Song">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         </td>
       </tr>
     `).join('');
   }
 
-  openSongModal() {
-    document.getElementById('songModalTitle').innerText = 'Add New Worship Song';
-    document.getElementById('songTitleInput').value = '';
-    document.getElementById('songLangInput').value = 'English';
-    document.getElementById('songCategoryInput').value = 'Worship Songs';
-    document.getElementById('songYoutubeInput').value = '';
-    document.getElementById('songChordsInput').value = '';
-    
-    const container = document.getElementById('slidesEditorContainer');
-    container.innerHTML = `
-      <div class="form-group slide-box-editor">
-        <input type="text" class="form-control mb-2 slide-type-field" value="Verse 1" placeholder="Slide Type (Verse 1, Chorus, etc)">
-        <textarea class="form-control slide-text-field" rows="3" placeholder="Enter lyric lines..."></textarea>
-      </div>
-    `;
+  openSongModal(songId = null) {
+    const hiddenId = document.getElementById('songIdInput');
+    const title = document.getElementById('songModalTitle');
+    const fullLyricsBox = document.getElementById('songFullLyricsInput');
+
+    if (songId) {
+      const song = this.songs.find(s => s._id === songId);
+      if (!song) return;
+      if (hiddenId) hiddenId.value = song._id;
+      if (title) title.innerText = 'Edit Worship Song';
+      document.getElementById('songTitleInput').value = song.title || '';
+      document.getElementById('songLangInput').value = song.language || 'Telugu';
+      document.getElementById('songCategoryInput').value = song.category || 'Worship Songs';
+      document.getElementById('songYoutubeInput').value = song.youtubeLink || '';
+      document.getElementById('songChordsInput').value = song.chords || '';
+
+      const joinedLyrics = (song.lyrics || []).map(l => l.text).join('\n\n');
+      if (fullLyricsBox) {
+        fullLyricsBox.value = joinedLyrics;
+        this.onFullLyricsInputChange(joinedLyrics);
+      }
+    } else {
+      if (hiddenId) hiddenId.value = '';
+      if (title) title.innerText = 'Add New Worship Song';
+      document.getElementById('songTitleInput').value = '';
+      document.getElementById('songLangInput').value = 'Telugu';
+      document.getElementById('songCategoryInput').value = 'Worship Songs';
+      document.getElementById('songYoutubeInput').value = '';
+      document.getElementById('songChordsInput').value = '';
+      if (fullLyricsBox) {
+        fullLyricsBox.value = '';
+        this.onFullLyricsInputChange('');
+      }
+    }
 
     document.getElementById('songModal').classList.add('active');
   }
 
-  addSlideInputBox() {
+  editSong(id) {
+    this.openSongModal(id);
+  }
+
+  onFullLyricsInputChange(val) {
+    const raw = (val || '').trim();
+    const countBadge = document.getElementById('parsedSlidesCount');
+    const previewList = document.getElementById('slidesPreviewList');
+
+    if (!raw) {
+      if (countBadge) countBadge.innerText = '0';
+      if (previewList) previewList.innerHTML = '<span class="text-muted" style="font-size:12px;">Type or paste full song above to preview slides automatically.</span>';
+      return;
+    }
+
+    // Split by Double Enter (\n\n or blank lines)
+    const blocks = raw.split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
+    if (countBadge) countBadge.innerText = blocks.length;
+
+    if (previewList) {
+      previewList.innerHTML = blocks.map((block, idx) => `
+        <div class="preview-slide-chip">
+          <strong>Slide ${idx + 1} (Verse ${idx + 1})</strong>
+          <p>${block}</p>
+        </div>
+      `).join('');
+    }
+  }
+
+  toggleManualSlidesEditor() {
+    const container = document.getElementById('slidesEditorContainer');
+    if (!container) return;
+    const isHidden = container.style.display === 'none';
+    container.style.display = isHidden ? 'block' : 'none';
+    if (isHidden && container.children.length === 0) {
+      this.populateManualSlidesFromWideBox();
+    }
+  }
+
+  populateManualSlidesFromWideBox() {
+    const raw = (document.getElementById('songFullLyricsInput')?.value || '').trim();
+    const container = document.getElementById('slidesEditorContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!raw) {
+      this.addSlideInputBox('Verse 1', '');
+      return;
+    }
+
+    const blocks = raw.split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
+    blocks.forEach((block, idx) => {
+      this.addSlideInputBox(`Verse ${idx + 1}`, block);
+    });
+  }
+
+  addSlideInputBox(typeVal = 'Verse', textVal = '') {
     const container = document.getElementById('slidesEditorContainer');
     const div = document.createElement('div');
     div.className = 'form-group slide-box-editor mt-2';
     div.innerHTML = `
-      <input type="text" class="form-control mb-2 slide-type-field" value="Chorus" placeholder="Slide Type">
-      <textarea class="form-control slide-text-field" rows="3" placeholder="Enter lyric lines..."></textarea>
+      <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:6px;">
+        <input type="text" class="form-control slide-type-field" value="${typeVal}" placeholder="Slide Type (Verse 1, Chorus, etc)" style="flex:1;">
+        <button type="button" class="btn btn-sm btn-danger-action" onclick="this.parentElement.parentElement.remove()" title="Remove Slide"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <textarea class="form-control slide-text-field" rows="3" placeholder="Enter lyric lines...">${textVal}</textarea>
     `;
     container.appendChild(div);
   }
 
   async saveSongSubmit() {
+    const id = document.getElementById('songIdInput')?.value;
     const title = document.getElementById('songTitleInput').value.trim();
-    const language = document.getElementById('songLangInput').value;
-    const category = document.getElementById('songCategoryInput').value.trim();
+    const language = document.getElementById('songLangInput').value || 'Telugu';
+    const category = document.getElementById('songCategoryInput').value.trim() || 'Worship Songs';
     const youtubeLink = document.getElementById('songYoutubeInput').value.trim();
     const chords = document.getElementById('songChordsInput').value;
 
-    const slideBoxes = document.querySelectorAll('.slide-box-editor');
-    const lyrics = [];
-    slideBoxes.forEach(box => {
-      const type = box.querySelector('.slide-type-field').value.trim() || 'Verse';
-      const text = box.querySelector('.slide-text-field').value.trim();
-      if (text) lyrics.push({ type, text });
-    });
+    const fullLyricsRaw = (document.getElementById('songFullLyricsInput')?.value || '').trim();
+    let lyrics = [];
+
+    const editorContainer = document.getElementById('slidesEditorContainer');
+    if (editorContainer && editorContainer.style.display !== 'none' && editorContainer.children.length > 0) {
+      const slideBoxes = document.querySelectorAll('.slide-box-editor');
+      slideBoxes.forEach(box => {
+        const type = box.querySelector('.slide-type-field').value.trim() || 'Verse';
+        const text = box.querySelector('.slide-text-field').value.trim();
+        if (text) lyrics.push({ type, text });
+      });
+    } else if (fullLyricsRaw) {
+      // Auto-extract slides based on Double Enter (\n\n)
+      const blocks = fullLyricsRaw.split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
+      blocks.forEach((b, idx) => {
+        lyrics.push({ type: `Verse ${idx + 1}`, text: b });
+      });
+    }
 
     if (!title || lyrics.length === 0) {
-      alert('Please provide Song Title and at least one slide with lyrics.');
+      this.showToast('Please provide Song Title and at least one verse/slide of lyrics.', 'error');
       return;
     }
 
-    this.setButtonLoading('btnSubmitSong', true, 'Saving Song to Database...');
+    this.setButtonLoading('btnSubmitSong', true, id ? 'Updating Song...' : 'Saving Song...');
 
     try {
-      const res = await this.authFetch('/api/songs', {
-        method: 'POST',
+      const url = id ? `/api/songs/${id}` : '/api/songs';
+      const method = id ? 'PUT' : 'POST';
+      const res = await this.authFetch(url, {
+        method,
         body: JSON.stringify({ title, language, category, youtubeLink, chords, lyrics })
       });
       const data = await res.json();
       if (data.success) {
-        alert('🎉 Song created and saved to database successfully!');
+        this.showToast(id ? '🎉 Song updated successfully!' : '🎉 Song created successfully!', 'success');
         this.closeModal('songModal');
         await this.refreshAll();
       } else {
-        alert('Error: ' + data.message);
+        this.showToast('Error: ' + data.message, 'error');
       }
     } catch (e) {
-      alert('Failed to save song: ' + e.message);
+      this.showToast('Failed to save song: ' + e.message, 'error');
     } finally {
       this.setButtonLoading('btnSubmitSong', false, '', 'Save Song');
     }
   }
 
+
   async deleteSong(id) {
     if (!confirm('Are you sure you want to delete this song?')) return;
     try {
       await this.authFetch(`/api/songs/${id}`, { method: 'DELETE' });
+      this.showToast('Song deleted.', 'info');
       await this.refreshAll();
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      this.showToast('Delete failed: ' + e.message, 'error');
     }
   }
 
@@ -831,19 +1016,65 @@ class ChurchApp {
     `).join('');
   }
 
+  openAddMemberModal() {
+    document.getElementById('addMemberName').value = '';
+    document.getElementById('addMemberEmail').value = '';
+    document.getElementById('addMemberPassword').value = 'member123';
+    document.getElementById('addMemberPhone').value = '';
+    document.getElementById('addMemberFamily').value = '';
+    document.getElementById('addMemberRole').value = 'Member';
+    document.getElementById('addMemberModal').classList.add('active');
+  }
+
+  async saveAddMemberSubmit() {
+    const name = document.getElementById('addMemberName').value.trim();
+    const email = document.getElementById('addMemberEmail').value.trim();
+    const password = document.getElementById('addMemberPassword').value.trim();
+    const mobileNumber = document.getElementById('addMemberPhone').value.trim();
+    const familyName = document.getElementById('addMemberFamily').value.trim();
+    const role = document.getElementById('addMemberRole').value;
+
+    if (!name || !email || !password) {
+      this.showToast('Name, Email, and Password are required.', 'error');
+      return;
+    }
+
+    this.setButtonLoading('btnSubmitAddMember', true, 'Creating Profile...');
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, mobileNumber, familyName, role })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast(`🎉 Member ${name} registered successfully!`, 'success');
+        this.closeModal('addMemberModal');
+        await this.refreshAll();
+      } else {
+        this.showToast('Failed: ' + (data.message || 'Error creating member'), 'error');
+      }
+    } catch (e) {
+      this.showToast('Error registering member: ' + e.message, 'error');
+    } finally {
+      this.setButtonLoading('btnSubmitAddMember', false, '', 'Save Member Profile');
+    }
+  }
+
   async deleteMember(id) {
     if (!confirm('Are you sure you want to delete this member profile? This action cannot be undone.')) return;
     try {
       const res = await this.authFetch(`/api/users/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
-        alert('Member profile deleted successfully.');
+        this.showToast('Member profile deleted successfully.', 'success');
         await this.refreshAll();
       } else {
-        alert('Delete failed: ' + (data.message || 'Error'));
+        this.showToast('Delete failed: ' + (data.message || 'Error'), 'error');
       }
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      this.showToast('Delete failed: ' + e.message, 'error');
     }
   }
 
@@ -888,14 +1119,14 @@ class ChurchApp {
       });
       const data = await res.json();
       if (data.success) {
-        alert('🎉 Member role & department access updated successfully!');
+        this.showToast('🎉 Member role & department access updated successfully!', 'success');
         this.closeModal('editMemberModal');
         await this.refreshAll();
       } else {
-        alert('Failed: ' + (data.message || 'Error'));
+        this.showToast('Failed: ' + (data.message || 'Error'), 'error');
       }
     } catch (e) {
-      alert('Update failed: ' + e.message);
+      this.showToast('Update failed: ' + e.message, 'error');
     } finally {
       this.setButtonLoading('btnSaveMemberAccess', false, '', 'Save Access & Department');
     }
@@ -919,7 +1150,7 @@ class ChurchApp {
     const notes = document.getElementById('assignNotes').value.trim();
 
     if (!title || !role) {
-      alert('Please fill Duty Title and Role.');
+      this.showToast('Please fill Duty Title and Role.', 'error');
       return;
     }
 
@@ -932,14 +1163,14 @@ class ChurchApp {
       });
       const data = await res.json();
       if (data.success) {
-        alert('🎉 Duty assigned successfully!');
+        this.showToast('🎉 Duty assigned successfully!', 'success');
         this.closeModal('assignmentModal');
         await this.refreshAll();
       } else {
-        alert('Error: ' + data.message);
+        this.showToast('Error: ' + data.message, 'error');
       }
     } catch (e) {
-      alert('Assignment failed: ' + e.message);
+      this.showToast('Assignment failed: ' + e.message, 'error');
     } finally {
       this.setButtonLoading('btnSubmitAssignment', false, '', 'Confirm Assignment');
     }
@@ -1124,7 +1355,7 @@ class ChurchApp {
     const description = document.getElementById('eventDesc').value.trim();
 
     if (!title || !venue || !date) {
-      alert('Title, venue, and date are required.');
+      this.showToast('Title, venue, and date are required.', 'error');
       return;
     }
 
@@ -1141,14 +1372,14 @@ class ChurchApp {
       });
       const data = await res.json();
       if (data.success) {
-        alert(id ? '🎉 Event updated successfully!' : '🎉 Event published successfully!');
+        this.showToast(id ? '🎉 Event updated successfully!' : '🎉 Event published successfully!', 'success');
         this.closeModal('eventModal');
         await this.refreshAll();
       } else {
-        alert('Event operation failed: ' + (data.message || 'Unknown error'));
+        this.showToast('Event operation failed: ' + (data.message || 'Unknown error'), 'error');
       }
     } catch (e) {
-      alert('Event operation failed: ' + e.message);
+      this.showToast('Event operation failed: ' + e.message, 'error');
     } finally {
       this.setButtonLoading('btnSubmitEvent', false, '', id ? 'Update Event' : 'Publish Event');
     }
@@ -1160,12 +1391,13 @@ class ChurchApp {
       const res = await this.authFetch(`/api/events/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
+        this.showToast('Event deleted.', 'info');
         await this.refreshAll();
       } else {
-        alert('Delete failed: ' + (data.message || 'Unknown error'));
+        this.showToast('Delete failed: ' + (data.message || 'Unknown error'), 'error');
       }
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      this.showToast('Delete failed: ' + e.message, 'error');
     }
   }
 
@@ -1266,7 +1498,7 @@ class ChurchApp {
     const isPinned = document.getElementById('noticeIsPinned').checked;
 
     if (!title || !description) {
-      alert('Title and description are required.');
+      this.showToast('Title and description are required.', 'error');
       return;
     }
 
@@ -1279,12 +1511,12 @@ class ChurchApp {
       });
       const data = await res.json();
       if (data.success) {
-        alert('🎉 Notice broadcast successfully!');
+        this.showToast('🎉 Notice broadcast successfully!', 'success');
         this.closeModal('noticeModal');
         await this.refreshAll();
       }
     } catch (e) {
-      alert('Notice creation failed: ' + e.message);
+      this.showToast('Notice creation failed: ' + e.message, 'error');
     } finally {
       this.setButtonLoading('btnSubmitNotice', false, '', 'Post Notice');
     }
@@ -1294,9 +1526,10 @@ class ChurchApp {
     if (!confirm('Delete this notice?')) return;
     try {
       await this.authFetch(`/api/notices/${id}`, { method: 'DELETE' });
+      this.showToast('Notice deleted.', 'info');
       await this.refreshAll();
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      this.showToast('Delete failed: ' + e.message, 'error');
     }
   }
 
@@ -1325,7 +1558,7 @@ class ChurchApp {
   async saveStreamUrl() {
     const url = document.getElementById('streamUrlInput').value.trim();
     if (!url) {
-      alert('Please enter a valid YouTube stream URL.');
+      this.showToast('Please enter a valid YouTube stream URL.', 'error');
       return;
     }
 
@@ -1342,12 +1575,35 @@ class ChurchApp {
         if (this.socket) {
           this.socket.emit('updateYoutubeLink', { youtubeLink: url });
         }
-        alert('🎉 Live Stream link updated and broadcast to all members!');
+        this.showToast('🎉 Live Stream link updated and broadcast to all members!', 'success');
       }
     } catch (e) {
-      alert('Stream link update failed: ' + e.message);
+      this.showToast('Stream link update failed: ' + e.message, 'error');
     } finally {
       this.setButtonLoading(btn, false, '', '<i class="fa-brands fa-youtube"></i> Update Sanctuary Live Stream');
+    }
+  }
+
+  // MOBILE SIDEBAR TOGGLE
+  toggleMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    let overlay = document.querySelector('.sidebar-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'sidebar-overlay';
+      overlay.onclick = () => this.toggleMobileSidebar();
+      document.body.appendChild(overlay);
+    }
+
+    if (sidebar) {
+      const isActive = sidebar.classList.contains('mobile-active');
+      if (isActive) {
+        sidebar.classList.remove('mobile-active');
+        overlay.classList.remove('active');
+      } else {
+        sidebar.classList.add('mobile-active');
+        overlay.classList.add('active');
+      }
     }
   }
 
@@ -1356,67 +1612,266 @@ class ChurchApp {
     const select = document.getElementById('builderBookSelect');
     if (!select) return;
     select.innerHTML = BIBLE_BOOKS_66.map(b => `
-      <option value="${b.eng}">${b.tel} (${b.eng})</option>
+      <option value="${b.eng}">${b.tel} (${b.eng} - ${b.chapters} Ch)</option>
     `).join('');
+
+    this.populateBuilderChapters(BIBLE_BOOKS_66[0].eng);
 
     this.builderPortions = [];
     this.loadPlanBuilderPreset('1-year-canonical');
   }
 
+  populateBuilderChapters(bookEng) {
+    const b = BIBLE_BOOKS_66.find(item => item.eng === bookEng) || BIBLE_BOOKS_66[0];
+    const startSelect = document.getElementById('builderStartCh');
+    const endSelect = document.getElementById('builderEndCh');
+
+    if (!startSelect || !endSelect) return;
+
+    let options = '';
+    for (let i = 1; i <= b.chapters; i++) {
+      options += `<option value="${i}">Chapter ${i}</option>`;
+    }
+    startSelect.innerHTML = options;
+    endSelect.innerHTML = options;
+
+    startSelect.value = 1;
+    endSelect.value = Math.min(3, b.chapters);
+    this.updatePortionSummaryPreview();
+  }
+
+  onBuilderBookChange(val) {
+    this.populateBuilderChapters(val);
+  }
+
   loadPlanBuilderPreset(presetId) {
+    const planIdInput = document.getElementById('builderPlanId');
+    const titleEngInput = document.getElementById('builderTitleEnglish');
+    const titleTelInput = document.getElementById('builderTitleTelugu');
+
     if (presetId === '1-year-canonical') {
-      document.getElementById('builderPlanId').value = '1-year-canonical';
-      document.getElementById('builderTitleEnglish').value = '1-Year Complete Bible Reading Plan';
-      document.getElementById('builderTitleTelugu').value = '1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక';
-      
+      if (planIdInput) planIdInput.value = '1-year-canonical';
+      if (titleEngInput) titleEngInput.value = '1-Year Complete Bible Reading Plan';
+      if (titleTelInput) titleTelInput.value = '1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక';
       this.builderPortions = [
         { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 3, versesSummary: 'ఆదికాండము 1–3 / Genesis 1–3' },
         { day: 2, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 4, endChapter: 7, versesSummary: 'ఆదికాండము 4–7 / Genesis 4–7' },
-        { day: 3, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 8, endChapter: 11, versesSummary: 'ఆదికాండము 8–11 / Genesis 8–11' },
       ];
     } else if (presetId === '2-year-canonical') {
-      document.getElementById('builderPlanId').value = '2-year-canonical';
-      document.getElementById('builderTitleEnglish').value = '2-Year Bible Reading Plan';
-      document.getElementById('builderTitleTelugu').value = '2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక';
+      if (planIdInput) planIdInput.value = '2-year-canonical';
+      if (titleEngInput) titleEngInput.value = '2-Year Bible Reading Plan';
+      if (titleTelInput) titleTelInput.value = '2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక';
       this.builderPortions = [
         { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 2, versesSummary: 'ఆదికాండము 1–2 / Genesis 1–2' },
-        { day: 2, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 3, endChapter: 3, versesSummary: 'ఆదికాండము 3 / Genesis 3' },
+        { day: 2, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 3, endChapter: 4, versesSummary: 'ఆదికాండము 3–4 / Genesis 3–4' },
       ];
-    } else {
-      document.getElementById('builderPlanId').value = 'custom-360-plan';
-      document.getElementById('builderTitleEnglish').value = '360-Day Church Bible Study Plan';
-      document.getElementById('builderTitleTelugu').value = '360 రోజుల సంఘ బైబిల్ అధ్యయన ప్రణాళిక';
+    } else if (presetId === '3-year-canonical') {
+      if (planIdInput) planIdInput.value = '3-year-canonical';
+      if (titleEngInput) titleEngInput.value = '3-Year Bible Reading Plan';
+      if (titleTelInput) titleTelInput.value = '3 సంవత్సరాల దేవుని వాక్య పఠన ప్రణాళిక';
       this.builderPortions = [
-        { day: 1, book: 'Matthew', bookTelugu: 'మత్తయి సువార్త', startChapter: 1, endChapter: 2, versesSummary: 'మత్తయి సువార్త 1–2 / Matthew 1–2' },
+        { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 1, versesSummary: 'ఆదికాండము 1 / Genesis 1' },
+      ];
+    } else if (presetId === '6-month-plan') {
+      if (planIdInput) planIdInput.value = '6-month-plan';
+      if (titleEngInput) titleEngInput.value = '6-Month Intensive Bible Reading Plan';
+      if (titleTelInput) titleTelInput.value = '6 నెలల తీవ్రమైన బైబిల్ అధ్యయన ప్రణాళిక';
+      this.builderPortions = [
+        { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 7, versesSummary: 'ఆదికాండము 1–7 / Genesis 1–7' },
+      ];
+    } else if (presetId === '3-month-plan') {
+      if (planIdInput) planIdInput.value = '3-month-plan';
+      if (titleEngInput) titleEngInput.value = '3-Month Fast Reading Plan';
+      if (titleTelInput) titleTelInput.value = '3 నెలల వేగవంతమైన బైబిల్ పఠన ప్రణాళిక';
+      this.builderPortions = [
+        { day: 1, book: 'Genesis', bookTelugu: 'ఆదికాండము', startChapter: 1, endChapter: 13, versesSummary: 'ఆదికాండము 1–13 / Genesis 1–13' },
+      ];
+    } else if (presetId === '1-month-plan') {
+      if (planIdInput) planIdInput.value = '1-month-plan';
+      if (titleEngInput) titleEngInput.value = '1-Month New Testament Reading Plan';
+      if (titleTelInput) titleTelInput.value = '1 నెల కొత్త నిబంధన పఠన ప్రణాళిక';
+      this.builderPortions = [
+        { day: 1, book: 'Matthew', bookTelugu: 'మత్తయి సువార్త', startChapter: 1, endChapter: 9, versesSummary: 'మత్తయి సువార్త 1–9 / Matthew 1–9' },
       ];
     }
 
     this.renderBuilderPortionsTable();
   }
 
+  openShareLinkPage(presetId = '1-year-canonical') {
+    const shareUrl = `/share-plan.html?planId=${encodeURIComponent(presetId)}`;
+    window.open(shareUrl, '_blank');
+  }
+
+  async autoCalculatePlanChapters(presetId = '1-year-canonical') {
+    let targetDays = 365;
+    let titleEng = '1-Year Complete Bible Reading Plan';
+    let titleTel = '1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక';
+
+    if (presetId === '2-year-canonical') {
+      targetDays = 730;
+      titleEng = '2-Year Bible Reading Plan';
+      titleTel = '2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక';
+    } else if (presetId === '3-year-canonical') {
+      targetDays = 1095;
+      titleEng = '3-Year Bible Reading Plan';
+      titleTel = '3 సంవత్సరాల దేవుని వాక్య పఠన ప్రణాళిక';
+    } else if (presetId === '6-month-plan') {
+      targetDays = 180;
+      titleEng = '6-Month Intensive Bible Reading Plan';
+      titleTel = '6 నెలల తీవ్రమైన బైబిల్ అధ్యయన ప్రణాళిక';
+    } else if (presetId === '3-month-plan') {
+      targetDays = 90;
+      titleEng = '3-Month Fast Reading Plan';
+      titleTel = '3 నెలల వేగవంతమైన బైబిల్ పఠన ప్రణాళిక';
+    } else if (presetId === '1-month-plan') {
+      targetDays = 30;
+      titleEng = '1-Month New Testament Reading Plan';
+      titleTel = '1 నెల కొత్త నిబంధన పఠన ప్రణాళిక';
+    }
+
+    const targetBooks = presetId === '1-month-plan' ? BIBLE_BOOKS_66.slice(39) : BIBLE_BOOKS_66;
+    const allChaptersList = [];
+
+    targetBooks.forEach(b => {
+      for (let c = 1; c <= b.chapters; c++) {
+        allChaptersList.push({ book: b.eng, tel: b.tel, ch: c });
+      }
+    });
+
+    const totalChapters = allChaptersList.length;
+    const basePerDay = Math.floor(totalChapters / targetDays);
+    const extraCount = totalChapters % targetDays;
+
+    const portions = [];
+    let chapterCursor = 0;
+
+    for (let dayIdx = 1; dayIdx <= targetDays; dayIdx++) {
+      const countForToday = basePerDay + (dayIdx <= extraCount ? 1 : 0);
+      if (countForToday <= 0 || chapterCursor >= totalChapters) break;
+
+      const chunk = allChaptersList.slice(chapterCursor, chapterCursor + countForToday);
+      chapterCursor += countForToday;
+
+      if (chunk.length === 0) break;
+
+      const first = chunk[0];
+      const last = chunk[chunk.length - 1];
+
+      let summary = '';
+      if (first.book === last.book) {
+        const chStr = first.ch === last.ch ? `${first.ch}` : `${first.ch}–${last.ch}`;
+        summary = `${first.tel} ${chStr} / ${first.book} ${chStr}`;
+      } else {
+        summary = `${first.tel} ${first.ch} - ${last.tel} ${last.ch}`;
+      }
+
+      portions.push({
+        day: dayIdx,
+        book: first.book,
+        bookTelugu: first.tel,
+        startChapter: first.ch,
+        endChapter: last.ch,
+        versesSummary: summary
+      });
+    }
+
+    try {
+      const res = await this.authFetch('/api/bible-plans/admin/update-plan', {
+        method: 'POST',
+        body: JSON.stringify({
+          planId: presetId,
+          titleEnglish: titleEng,
+          titleTelugu: titleTel,
+          durationDays: portions.length,
+          dailyPortions: portions,
+          category: 'canonical'
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        this.showToast(`⚡ Auto-generated & deployed EXACTLY ${portions.length} daily portions for ${targetDays}-day plan!`, 'success');
+        await this.loadBiblePlanStats();
+      } else {
+        this.showToast('Failed to auto-deploy plan: ' + json.message, 'error');
+      }
+    } catch (e) {
+      this.showToast('Error deploying plan: ' + e.message, 'error');
+    }
+  }
+
+  async exportPlanToExcelAdmin(presetId = '1-year-canonical') {
+    try {
+      const res = await fetch(`/api/bible-plans/public/${presetId}`);
+      const json = await res.json();
+      const portions = (json.success && json.data?.dailyPortions) ? json.data.dailyPortions : [];
+
+      if (portions.length === 0) {
+        this.showToast('No configured portions found. Click Auto 365 Days first.', 'error');
+        return;
+      }
+
+      let csv = '\uFEFF'; // UTF-8 BOM for Telugu characters in Excel
+      csv += 'Day,Book (Telugu),Book (English),Start Chapter,End Chapter,Portion Summary\n';
+
+      portions.forEach(p => {
+        const telEsc = `"${(p.bookTelugu || '').replace(/"/g, '""')}"`;
+        const engEsc = `"${(p.book || '').replace(/"/g, '""')}"`;
+        const sumEsc = `"${(p.versesSummary || '').replace(/"/g, '""')}"`;
+        csv += `Day ${p.day},${telEsc},${engEsc},${p.startChapter},${p.endChapter},${sumEsc}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `${presetId}_Bible_Reading_Plan.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      this.showToast(`📥 Exported ${portions.length} days of ${presetId} to Excel CSV!`, 'success');
+    } catch (e) {
+      this.showToast('Export failed: ' + e.message, 'error');
+    }
+  }
+
+
+
+  copyPublicShareLink() {
+    const planId = document.getElementById('builderPlanId')?.value || '1-year-canonical';
+    const shareUrl = `${window.location.origin}/share-plan.html?planId=${encodeURIComponent(planId)}`;
+
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      this.showToast(`🔗 Shareable link copied: ${shareUrl}`, 'success');
+    }).catch(() => {
+      prompt('Copy this shareable Bible reading plan link:', shareUrl);
+    });
+  }
+
   updatePortionSummaryPreview() {
-    const bookEng = document.getElementById('builderBookSelect').value;
+    const bookEng = document.getElementById('builderBookSelect')?.value || 'Genesis';
     const b = BIBLE_BOOKS_66.find(item => item.eng === bookEng) || { eng: bookEng, tel: bookEng };
-    const startCh = document.getElementById('builderStartCh').value || 1;
-    const endCh = document.getElementById('builderEndCh').value || startCh;
+    const startCh = Number(document.getElementById('builderStartCh')?.value) || 1;
+    const endCh = Number(document.getElementById('builderEndCh')?.value) || startCh;
 
     const chStr = startCh === endCh ? `${startCh}` : `${startCh}–${endCh}`;
     const autoSummary = `${b.tel} ${chStr} / ${b.eng} ${chStr}`;
-    document.getElementById('builderSummary').value = autoSummary;
-  }
-
-  onBuilderBookChange(val) {
-    this.updatePortionSummaryPreview();
+    const summaryInput = document.getElementById('builderSummary');
+    if (summaryInput) summaryInput.value = autoSummary;
   }
 
   onBuilderDayChange(val) {
     const dayNum = Number(val) || 1;
     const existing = this.builderPortions.find(p => p.day === dayNum);
     if (existing) {
-      document.getElementById('builderBookSelect').value = existing.book;
-      document.getElementById('builderStartCh').value = existing.startChapter;
-      document.getElementById('builderEndCh').value = existing.endChapter;
-      document.getElementById('builderSummary').value = existing.versesSummary;
+      const bookSelect = document.getElementById('builderBookSelect');
+      if (bookSelect) bookSelect.value = existing.book;
+      this.populateBuilderChapters(existing.book);
+      const startSelect = document.getElementById('builderStartCh');
+      const endSelect = document.getElementById('builderEndCh');
+      if (startSelect) startSelect.value = existing.startChapter;
+      if (endSelect) endSelect.value = existing.endChapter;
+      const summaryInput = document.getElementById('builderSummary');
+      if (summaryInput) summaryInput.value = existing.versesSummary;
     } else {
       this.updatePortionSummaryPreview();
     }
@@ -1428,6 +1883,7 @@ class ChurchApp {
     const b = BIBLE_BOOKS_66.find(item => item.eng === bookEng) || { eng: bookEng, tel: bookEng };
     const startChapter = Number(document.getElementById('builderStartCh').value) || 1;
     const endChapter = Number(document.getElementById('builderEndCh').value) || startChapter;
+
     const versesSummary = document.getElementById('builderSummary').value.trim() || `${b.tel} ${startChapter}–${endChapter}`;
 
     const newPortion = {
@@ -1491,7 +1947,7 @@ class ChurchApp {
     const titleTelugu = document.getElementById('builderTitleTelugu').value.trim();
 
     if (!planId || !titleEnglish || this.builderPortions.length === 0) {
-      alert('Please provide Plan ID, Title, and at least 1 configured day portion.');
+      this.showToast('Please provide Plan ID, Title, and at least 1 configured day portion.', 'error');
       return;
     }
 
@@ -1513,17 +1969,87 @@ class ChurchApp {
       });
       const json = await res.json();
       if (json.success) {
-        alert(`🎉 Plan "${titleEnglish}" with ${this.builderPortions.length} days saved and deployed successfully to all mobile devices!`);
+        this.showToast(`🎉 Plan "${titleEnglish}" with ${this.builderPortions.length} days saved and deployed!`, 'success');
         await this.loadBiblePlanStats();
       } else {
-        alert('Failed: ' + (json.message || 'Error'));
+        this.showToast('Failed: ' + (json.message || 'Error'), 'error');
       }
     } catch (e) {
-      alert('Plan save failed: ' + e.message);
+      this.showToast('Plan save failed: ' + e.message, 'error');
     } finally {
       this.setButtonLoading('btnSaveBuilderPlan', false, '', '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy 365-Day Plan to Database');
     }
   }
+
+  async loadUserProgress() {
+    try {
+      const res = await this.authFetch('/api/bible-plans/progress/me?planId=1-year-canonical');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const p = json.data;
+        const completedCount = p.completedDays ? p.completedDays.length : 0;
+        const totalDays = 365;
+        const percent = Math.min(100, Math.round((completedCount / totalDays) * 100));
+
+        const titleEl = document.getElementById('userActivePlanTitle');
+        const subEl = document.getElementById('userActivePlanSubtitle');
+        const pctEl = document.getElementById('userProgressPercentText');
+        const barEl = document.getElementById('userProgressBarFill');
+        const doneEl = document.getElementById('userCompletedDaysCount');
+        const remEl = document.getElementById('userRemainingDaysCount');
+        const streakEl = document.getElementById('userCurrentStreakCount');
+
+        if (titleEl) titleEl.innerText = p.planId === '1-year-canonical' ? '1-Year Complete Bible Reading Plan' : p.planId;
+        if (subEl) subEl.innerText = `Day ${p.currentDay || 1} Portion • 1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక`;
+        if (pctEl) pctEl.innerText = `${percent}% Completed`;
+        if (barEl) barEl.style.width = `${percent}%`;
+        if (doneEl) doneEl.innerText = `${completedCount} Days`;
+        if (remEl) remEl.innerText = `${totalDays - completedCount} Days`;
+        if (streakEl) streakEl.innerText = `🔥 ${p.streak || 0} Days`;
+      }
+    } catch (e) {
+      console.log('Error loading user progress:', e);
+    }
+  }
+
+  async markCurrentPassageReadSubmit() {
+    const btn = document.getElementById('btnMarkPassageRead');
+    this.setButtonLoading(btn, true, 'Updating...');
+    try {
+      const res = await this.authFetch('/api/bible-plans/mark-read', {
+        method: 'POST',
+        body: JSON.stringify({ planId: '1-year-canonical', day: 1 })
+      });
+      const json = await res.json();
+      if (json.success) {
+        this.showToast("🎉 Today's passage marked as complete!", 'success');
+        await this.loadUserProgress();
+        await this.loadBiblePlanStats();
+      } else {
+        this.showToast('Failed: ' + json.message, 'error');
+      }
+    } catch (e) {
+      this.showToast('Error marking passage read: ' + e.message, 'error');
+    } finally {
+      this.setButtonLoading(btn, false, '', '<i class="fa-solid fa-circle-check"></i> Mark Today\'s Passage Complete');
+    }
+  }
+
+  async loadTodayPromise() {
+    try {
+      const res = await fetch('/api/bible-plans/daily-promise');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const verseEl = document.getElementById('promiseVerseText');
+        const refEl = document.getElementById('promiseRefText');
+        if (verseEl) verseEl.innerText = `"${json.data.verseTelugu || json.data.verseEnglish}"`;
+        if (refEl) refEl.innerText = `— ${json.data.referenceTelugu || json.data.referenceEnglish}`;
+      }
+    } catch (e) {
+      console.log('Error loading promise:', e);
+    }
+  }
+
 
   async loadBiblePlanStats() {
     try {
@@ -1531,21 +2057,34 @@ class ChurchApp {
       const json = await res.json();
       if (json.success && json.data) {
         const d = json.data;
-        document.getElementById('statPlanEnrolled').innerText = d.totalEnrolledMembers || 0;
-        document.getElementById('statPlanStreaks').innerText = `${d.activeStreakCount || 0} 🔥`;
-        document.getElementById('statPlanCompleted').innerText = d.totalPortionsCompleted || 0;
+        const totalEnrolled = d.totalEnrolledMembers || 0;
+        const totalStreaks = d.activeStreakCount || 0;
+        const totalCompleted = d.totalPortionsCompleted || 0;
+
+        document.getElementById('statPlanEnrolled').innerText = totalEnrolled;
+        document.getElementById('statPlanStreaks').innerText = `${totalStreaks} 🔥`;
+        document.getElementById('statPlanCompleted').innerText = totalCompleted;
+
+        const consistency = totalEnrolled > 0 ? Math.min(100, Math.round((totalStreaks / totalEnrolled) * 100)) : 100;
+        const consEl = document.getElementById('statPlanConsistency');
+        if (consEl) consEl.innerText = `${consistency}%`;
 
         const tbody = document.getElementById('planLeaderboardBody');
         if (d.topReaders && d.topReaders.length > 0) {
-          tbody.innerHTML = d.topReaders.map(r => `
-            <tr>
-              <td><strong>${r.userId}</strong></td>
-              <td><span class="badge badge-primary">${r.planId}</span></td>
-              <td>Day ${r.currentDay}</td>
-              <td>${r.completedDays ? r.completedDays.length : 0} days</td>
-              <td><span class="badge badge-success">🔥 ${r.streak} streak</span></td>
-            </tr>
-          `).join('');
+          tbody.innerHTML = d.topReaders.map((r, index) => {
+            const memberName = r.userName || r.userId || 'Member';
+            const daysCount = r.completedDays ? r.completedDays.length : 0;
+            const rankBadge = index === 0 ? '🥇 1st' : index === 1 ? '🥈 2nd' : index === 2 ? '🥉 3rd' : `#${index + 1}`;
+            return `
+              <tr>
+                <td><strong>${rankBadge} — ${memberName}</strong></td>
+                <td><span class="badge badge-primary">${r.planId}</span></td>
+                <td>Day ${r.currentDay || 1}</td>
+                <td><strong>${daysCount} days</strong></td>
+                <td><span class="badge badge-success">🔥 ${r.streak || 0} streak</span></td>
+              </tr>
+            `;
+          }).join('');
         } else {
           tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No member reading data recorded yet.</td></tr>`;
         }
@@ -1555,13 +2094,14 @@ class ChurchApp {
     }
   }
 
+
   async saveDailyPromiseSubmit() {
     const verseTelugu = document.getElementById('adminPromiseTelugu').value.trim();
     const referenceTelugu = document.getElementById('adminPromiseRef').value.trim();
     const verseEnglish = document.getElementById('adminPromiseEnglish').value.trim();
 
     if (!verseTelugu || !referenceTelugu) {
-      alert('Telugu Promise Verse and Reference are required.');
+      this.showToast('Telugu Promise Verse and Reference are required.', 'error');
       return;
     }
 
@@ -1575,12 +2115,12 @@ class ChurchApp {
       });
       const json = await res.json();
       if (json.success) {
-        alert('🎉 Today\'s God\'s Promise published successfully to all mobile apps in Telugu!');
+        this.showToast("🎉 Today's God's Promise published successfully to all mobile apps!", 'success');
       } else {
-        alert('Failed: ' + json.message);
+        this.showToast('Failed: ' + json.message, 'error');
       }
     } catch (e) {
-      alert('Error saving promise: ' + e.message);
+      this.showToast('Error saving promise: ' + e.message, 'error');
     } finally {
       this.setButtonLoading(btn, false, '', '<i class="fa-solid fa-paper-plane"></i> Publish Today\'s Promise');
     }

@@ -22,9 +22,6 @@ export interface BiblePlanData {
 // Generate canonical daily portions across all 66 books and 1,189 chapters
 export const generateCanonicalPlan = (durationDays: number = 365): DailyPortion[] => {
   const portions: DailyPortion[] = [];
-  
-  // Total 1,189 chapters in the Holy Bible
-  // Spread evenly across the duration
   let allChapters: Array<{ book: string; bookTelugu: string; chapter: number }> = [];
   
   for (const book of ALL_BIBLE_BOOKS) {
@@ -38,42 +35,47 @@ export const generateCanonicalPlan = (durationDays: number = 365): DailyPortion[
   }
 
   const totalChapters = allChapters.length;
-  const chaptersPerDay = totalChapters / durationDays;
+  const targetDays = durationDays || 365;
 
-  let currentChapterIdx = 0;
+  const basePerDay = Math.floor(totalChapters / targetDays);
+  const extraCount = totalChapters % targetDays;
 
-  for (let day = 1; day <= durationDays; day++) {
-    const nextChapterIdx = Math.min(totalChapters, Math.round(day * chaptersPerDay));
-    const dayChapters = allChapters.slice(currentChapterIdx, nextChapterIdx);
+  let chapterCursor = 0;
 
-    if (dayChapters.length > 0) {
-      const first = dayChapters[0];
-      const last = dayChapters[dayChapters.length - 1];
+  for (let day = 1; day <= targetDays; day++) {
+    const countForToday = basePerDay + (day <= extraCount ? 1 : 0);
+    if (countForToday <= 0 || chapterCursor >= totalChapters) break;
 
-      let summary = '';
-      if (first.book === last.book) {
-        summary = first.chapter === last.chapter
-          ? `${first.bookTelugu} ${first.chapter} / ${first.book} ${first.chapter}`
-          : `${first.bookTelugu} ${first.chapter}–${last.chapter} / ${first.book} ${first.chapter}–${last.chapter}`;
-      } else {
-        summary = `${first.bookTelugu} ${first.chapter} – ${last.bookTelugu} ${last.chapter} / ${first.book} ${first.chapter} – ${last.book} ${last.chapter}`;
-      }
+    const chunk = allChapters.slice(chapterCursor, chapterCursor + countForToday);
+    chapterCursor += countForToday;
 
-      portions.push({
-        day,
-        book: first.book,
-        bookTelugu: first.bookTelugu,
-        startChapter: first.chapter,
-        endChapter: last.chapter,
-        versesSummary: summary,
-      });
+    if (chunk.length === 0) break;
 
-      currentChapterIdx = nextChapterIdx;
+    const first = chunk[0];
+    const last = chunk[chunk.length - 1];
+
+    let summary = '';
+    if (first.book === last.book) {
+      summary = first.chapter === last.chapter
+        ? `${first.bookTelugu} ${first.chapter} / ${first.book} ${first.chapter}`
+        : `${first.bookTelugu} ${first.chapter}–${last.chapter} / ${first.book} ${first.chapter}–${last.chapter}`;
+    } else {
+      summary = `${first.bookTelugu} ${first.chapter} – ${last.bookTelugu} ${last.chapter} / ${first.book} ${first.chapter} – ${last.book} ${last.chapter}`;
     }
+
+    portions.push({
+      day,
+      book: first.book,
+      bookTelugu: first.bookTelugu,
+      startChapter: first.chapter,
+      endChapter: last.chapter,
+      versesSummary: summary,
+    });
   }
 
   return portions;
 };
+
 
 export const DEFAULT_1_YEAR_PLAN: BiblePlanData = {
   planId: '1-year-canonical',

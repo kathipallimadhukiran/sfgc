@@ -18,7 +18,7 @@
     "socket.io",
     "react-native"
   ],
-  "author": "ChurchConnect Team",
+  "author": "SFGC Team",
   "license": "ISC",
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

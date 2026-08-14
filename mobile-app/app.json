@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mobile-app",
-    "slug": "mobile-app",
+    "name": "SFGC - Satellite City Full Gospel Church",
+    "slug": "sfgc-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "mobileapp",
+    "icon": "./assets/icon.png",
+    "scheme": "sfgcapp",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
@@ -43,7 +43,17 @@
           "imageWidth": 76
         }
       ],
-      "expo-file-system"
+      "expo-file-system",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableJetifier": true,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -52,7 +62,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5a8878f3-3f04-4750-a1f4-066b551f97d7"
+        "projectId": "2ee822fd-395a-4100-9455-38082844c266"
       }
     }
   }

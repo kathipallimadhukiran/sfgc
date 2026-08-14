@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SFGC - Bible Reading Plan Configuration Wizard</title>
+  <!-- Google Fonts & Font Awesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --bg-main: #0b0f19;
+      --bg-card: rgba(30, 41, 59, 0.85);
+      --border-card: rgba(255, 255, 255, 0.12);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-light: rgba(99, 102, 241, 0.18);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-amber: #f59e0b;
+      --accent-emerald: #10b981;
+      --font-display: 'Outfit', sans-serif;
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      background-image: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 20px 16px;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .header-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    
+    /* Wizard Steps Navigation Bar */
+    .wizard-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      position: relative;
+      gap: 8px;
+    }
+    .wizard-step-item {
+      flex: 1;
+      text-align: center;
+      padding: 12px 8px;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .wizard-step-item.active {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: #a5b4fc;
+    }
+    .wizard-step-item.completed {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: var(--accent-emerald);
+    }
+    .step-number {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    .wizard-step-item.active .step-number {
+      background: var(--primary);
+      color: white;
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .wizard-panel {
+      display: none;
+    }
+    .wizard-panel.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .form-control, .form-select {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      color: var(--text-main);
+      font-size: 14px;
+      outline: none;
+      width: 100%;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    /* Option Cards for Scope & Duration */
+    .option-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .option-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .option-card:hover {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.08);
+    }
+    .option-card.selected {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      box-shadow: 0 0 0 2px var(--primary);
+    }
+    .option-card i {
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: #a5b4fc;
+    }
+    .option-card h4 {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .option-card small {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Book Reorder List */
+    .book-reorder-list {
+      max-height: 320px;
+      overflow-y: auto;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.9);
+      padding: 8px;
+      margin-top: 10px;
+    }
+    .book-reorder-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .book-reorder-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .btn-icon-sm {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-icon-sm:hover { background: var(--primary); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #4f46e5);
+      color: white;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    }
+    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-main);
+    }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.08); }
+    .btn-amber {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+    }
+
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-card);
+      margin-top: 12px;
+      max-height: 480px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      text-align: left;
+    }
+    th, td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    th {
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    tr:hover { background: rgba(255, 255, 255, 0.03); }
+
+    /* Modal Overlay for Day Editing */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 500px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1e293b;
+      border: 1px solid var(--primary);
+      color: #fff;
+      padding: 14px 22px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-card">
+      <div class="header-brand">
+        <div class="brand-icon" style="background:transparent;"><img src="/logo.png" alt="SFGC Logo" style="width:48px; height:48px; border-radius:50%; background:#ffffff; padding:2px; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></div>
+        <div>
+          <h1 class="brand-title">SFGC — Bible Reading Plan Wizard</h1>
+          <p class="subtitle">Satellite City Full Gospel Church • Step-by-step automatic distribution & schedule generator</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wizard Steps Bar -->
+    <div class="wizard-steps">
+      <div class="wizard-step-item active" id="stepIndicator1" onclick="goToStep(1)">
+        <span class="step-number">1</span> Basic Info
+      </div>
+      <div class="wizard-step-item" id="stepIndicator2" onclick="goToStep(2)">
+        <span class="step-number">2</span> Scope & Order
+      </div>
+      <div class="wizard-step-item" id="stepIndicator3" onclick="goToStep(3)">
+        <span class="step-number">3</span> Duration
+      </div>
+      <div class="wizard-step-item" id="stepIndicator4" onclick="goToStep(4)">
+        <span class="step-number">4</span> Schedule & Edit
+      </div>
+      <div class="wizard-step-item" id="stepIndicator5" onclick="goToStep(5)">
+        <span class="step-number">5</span> Save & Export
+      </div>
+    </div>
+
+    <div class="card">
+      <!-- STEP 1: Select Configured Plan or Create New -->
+      <div class="wizard-panel active" id="stepPanel1">
+        <h3 style="margin-bottom: 6px; font-family: var(--font-display);">Step 1 — Basic Information</h3>
+        <p class="subtitle" style="margin-bottom: 18px;">Select an existing configured plan to edit or create a new custom plan.</p>
+
+        <div class="form-group">
+          <label>Select Already Configured Plan or Create New *</label>
+          <select id="selectPresetPlan" class="form-select" onchange="onSelectPresetPlanChange(this.value)">
+            <option value="1-year-canonical">📖 1-Year Complete Bible Reading Plan (365 Days)</option>
+            <option value="2-year-canonical">📖 2-Year Bible Reading Plan (730 Days)</option>
+            <option value="3-year-canonical">📖 3-Year Bible Reading Plan (1095 Days)</option>
+            <option value="6-month-plan">📖 6-Month Intensive Reading Plan (180 Days)</option>
+            <option value="3-month-plan">📖 3-Month Fast Reading Plan (90 Days)</option>
+            <option value="1-month-plan">📖 1-Month New Testament Plan (30 Days)</option>
+            <option value="NEW_CUSTOM">➕ Create New Custom Reading Plan...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Plan Identifier (Key ID) *</label>
+          <input type="text" id="planId" class="form-control" value="1-year-canonical" placeholder="e.g. 1-year-canonical, my-custom-plan">
+        </div>
+
+        <div class="form-group">
+          <label>Plan Name (English) *</label>
+          <input type="text" id="titleEnglish" class="form-control" value="1-Year Complete Bible Reading Plan">
+        </div>
+
+        <div class="form-group">
+          <label>Plan Name (Telugu / తెలుగు శీర్షిక) *</label>
+          <input type="text" id="titleTelugu" class="form-control" value="1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక">
+        </div>
+
+        <div class="form-group">
+          <label>Description (Optional)</label>
+          <input type="text" id="planDesc" class="form-control" placeholder="Read through the scriptures systematically every day.">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-primary" onclick="goToStep(2)">Next: Scope & Book Order <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Bible Scope & Custom Book Ordering -->
+      <div class="wizard-panel" id="stepPanel2">
+        <h3 style="margin-bottom: 6px; font-family: var(--font-display);">Step 2 — Bible Scope & Custom Book Order</h3>
+        <p class="subtitle" style="margin-bottom: 18px;">Choose scripture portion and reorder books according to your reading preference.</p>
+
+        <div class="option-cards-grid">
+          <div class="option-card selected" id="scopeCardComplete" onclick="selectScope('complete')">
+            <i class="fa-solid fa-bible"></i>
+            <h4>Complete Bible</h4>
+            <small>66 Books (1,189 Chapters)</small>
+          </div>
+          <div class="option-card" id="scopeCardOT" onclick="selectScope('ot')">
+            <i class="fa-solid fa-scroll"></i>
+            <h4>Old Testament</h4>
+            <small>39 Books (929 Chapters)</small>
+          </div>
+          <div class="option-card" id="scopeCardNT" onclick="selectScope('nt')">
+            <i class="fa-solid fa-book-open"></i>
+            <h4>New Testament</h4>
+            <small>27 Books (260 Chapters)</small>
+          </div>
+        </div>
+
+        <!-- Book Order Reordering Preference Section -->
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 16px; margin-top: 16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h4 style="font-size:14px;"><i class="fa-solid fa-arrow-down-up-between text-amber"></i> Book Reading Preference & Order</h4>
+              <small class="subtitle">Change book order (e.g. Genesis after Exodus, or NT before OT).</small>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-sm btn-outline" onclick="resetBookOrder('canonical')">Reset Canonical</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="resetBookOrder('nt-first')">NT First</button>
+            </div>
+          </div>
+
+          <div class="book-reorder-list" id="bookReorderContainer">
+            <!-- Dynamically populated books with Move Up / Move Down buttons -->
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="goToStep(1)"><i class="fa-solid fa-arrow-left"></i> Back</button>
+          <button type="button" class="btn btn-primary" onclick="goToStep(3)">Next: Duration <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Duration Selection -->
+      <div class="wizard-panel" id="stepPanel3">
+        <h3 style="margin-bottom: 6px; font-family: var(--font-display);">Step 3 — Duration Selection</h3>
+        <p class="subtitle" style="margin-bottom: 18px;">Select how many days or months the reading plan will span.</p>
+
+        <div class="option-cards-grid">
+          <div class="option-card" id="durCard30" onclick="selectDuration(30)">
+            <i class="fa-solid fa-calendar-day"></i>
+            <h4>1 Month</h4>
+            <small>30 Days</small>
+          </div>
+          <div class="option-card" id="durCard90" onclick="selectDuration(90)">
+            <i class="fa-solid fa-calendar-week"></i>
+            <h4>3 Months</h4>
+            <small>90 Days</small>
+          </div>
+          <div class="option-card" id="durCard180" onclick="selectDuration(180)">
+            <i class="fa-solid fa-calendar"></i>
+            <h4>6 Months</h4>
+            <small>180 Days</small>
+          </div>
+          <div class="option-card selected" id="durCard365" onclick="selectDuration(365)">
+            <i class="fa-solid fa-calendar-days"></i>
+            <h4>1 Year</h4>
+            <small>365 Days</small>
+          </div>
+          <div class="option-card" id="durCard730" onclick="selectDuration(730)">
+            <i class="fa-solid fa-calendar-check"></i>
+            <h4>2 Years</h4>
+            <small>730 Days</small>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label>Custom Duration (Days)</label>
+          <input type="number" id="customDaysInput" class="form-control" placeholder="Or enter exact days e.g. 100" oninput="onCustomDaysInput(this.value)">
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="goToStep(2)"><i class="fa-solid fa-arrow-left"></i> Back</button>
+          <button type="button" class="btn btn-primary" onclick="generateScheduleAndGoToStep4()">Generate Complete Schedule & Preview <i class="fa-solid fa-wand-magic-sparkles"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Automatic Distribution & Complete Table View / Editing -->
+      <div class="wizard-panel" id="stepPanel4">
+        <h3 style="margin-bottom: 6px; font-family: var(--font-display);">Step 4 — Complete Days Schedule & Edition Editor</h3>
+        <p class="subtitle" style="margin-bottom: 14px;">View all complete days of the schedule. Search, filter, or edit any day portion directly.</p>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px;">
+          <div style="background:rgba(99, 102, 241, 0.1); border:1px solid rgba(99, 102, 241, 0.2); padding:10px; border-radius:12px; text-align:center;">
+            <small style="color:var(--text-muted); display:block;">Total Chapters</small>
+            <strong id="statTotalChapters" style="font-size:16px; color:#a5b4fc;">1,189</strong>
+          </div>
+          <div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.2); padding:10px; border-radius:12px; text-align:center;">
+            <small style="color:var(--text-muted); display:block;">Total Days</small>
+            <strong id="statTotalDays" style="font-size:16px; color:#6ee7b7;">365</strong>
+          </div>
+          <div style="background:rgba(245, 158, 11, 0.1); border:1px solid rgba(245, 158, 11, 0.2); padding:10px; border-radius:12px; text-align:center;">
+            <small style="color:var(--text-muted); display:block;">Average Ch / Day</small>
+            <strong id="statAvgCh" style="font-size:16px; color:#fde047;">3.25</strong>
+          </div>
+        </div>
+
+        <!-- Table Filters & Controls -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+          <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:240px;">
+            <input type="text" id="tableSearchInput" class="form-control" style="padding:8px 12px; font-size:13px;" placeholder="🔍 Search by Day # or Book Name..." oninput="renderTableSchedule()">
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="font-size:12px; margin:0;">Page Size:</label>
+            <select id="pageSizeSelect" class="form-select" style="width:auto; padding:6px 10px; font-size:12px;" onchange="onPageSizeChange(this.value)">
+              <option value="50">50 Days</option>
+              <option value="100">100 Days</option>
+              <option value="ALL">Show All Days</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:80px;">Day</th>
+                <th>Book (Telugu & English)</th>
+                <th style="width:140px;">Chapters</th>
+                <th>Portion Summary</th>
+                <th style="width:90px; text-align:center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="previewTableBody">
+              <tr><td colspan="5" style="text-align:center; padding: 20px;">Generating complete schedule...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:13px;" id="paginationBar">
+          <span id="pageInfoText" style="color:var(--text-muted);">Showing 1 to 50 of 365 Days</span>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn btn-sm btn-outline" id="btnPrevPage" onclick="changePage(-1)">Previous</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btnNextPage" onclick="changePage(1)">Next</button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="goToStep(3)"><i class="fa-solid fa-arrow-left"></i> Back to Duration</button>
+          <button type="button" class="btn btn-primary" onclick="goToStep(5)">Confirm & Save Plan <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 5: Save & Deploy Plan -->
+      <div class="wizard-panel" id="stepPanel5">
+        <h3 style="margin-bottom: 6px; font-family: var(--font-display);">Step 5 — Save & Share Plan</h3>
+        <p class="subtitle" style="margin-bottom: 18px;">Publish this plan to the church app database or copy configuration link.</p>
+
+        <div style="background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); border-radius:16px; padding:20px; margin-bottom:20px;">
+          <h4 style="color:#6ee7b7; margin-bottom:8px;"><i class="fa-solid fa-circle-check"></i> Plan Ready to Publish</h4>
+          <p style="font-size:13px; color:var(--text-muted);">
+            Plan <strong id="confirmPlanTitle">1-Year Complete Bible Reading Plan</strong> with <strong id="confirmPlanDays">365</strong> days has been automatically calculated.
+          </p>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <button type="button" class="btn btn-primary" id="btnSaveWizardPlan" onclick="savePlanToDatabase()">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy Reading Plan to Database
+          </button>
+          
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline" style="flex:1;" onclick="copyConfigLink()">
+              <i class="fa-solid fa-link text-amber"></i> Copy Configuration Link
+            </button>
+            <button type="button" class="btn btn-outline" style="flex:1;" onclick="exportToExcel()">
+              <i class="fa-solid fa-file-excel text-emerald" style="color:#10b981;"></i> Export to Excel (.xlsx/csv)
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-start; margin-top: 24px;">
+          <button type="button" class="btn btn-outline" onclick="goToStep(4)"><i class="fa-solid fa-arrow-left"></i> Back to Schedule</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day Portion Editing Modal -->
+  <div id="editDayModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="margin-bottom:12px; font-family:var(--font-display); color:#a5b4fc;"><i class="fa-solid fa-pen-to-square"></i> Edit Reading Portion for Day <span id="modalDayNumber">1</span></h3>
+      
+      <div class="form-group">
+        <label>Bible Book (గ్రంథము)</label>
+        <select id="modalBookSelect" class="form-select" onchange="onModalBookChange(this.value)">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label>Start Chapter</label>
+          <select id="modalStartCh" class="form-select" onchange="updateModalSummaryPreview()"></select>
+        </div>
+        <div class="form-group">
+          <label>End Chapter</label>
+          <select id="modalEndCh" class="form-select" onchange="updateModalSummaryPreview()"></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Portion Summary Text</label>
+        <input type="text" id="modalSummaryText" class="form-control" placeholder="ఉదా: ఆదికాండము 1–3 / Genesis 1–3">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeEditDayModal()">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveEditDayModal()">Save Day Portion</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastBox" class="toast"></div>
+
+  <script>
+    const INITIAL_BIBLE_BOOKS = [
+      { eng: 'Genesis', tel: 'ఆదికాండము', chapters: 50 },
+      { eng: 'Exodus', tel: 'నిర్గమకాండము', chapters: 40 },
+      { eng: 'Leviticus', tel: 'లేవీయకాండము', chapters: 27 },
+      { eng: 'Numbers', tel: 'సంఖ్యాకాండము', chapters: 36 },
+      { eng: 'Deuteronomy', tel: 'ద్వితీయోపదేశకాండము', chapters: 34 },
+      { eng: 'Joshua', tel: 'యెహోషువ', chapters: 24 },
+      { eng: 'Judges', tel: 'న్యాయాధిపతులు', chapters: 21 },
+      { eng: 'Ruth', tel: 'రూతు', chapters: 4 },
+      { eng: '1 Samuel', tel: '1 సమూయేలు', chapters: 31 },
+      { eng: '2 Samuel', tel: '2 సమూయేలు', chapters: 24 },
+      { eng: '1 Kings', tel: '1 రాజులు', chapters: 22 },
+      { eng: '2 Kings', tel: '2 రాజులు', chapters: 25 },
+      { eng: '1 Chronicles', tel: '1 దినవృత్తాంతములు', chapters: 29 },
+      { eng: '2 Chronicles', tel: '2 దినవృత్తాంతములు', chapters: 36 },
+      { eng: 'Ezra', tel: 'ఎజ్రా', chapters: 10 },
+      { eng: 'Nehemiah', tel: 'నెహెమ్యా', chapters: 13 },
+      { eng: 'Esther', tel: 'ఎస్తేరు', chapters: 10 },
+      { eng: 'Job', tel: 'యోబు', chapters: 42 },
+      { eng: 'Psalms', tel: 'కీర్తనలు', chapters: 150 },
+      { eng: 'Proverbs', tel: 'సామెతలు', chapters: 31 },
+      { eng: 'Ecclesiastes', tel: 'ప్రసంగి', chapters: 12 },
+      { eng: 'Song of Solomon', tel: 'పరమగీతము', chapters: 8 },
+      { eng: 'Isaiah', tel: 'యెషయా', chapters: 66 },
+      { eng: 'Jeremiah', tel: 'యిర్మీయా', chapters: 52 },
+      { eng: 'Lamentations', tel: 'విలాపవాక్యములు', chapters: 5 },
+      { eng: 'Ezekiel', tel: 'యెహెజ్కేలు', chapters: 48 },
+      { eng: 'Daniel', tel: 'దానియేలు', chapters: 12 },
+      { eng: 'Hosea', tel: 'హోషేయ', chapters: 14 },
+      { eng: 'Joel', tel: 'యోవేలు', chapters: 3 },
+      { eng: 'Amos', tel: 'ఆమోసు', chapters: 9 },
+      { eng: 'Obadiah', tel: 'ఓబద్యా', chapters: 1 },
+      { eng: 'Jonah', tel: 'యోనా', chapters: 4 },
+      { eng: 'Micah', tel: 'మీకా', chapters: 7 },
+      { eng: 'Nahum', tel: 'నహూము', chapters: 3 },
+      { eng: 'Habakkuk', tel: 'హబక్కూకు', chapters: 3 },
+      { eng: 'Zephaniah', tel: 'జెఫన్యా', chapters: 3 },
+      { eng: 'Haggai', tel: 'హగ్గయి', chapters: 2 },
+      { eng: 'Zechariah', tel: 'జెకర్యా', chapters: 14 },
+      { eng: 'Malachi', tel: 'మలాకీ', chapters: 4 },
+      { eng: 'Matthew', tel: 'మత్తయి సువార్త', chapters: 28 },
+      { eng: 'Mark', tel: 'మార్కు సువార్త', chapters: 16 },
+      { eng: 'Luke', tel: 'లూకా సువార్త', chapters: 24 },
+      { eng: 'John', tel: 'యోహాను సువార్త', chapters: 21 },
+      { eng: 'Acts', tel: 'అపొస్తలుల కార్యములు', chapters: 28 },
+      { eng: 'Romans', tel: 'రోమీయులకు', chapters: 16 },
+      { eng: '1 Corinthians', tel: '1 కొరింథీయులకు', chapters: 16 },
+      { eng: '2 Corinthians', tel: '2 కొరింథీయులకు', chapters: 13 },
+      { eng: 'Galatians', tel: 'గలతీయులకు', chapters: 6 },
+      { eng: 'Ephesians', tel: 'ఎఫెసీయులకు', chapters: 6 },
+      { eng: 'Philippians', tel: 'ఫిలిప్పీయులకు', chapters: 4 },
+      { eng: 'Colossians', tel: 'కొలస్సీయులకు', chapters: 4 },
+      { eng: '1 Thessalonians', tel: '1 దెస్సలొనీకయులకు', chapters: 5 },
+      { eng: '2 Thessalonians', tel: '2 దెస్సలొనీకయులకు', chapters: 3 },
+      { eng: '1 Timothy', tel: '1 తిమోతికి', chapters: 6 },
+      { eng: '2 Timothy', tel: '2 తిమోతికి', chapters: 4 },
+      { eng: 'Titus', tel: 'తీతుకు', chapters: 3 },
+      { eng: 'Philemon', tel: 'ఫిలేమోనుకు', chapters: 1 },
+      { eng: 'Hebrews', tel: 'హెబ్రీయులకు', chapters: 13 },
+      { eng: 'James', tel: 'యాకోబు', chapters: 5 },
+      { eng: '1 Peter', tel: '1 పేతురు', chapters: 5 },
+      { eng: '2 Peter', tel: '2 పేతురు', chapters: 3 },
+      { eng: '1 John', tel: '1 యోహాను', chapters: 5 },
+      { eng: '2 John', tel: '2 యోహాను', chapters: 1 },
+      { eng: '3 John', tel: '3 యోహాను', chapters: 1 },
+      { eng: 'Jude', tel: 'యూదా', chapters: 1 },
+      { eng: 'Revelation', tel: 'ప్రకటన గ్రంథము', chapters: 22 }
+    ];
+
+    let currentBookOrder = JSON.parse(JSON.stringify(INITIAL_BIBLE_BOOKS));
+    let selectedScope = 'complete';
+    let selectedDurationDays = 365;
+    let generatedPortions = [];
+    let currentPage = 1;
+    let pageSize = 50;
+    let editingDayIndex = -1;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const planFromUrl = urlParams.get('planId');
+      if (planFromUrl) {
+        document.getElementById('planId').value = planFromUrl;
+        document.getElementById('selectPresetPlan').value = planFromUrl;
+      }
+      renderBookReorderList();
+    });
+
+    function goToStep(stepNum) {
+      for (let i = 1; i <= 5; i++) {
+        const panel = document.getElementById(`stepPanel${i}`);
+        const indicator = document.getElementById(`stepIndicator${i}`);
+        if (panel) panel.classList.toggle('active', i === stepNum);
+        if (indicator) {
+          indicator.classList.toggle('active', i === stepNum);
+          if (i < stepNum) indicator.classList.add('completed');
+        }
+      }
+    }
+
+    function onSelectPresetPlanChange(presetId) {
+      const planIdInput = document.getElementById('planId');
+      const titleEngInput = document.getElementById('titleEnglish');
+      const titleTelInput = document.getElementById('titleTelugu');
+
+      if (presetId === 'NEW_CUSTOM') {
+        planIdInput.value = 'custom-plan-' + Date.now().toString().slice(-4);
+        titleEngInput.value = 'New Custom Bible Plan';
+        titleTelInput.value = 'నూతన బైబిల్ పఠన ప్రణాళిక';
+        return;
+      }
+
+      if (presetId === '1-year-canonical') {
+        planIdInput.value = '1-year-canonical';
+        titleEngInput.value = '1-Year Complete Bible Reading Plan';
+        titleTelInput.value = '1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక';
+        selectDuration(365);
+      } else if (presetId === '2-year-canonical') {
+        planIdInput.value = '2-year-canonical';
+        titleEngInput.value = '2-Year Bible Reading Plan';
+        titleTelInput.value = '2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక';
+        selectDuration(730);
+      } else if (presetId === '3-year-canonical') {
+        planIdInput.value = '3-year-canonical';
+        titleEngInput.value = '3-Year Bible Reading Plan';
+        titleTelInput.value = '3 సంవత్సరాల దేవుని వాక్య పఠన ప్రణాళిక';
+        selectDuration(1095);
+      } else if (presetId === '6-month-plan') {
+        planIdInput.value = '6-month-plan';
+        titleEngInput.value = '6-Month Intensive Bible Reading Plan';
+        titleTelInput.value = '6 నెలల తీవ్రమైన బైబిల్ అధ్యయన ప్రణాళిక';
+        selectDuration(180);
+      } else if (presetId === '3-month-plan') {
+        planIdInput.value = '3-month-plan';
+        titleEngInput.value = '3-Month Fast Reading Plan';
+        titleTelInput.value = '3 నెలల వేగవంతమైన బైబిల్ పఠన ప్రణాళిక';
+        selectDuration(90);
+      } else if (presetId === '1-month-plan') {
+        planIdInput.value = '1-month-plan';
+        titleEngInput.value = '1-Month New Testament Reading Plan';
+        titleTelInput.value = '1 నెల కొత్త నిబంధన పఠన ప్రణాళిక';
+        selectScope('nt');
+        selectDuration(30);
+      }
+    }
+
+    function selectScope(scope) {
+      selectedScope = scope;
+      document.querySelectorAll('#stepPanel2 .option-card').forEach(c => c.classList.remove('selected'));
+      if (scope === 'complete') document.getElementById('scopeCardComplete').classList.add('selected');
+      if (scope === 'ot') document.getElementById('scopeCardOT').classList.add('selected');
+      if (scope === 'nt') document.getElementById('scopeCardNT').classList.add('selected');
+      renderBookReorderList();
+    }
+
+    function renderBookReorderList() {
+      const container = document.getElementById('bookReorderContainer');
+      let targetList = currentBookOrder;
+      if (selectedScope === 'ot') targetList = currentBookOrder.filter(b => INITIAL_BIBLE_BOOKS.findIndex(ib => ib.eng === b.eng) < 39);
+      if (selectedScope === 'nt') targetList = currentBookOrder.filter(b => INITIAL_BIBLE_BOOKS.findIndex(ib => ib.eng === b.eng) >= 39);
+
+      container.innerHTML = targetList.map((b, idx) => `
+        <div class="book-reorder-item">
+          <span><strong>#${idx + 1}</strong> ${b.tel} (${b.eng}) — ${b.chapters} Ch</span>
+          <div class="book-reorder-actions">
+            <button type="button" class="btn-icon-sm" onclick="moveBookInOrder(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
+            <button type="button" class="btn-icon-sm" onclick="moveBookInOrder(${idx}, 1)" ${idx === targetList.length - 1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function moveBookInOrder(index, direction) {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= currentBookOrder.length) return;
+      const temp = currentBookOrder[index];
+      currentBookOrder[index] = currentBookOrder[targetIndex];
+      currentBookOrder[targetIndex] = temp;
+      renderBookReorderList();
+    }
+
+    function resetBookOrder(type) {
+      if (type === 'canonical') {
+        currentBookOrder = JSON.parse(JSON.stringify(INITIAL_BIBLE_BOOKS));
+      } else if (type === 'nt-first') {
+        const ot = INITIAL_BIBLE_BOOKS.slice(0, 39);
+        const nt = INITIAL_BIBLE_BOOKS.slice(39);
+        currentBookOrder = [...nt, ...ot];
+      }
+      renderBookReorderList();
+    }
+
+    function selectDuration(days) {
+      selectedDurationDays = days;
+      document.getElementById('customDaysInput').value = '';
+      document.querySelectorAll('#stepPanel3 .option-card').forEach(c => c.classList.remove('selected'));
+      if (days === 30) document.getElementById('durCard30').classList.add('selected');
+      if (days === 90) document.getElementById('durCard90').classList.add('selected');
+      if (days === 180) document.getElementById('durCard180').classList.add('selected');
+      if (days === 365) document.getElementById('durCard365').classList.add('selected');
+      if (days === 730) document.getElementById('durCard730').classList.add('selected');
+    }
+
+    function onCustomDaysInput(val) {
+      const num = Number(val);
+      if (num > 0) {
+        selectedDurationDays = num;
+        document.querySelectorAll('#stepPanel3 .option-card').forEach(c => c.classList.remove('selected'));
+      }
+    }
+
+    function generateScheduleAndGoToStep4() {
+      let targetBooks = currentBookOrder;
+      if (selectedScope === 'ot') targetBooks = currentBookOrder.filter(b => INITIAL_BIBLE_BOOKS.findIndex(ib => ib.eng === b.eng) < 39);
+      if (selectedScope === 'nt') targetBooks = currentBookOrder.filter(b => INITIAL_BIBLE_BOOKS.findIndex(ib => ib.eng === b.eng) >= 39);
+
+      const allChaptersList = [];
+      targetBooks.forEach(b => {
+        for (let c = 1; c <= b.chapters; c++) {
+          allChaptersList.push({ book: b.eng, tel: b.tel, ch: c });
+        }
+      });
+
+      const totalChapters = allChaptersList.length;
+      const targetDays = selectedDurationDays || 365;
+
+      const basePerDay = Math.floor(totalChapters / targetDays);
+      const extraCount = totalChapters % targetDays;
+
+      generatedPortions = [];
+      let chapterCursor = 0;
+
+      for (let dayIdx = 1; dayIdx <= targetDays; dayIdx++) {
+        const countForToday = basePerDay + (dayIdx <= extraCount ? 1 : 0);
+        if (countForToday <= 0 || chapterCursor >= totalChapters) break;
+
+        const chunk = allChaptersList.slice(chapterCursor, chapterCursor + countForToday);
+        chapterCursor += countForToday;
+
+        if (chunk.length === 0) break;
+
+        const first = chunk[0];
+        const last = chunk[chunk.length - 1];
+
+        let summary = '';
+        if (first.book === last.book) {
+          const chStr = first.ch === last.ch ? `${first.ch}` : `${first.ch}–${last.ch}`;
+          summary = `${first.tel} ${chStr} / ${first.book} ${chStr}`;
+        } else {
+          summary = `${first.tel} ${first.ch} - ${last.tel} ${last.ch}`;
+        }
+
+        generatedPortions.push({
+          day: dayIdx,
+          book: first.book,
+          bookTelugu: first.tel,
+          startChapter: first.ch,
+          endChapter: last.ch,
+          versesSummary: summary
+        });
+      }
+
+      // Update Step 4 Stats
+      document.getElementById('statTotalChapters').innerText = totalChapters.toLocaleString();
+      document.getElementById('statTotalDays').innerText = generatedPortions.length;
+      document.getElementById('statAvgCh').innerText = (totalChapters / generatedPortions.length).toFixed(2);
+
+      currentPage = 1;
+      renderTableSchedule();
+
+      // Update Step 5 Confirm text
+      const titleEng = document.getElementById('titleEnglish').value.trim();
+      document.getElementById('confirmPlanTitle').innerText = titleEng;
+      document.getElementById('confirmPlanDays').innerText = generatedPortions.length;
+
+      goToStep(4);
+    }
+
+    function renderTableSchedule() {
+      const tbody = document.getElementById('previewTableBody');
+      const search = (document.getElementById('tableSearchInput')?.value || '').toLowerCase().trim();
+
+      let filtered = generatedPortions;
+      if (search) {
+        filtered = generatedPortions.filter(p => 
+          p.day.toString().includes(search) ||
+          (p.book || '').toLowerCase().includes(search) ||
+          (p.bookTelugu || '').toLowerCase().includes(search) ||
+          (p.versesSummary || '').toLowerCase().includes(search)
+        );
+      }
+
+      const totalItems = filtered.length;
+      const totalPages = pageSize === 'ALL' ? 1 : Math.ceil(totalItems / (Number(pageSize) || 50));
+
+      let itemsToDisplay = filtered;
+      if (pageSize !== 'ALL') {
+        const ps = Number(pageSize) || 50;
+        const start = (currentPage - 1) * ps;
+        itemsToDisplay = filtered.slice(start, start + ps);
+      }
+
+      if (itemsToDisplay.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No matching days found.</td></tr>`;
+      } else {
+        tbody.innerHTML = itemsToDisplay.map((p, idx) => {
+          const globalIdx = generatedPortions.findIndex(gp => gp.day === p.day);
+          return `
+            <tr>
+              <td><strong>Day ${p.day}</strong></td>
+              <td>${p.bookTelugu} (${p.book})</td>
+              <td>Ch ${p.startChapter}${p.endChapter !== p.startChapter ? ' – ' + p.endChapter : ''}</td>
+              <td><small>${p.versesSummary}</small></td>
+              <td style="text-align:center;">
+                <button type="button" class="btn btn-sm btn-outline" style="padding:4px 8px;" onclick="openEditDayModal(${globalIdx})">
+                  <i class="fa-solid fa-pen text-amber"></i> Edit
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Update Pagination Text
+      const pageInfo = document.getElementById('pageInfoText');
+      if (pageSize === 'ALL') {
+        pageInfo.innerText = `Showing all ${totalItems} complete days`;
+      } else {
+        const ps = Number(pageSize) || 50;
+        const start = (currentPage - 1) * ps + 1;
+        const end = Math.min(totalItems, currentPage * ps);
+        pageInfo.innerText = `Showing ${start} to ${end} of ${totalItems} Days (Page ${currentPage} of ${totalPages})`;
+      }
+
+      document.getElementById('btnPrevPage').disabled = (currentPage <= 1 || pageSize === 'ALL');
+      document.getElementById('btnNextPage').disabled = (currentPage >= totalPages || pageSize === 'ALL');
+    }
+
+    function onPageSizeChange(val) {
+      pageSize = val;
+      currentPage = 1;
+      renderTableSchedule();
+    }
+
+    function changePage(direction) {
+      currentPage += direction;
+      renderTableSchedule();
+    }
+
+    function openEditDayModal(globalIndex) {
+      editingDayIndex = globalIndex;
+      const portion = generatedPortions[globalIndex];
+      if (!portion) return;
+
+      document.getElementById('modalDayNumber').innerText = portion.day;
+
+      const bookSelect = document.getElementById('modalBookSelect');
+      bookSelect.innerHTML = INITIAL_BIBLE_BOOKS.map(b => `
+        <option value="${b.eng}" ${b.eng === portion.book ? 'selected' : ''}>${b.tel} (${b.eng})</option>
+      `).join('');
+
+      onModalBookChange(portion.book, portion.startChapter, portion.endChapter);
+      document.getElementById('modalSummaryText').value = portion.versesSummary || '';
+      document.getElementById('editDayModal').classList.add('active');
+    }
+
+    function onModalBookChange(bookEng, defaultStart, defaultEnd) {
+      const b = INITIAL_BIBLE_BOOKS.find(item => item.eng === bookEng) || INITIAL_BIBLE_BOOKS[0];
+      const startSelect = document.getElementById('modalStartCh');
+      const endSelect = document.getElementById('modalEndCh');
+
+      let options = '';
+      for (let i = 1; i <= b.chapters; i++) {
+        options += `<option value="${i}">Chapter ${i}</option>`;
+      }
+      startSelect.innerHTML = options;
+      endSelect.innerHTML = options;
+
+      startSelect.value = defaultStart !== undefined ? defaultStart : 1;
+      endSelect.value = defaultEnd !== undefined ? defaultEnd : Math.min(3, b.chapters);
+      updateModalSummaryPreview();
+    }
+
+    function updateModalSummaryPreview() {
+      const bookEng = document.getElementById('modalBookSelect').value;
+      const b = INITIAL_BIBLE_BOOKS.find(item => item.eng === bookEng) || INITIAL_BIBLE_BOOKS[0];
+      const startCh = Number(document.getElementById('modalStartCh').value) || 1;
+      const endCh = Number(document.getElementById('modalEndCh').value) || startCh;
+
+      const chStr = startCh === endCh ? `${startCh}` : `${startCh}–${endCh}`;
+      document.getElementById('modalSummaryText').value = `${b.tel} ${chStr} / ${b.eng} ${chStr}`;
+    }
+
+    function saveEditDayModal() {
+      if (editingDayIndex < 0 || editingDayIndex >= generatedPortions.length) return;
+      const bookEng = document.getElementById('modalBookSelect').value;
+      const b = INITIAL_BIBLE_BOOKS.find(item => item.eng === bookEng) || INITIAL_BIBLE_BOOKS[0];
+      const startCh = Number(document.getElementById('modalStartCh').value) || 1;
+      const endCh = Number(document.getElementById('modalEndCh').value) || startCh;
+      const summary = document.getElementById('modalSummaryText').value.trim();
+
+      generatedPortions[editingDayIndex].book = b.eng;
+      generatedPortions[editingDayIndex].bookTelugu = b.tel;
+      generatedPortions[editingDayIndex].startChapter = startCh;
+      generatedPortions[editingDayIndex].endChapter = endCh;
+      generatedPortions[editingDayIndex].versesSummary = summary;
+
+      closeEditDayModal();
+      renderTableSchedule();
+      showToast(`Updated portion for Day ${generatedPortions[editingDayIndex].day}!`);
+    }
+
+    function closeEditDayModal() {
+      document.getElementById('editDayModal').classList.remove('active');
+    }
+
+    async function savePlanToDatabase() {
+      const planId = document.getElementById('planId').value.trim();
+      const titleEnglish = document.getElementById('titleEnglish').value.trim();
+      const titleTelugu = document.getElementById('titleTelugu').value.trim();
+
+      if (!planId || !titleEnglish || generatedPortions.length === 0) {
+        showToast('Please complete steps 1-4 before saving.');
+        return;
+      }
+
+      const btn = document.getElementById('btnSaveWizardPlan');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Database...';
+
+      try {
+        const res = await fetch('/api/bible-plans/public/update-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planId,
+            titleEnglish,
+            titleTelugu,
+            durationDays: generatedPortions.length,
+            dailyPortions: generatedPortions,
+            category: selectedScope
+          })
+        });
+
+        const json = await res.json();
+        if (json.success) {
+          showToast(`🎉 Plan "${titleEnglish}" with ${generatedPortions.length} days successfully saved to database!`);
+          if (window.opener && typeof window.opener.loadBiblePlanStats === 'function') {
+            window.opener.loadBiblePlanStats();
+          }
+        } else {
+          showToast('Failed to save: ' + (json.message || 'Error'));
+        }
+      } catch (e) {
+        showToast('Error saving plan: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy Reading Plan to Database';
+      }
+    }
+
+    function copyConfigLink() {
+      const planId = document.getElementById('planId').value || '1-year-canonical';
+      const shareUrl = `${window.location.origin}/share-plan.html?planId=${encodeURIComponent(planId)}`;
+
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showToast(`🔗 Configuration link copied: ${shareUrl}`);
+      }).catch(() => {
+        prompt('Copy configuration link:', shareUrl);
+      });
+    }
+
+    function exportToExcel() {
+      const planId = document.getElementById('planId').value || 'bible-plan';
+      if (generatedPortions.length === 0) {
+        showToast('No schedule generated to export.');
+        return;
+      }
+
+      let csv = '\uFEFF'; // UTF-8 BOM for Telugu characters in Excel
+      csv += 'Day,Book (Telugu),Book (English),Start Chapter,End Chapter,Portion Summary\n';
+
+      generatedPortions.forEach(p => {
+        const telEsc = `"${(p.bookTelugu || '').replace(/"/g, '""')}"`;
+        const engEsc = `"${(p.book || '').replace(/"/g, '""')}"`;
+        const sumEsc = `"${(p.versesSummary || '').replace(/"/g, '""')}"`;
+        csv += `Day ${p.day},${telEsc},${engEsc},${p.startChapter},${p.endChapter},${sumEsc}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `${planId}_Bible_Reading_Plan.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast(`📥 Exported ${generatedPortions.length} days to Excel CSV!`);
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toastBox');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3500);
+    }
+  </script>
+</body>
+</html>

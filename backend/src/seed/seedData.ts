@@ -17,7 +17,7 @@ export const seedInitialDatabase = async () => {
       // Seed Default Administrator
       await User.create({
         name: 'Church Administrator',
-        email: 'admin@churchconnect.org',
+        email: 'admin@SFGC.org',
         password: 'admin123',
         role: 'Admin',
         familyName: 'Church Leadership Family',
@@ -44,7 +44,7 @@ export const seedInitialDatabase = async () => {
       // Seed Demo Member
       await User.create({
         name: 'John Wesley',
-        email: 'member@churchconnect.org',
+        email: 'member@SFGC.org',
         password: 'member123',
         role: 'Member',
         familyName: 'Wesley Blessed Family',

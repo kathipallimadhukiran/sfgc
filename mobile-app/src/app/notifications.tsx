@@ -46,7 +46,7 @@ export default function NotificationsScreen() {
     try {
       await Share.share({
         title: notice.title,
-        message: `📢 *${notice.title}*\n\n${notice.description}\n\nTime: ${notice.time || 'N/A'}\nLocation: ${notice.location || 'N/A'}\n\nShared from ChurchConnect App`,
+        message: `📢 *${notice.title}*\n\n${notice.description}\n\nTime: ${notice.time || 'N/A'}\nLocation: ${notice.location || 'N/A'}\n\nShared from SFGC App`,
       });
     } catch (error) {
       console.log('Error sharing notice:', error);

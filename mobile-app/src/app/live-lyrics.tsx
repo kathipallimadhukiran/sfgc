@@ -304,8 +304,8 @@ export default function LiveLyricsScreen() {
     try {
       await Share.share({
         message: isTel
-          ? ` ChurchConnect స్మార్ట్ TV లైవ్ లిరిక్స్ డిస్ప్లే లింక్:\n${url}`
-          : `ChurchConnect Smart TV Live Lyrics Display Link:\n${url}`,
+          ? ` SFGC స్మార్ట్ TV లైవ్ లిరిక్స్ డిస్ప్లే లింక్:\n${url}`
+          : `SFGC Smart TV Live Lyrics Display Link:\n${url}`,
         title: 'Smart TV Live Lyrics Display Link',
       });
     } catch (_) {

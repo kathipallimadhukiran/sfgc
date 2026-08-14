@@ -270,7 +270,7 @@ export default function EventsScreen() {
 
   const handleShareEvent = async (evt: any) => {
     const formattedDate = new Date(evt.date).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' });
-    const shareMessage = `🌟 *${evt.title}*\n🎙️ ${isTel ? 'ప్రసంగీకులు' : 'Speaker'}: ${evt.speaker || (isTel ? 'సంఘ కాపరి' : 'Senior Pastor')}\n📅 ${isTel ? 'తేదీ & సమయం' : 'Date & Time'}: ${formattedDate}\n📍 ${isTel ? 'స్థలము' : 'Venue'}: ${evt.venue}\n\n✝️ ${isTel ? 'దేవుని సన్నిధిలో ఆశీర్వదింపబడటానికి అందరికీ ప్రేమపూర్వక ఆహ్వానం!' : 'You are warmly invited to attend and be blessed in God\'s presence!'}\n\n📲 Shared via ChurchConnect App`;
+    const shareMessage = `🌟 *${evt.title}*\n🎙️ ${isTel ? 'ప్రసంగీకులు' : 'Speaker'}: ${evt.speaker || (isTel ? 'సంఘ కాపరి' : 'Senior Pastor')}\n📅 ${isTel ? 'తేదీ & సమయం' : 'Date & Time'}: ${formattedDate}\n📍 ${isTel ? 'స్థలము' : 'Venue'}: ${evt.venue}\n\n✝️ ${isTel ? 'దేవుని సన్నిధిలో ఆశీర్వదింపబడటానికి అందరికీ ప్రేమపూర్వక ఆహ్వానం!' : 'You are warmly invited to attend and be blessed in God\'s presence!'}\n\n📲 Shared via SFGC App`;
 
     try {
       const bannerUri = evt.banner || evt.imageUrl;

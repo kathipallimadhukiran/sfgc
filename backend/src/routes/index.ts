@@ -15,7 +15,7 @@ const router = Router();
 router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'online',
-    app: 'ChurchConnect Backend Server',
+    app: 'SFGC Backend Server',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
   });

@@ -173,7 +173,7 @@ export default function AuthScreen() {
             <MaterialCommunityIcons name="church" size={38} color="#ffffff" />
           </LinearGradient>
           <Text style={[styles.brandTitle, { color: theme.text }]}>
-            {isTel ? 'సంఘ అనుసంధానం' : 'ChurchConnect'}
+            {isTel ? 'సంఘ అనుసంధానం' : 'SFGC'}
           </Text>
           <Text style={[styles.brandSubtitle, { color: theme.textSecondary }]}>
             {isTel ? 'దేవుని సన్నిధిలో ఏకముగా ఆరాధిద్దాం' : 'Connecting Hearts & Strengthening Faith'}
@@ -251,7 +251,7 @@ export default function AuthScreen() {
                 mode="outlined"
                 value={loginEmail}
                 onChangeText={setLoginEmail}
-                placeholder="e.g. member@churchconnect.org"
+                placeholder="e.g. member@SFGC.org"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 left={<TextInput.Icon icon="email-outline" />}
@@ -289,7 +289,7 @@ export default function AuthScreen() {
                 disabled={loading}
                 onPress={handleLogin}
               >
-                {isTel ? 'లాగిన్ అవ్వండి (Sign In)' : 'Sign In to ChurchConnect'}
+                {isTel ? 'లాగిన్ అవ్వండి (Sign In)' : 'Sign In to SFGC'}
               </Button>
 
               <TouchableOpacity 

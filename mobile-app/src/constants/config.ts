@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 export const MONGODB_DATA_API_URL = process.env.EXPO_PUBLIC_MONGODB_DATA_API_URL || '';
 export const MONGODB_API_KEY = process.env.EXPO_PUBLIC_MONGODB_API_KEY || '';
 export const MONGODB_DATA_SOURCE = process.env.EXPO_PUBLIC_MONGODB_DATA_SOURCE || 'Cluster0';
-export const MONGODB_DATABASE = process.env.EXPO_PUBLIC_MONGODB_DATABASE || 'churchconnect';
+export const MONGODB_DATABASE = process.env.EXPO_PUBLIC_MONGODB_DATABASE || 'SFGC';
 
 const resolveBackendUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();

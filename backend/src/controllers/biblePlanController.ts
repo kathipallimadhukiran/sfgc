@@ -244,11 +244,23 @@ export const getPlans = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+import { AuthRequest } from '../middleware/auth';
+
 // GET /api/bible-plans/progress/:userId
 export const getUserPlanProgress = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = req.params;
+    const authReq = req as AuthRequest;
+    const authenticatedUserId = authReq.user?._id?.toString() || authReq.user?.id;
+    const requestedUserId = req.params.userId;
+    
+    // Auth security: Use authenticated user ID if logged in, otherwise requested ID
+    const userId = authenticatedUserId || requestedUserId;
     const { planId = '1-year-canonical' } = req.query;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' });
+      return;
+    }
 
     let progress = await UserPlanProgress.findOne({ userId, planId: String(planId) });
     if (!progress) {
@@ -258,7 +270,7 @@ export const getUserPlanProgress = async (req: Request, res: Response): Promise<
 
       progress = new UserPlanProgress({
         userId,
-        userName: 'Member',
+        userName: authReq.user?.name || 'Member',
         planId: String(planId),
         currentDay: 1,
         completedDays: [],
@@ -297,9 +309,13 @@ export const getUserPlanProgress = async (req: Request, res: Response): Promise<
 // POST /api/bible-plans/enroll
 export const enrollPlan = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, userName, planId } = req.body;
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?._id?.toString() || authReq.user?.id || req.body.userId;
+    const userName = authReq.user?.name || req.body.userName || 'Member';
+    const planId = req.body.planId;
+
     if (!userId || !planId) {
-      res.status(400).json({ success: false, message: 'userId and planId are required' });
+      res.status(400).json({ success: false, message: 'Authenticated user and planId are required' });
       return;
     }
 
@@ -311,7 +327,7 @@ export const enrollPlan = async (req: Request, res: Response): Promise<void> => 
 
       progress = new UserPlanProgress({
         userId,
-        userName: userName || 'Member',
+        userName,
         planId,
         currentDay: 1,
         completedDays: [],
@@ -336,15 +352,25 @@ export const enrollPlan = async (req: Request, res: Response): Promise<void> => 
 // POST /api/bible-plans/mark-read (Mark Today's Passage as Read so Quiz Unlocks)
 export const markDayAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, planId, day } = req.body;
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?._id?.toString() || authReq.user?.id || req.body.userId;
+    const { planId, day } = req.body;
+
     if (!userId || !planId || day === undefined) {
-      res.status(400).json({ success: false, message: 'userId, planId, and day are required' });
+      res.status(400).json({ success: false, message: 'Authenticated user, planId, and day are required' });
       return;
     }
 
     let progress = await UserPlanProgress.findOne({ userId, planId });
     if (!progress) {
-      progress = new UserPlanProgress({ userId, planId, currentDay: 1, completedDays: [], readMarkedDays: [] });
+      progress = new UserPlanProgress({
+        userId,
+        userName: authReq.user?.name || 'Member',
+        planId,
+        currentDay: 1,
+        completedDays: [],
+        readMarkedDays: []
+      });
     }
 
     if (!progress.readMarkedDays) progress.readMarkedDays = [];
@@ -367,7 +393,9 @@ export const markDayAsRead = async (req: Request, res: Response): Promise<void> 
 // POST /api/bible-plans/generate-quiz
 export const getPassageQuiz = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { book, bookTelugu, startChapter, endChapter, day, userId, planId } = req.body;
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?._id?.toString() || authReq.user?.id || req.body.userId;
+    const { book, bookTelugu, startChapter, endChapter, day, planId } = req.body;
 
     let attemptsUsed = 0;
     if (userId && planId) {
@@ -413,10 +441,13 @@ export const getPassageQuiz = async (req: Request, res: Response): Promise<void>
 // POST /api/bible-plans/submit-quiz
 export const submitQuizAttempt = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, userName, planId, day, userAnswers, totalQuestions, quizTimeSeconds } = req.body;
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?._id?.toString() || authReq.user?.id || req.body.userId;
+    const userName = authReq.user?.name || req.body.userName || 'Member';
+    const { planId, day, userAnswers, totalQuestions, quizTimeSeconds } = req.body;
 
     if (!userId || !planId || day === undefined) {
-      res.status(400).json({ success: false, message: 'userId, planId, and day are required' });
+      res.status(400).json({ success: false, message: 'Authenticated user, planId, and day are required' });
       return;
     }
 
@@ -425,7 +456,7 @@ export const submitQuizAttempt = async (req: Request, res: Response): Promise<vo
       const now = new Date();
       progress = new UserPlanProgress({
         userId,
-        userName: userName || 'Member',
+        userName,
         planId,
         currentDay: 1,
         completedDays: [],
@@ -440,6 +471,7 @@ export const submitQuizAttempt = async (req: Request, res: Response): Promise<vo
         averageTimeSeconds: 0,
       });
     }
+
 
     // STRICT LOCK: Check if user already completed today's portion on the same calendar day
     const now = new Date();
@@ -750,3 +782,67 @@ export const adminUpdatePlan = async (req: Request, res: Response): Promise<void
     res.status(500).json({ success: false, message: 'Failed to update reading plan', error: error.message });
   }
 };
+
+// Public Share Link Controllers (No Login Required)
+// GET /api/bible-plans/public/:planId
+export const getPublicPlan = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { planId } = req.params;
+    let plan = await BiblePlan.findOne({ planId });
+
+    if (!plan) {
+      // Create lightweight response for fresh shareable plan
+      res.status(200).json({
+        success: true,
+        data: {
+          planId,
+          titleTelugu: 'తెలుగు బైబిల్ పఠన ప్రణాళిక',
+          titleEnglish: `${planId.toUpperCase()} Reading Plan`,
+          durationDays: 365,
+          dailyPortions: [],
+          category: 'custom'
+        }
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: plan });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to load public plan', error: error.message });
+  }
+};
+
+// POST /api/bible-plans/public/update-plan
+export const updatePublicPlan = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { planId, titleTelugu, titleEnglish, durationDays, dailyPortions, category } = req.body;
+
+    if (!planId) {
+      res.status(400).json({ success: false, message: 'planId is required' });
+      return;
+    }
+
+    const updatedPlan = await BiblePlan.findOneAndUpdate(
+      { planId },
+      {
+        planId,
+        titleTelugu: titleTelugu || titleEnglish || 'బైబిల్ పఠన ప్రణాళిక',
+        titleEnglish: titleEnglish || planId,
+        durationDays: Number(durationDays) || (dailyPortions ? dailyPortions.length : 365),
+        dailyPortions: dailyPortions || [],
+        category: category || 'custom',
+        isActive: true,
+      },
+      { upsert: true, new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Bible plan updated via public contributor link',
+      data: updatedPlan,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to update public plan', error: error.message });
+  }
+};
+

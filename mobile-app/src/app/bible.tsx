@@ -444,13 +444,13 @@ export default function BibleScreen() {
       const textContent = selectedList.map((v: any) => `[${v.verse}] ${v.text}`).join('\n\n');
 
       Share.share({
-        message: `📖 *${bookTitle} ${selectedChapter}:${verseNumbersStr} (${bibleVersion})*\n\n${textContent}\n\nShared from ChurchConnect Bible Reader.`,
+        message: `📖 *${bookTitle} ${selectedChapter}:${verseNumbersStr} (${bibleVersion})*\n\n${textContent}\n\nShared from SFGC Bible Reader.`,
       });
     } else {
       // 2. No verse selected -> Share ENTIRE Chapter
       const textContent = displayVerses.map(v => `[${v.verse}] ${v.text}`).join('\n');
       Share.share({
-        message: `📖 *${bookTitle} Chapter ${selectedChapter}${selectedVerse !== 'All' ? `:${selectedVerse}` : ''} (${bibleVersion})* 📖\n\n${textContent}\n\nShared from ChurchConnect Bible Reader.`,
+        message: `📖 *${bookTitle} Chapter ${selectedChapter}${selectedVerse !== 'All' ? `:${selectedVerse}` : ''} (${bibleVersion})* 📖\n\n${textContent}\n\nShared from SFGC Bible Reader.`,
       });
     }
   };

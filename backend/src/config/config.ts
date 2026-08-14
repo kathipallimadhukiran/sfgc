@@ -21,7 +21,7 @@ export const sanitizeMongoUri = (uri: string): string => {
   return uri.trim().replace(/\/+(\?|$)/g, '$1');
 };
 
-const rawMongoUri = process.env.MONGODB_URI || 'mongodb+srv://kathipallimadhu_db_user:RqjWyCG22Ymr8R14@cluster0.tcnvbwf.mongodb.net/churchconnect?retryWrites=true&w=majority';
+const rawMongoUri = process.env.MONGODB_URI || 'mongodb+srv://kathipallimadhu_db_user:RqjWyCG22Ymr8R14@cluster0.tcnvbwf.mongodb.net/SFGC?retryWrites=true&w=majority';
 
 export const config = {
   port: Number(process.env.PORT) || 5000,

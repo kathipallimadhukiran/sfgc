@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChurchConnect - Unified Admin & Live Projection Console</title>
+  <title>SFGC - Unified Admin & Live Projection Console</title>
   <!-- Google Fonts & Font Awesome -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,12 +24,11 @@
     <div class="login-card">
       <div class="login-card-glow-bar"></div>
       <div class="login-header">
-        <div class="login-brand-icon">
-          <i class="fa-solid fa-church"></i>
-          <span class="icon-pulse-ring"></span>
+        <div class="login-brand-icon" style="background:transparent; border:none; box-shadow:none;">
+          <img src="/logo.png" alt="SFGC Logo" class="login-brand-logo-img">
         </div>
-        <h2>ChurchConnect</h2>
-        <p>Unified Sanctuary Administration & Media Console</p>
+        <h2>SFGC</h2>
+        <p>Satellite City Full Gospel Church • Media & Sanctuary Console</p>
       </div>
 
       <form id="adminLoginForm" onsubmit="app.handleLoginSubmit(event)">
@@ -37,7 +36,7 @@
           <label for="loginEmail"><i class="fa-solid fa-envelope"></i> Admin Email</label>
           <div class="input-icon-wrapper">
             <i class="fa-solid fa-at field-icon"></i>
-            <input type="email" id="loginEmail" class="form-control with-icon" placeholder="admin@churchconnect.org" value="admin@churchconnect.org" required>
+            <input type="email" id="loginEmail" class="form-control with-icon" placeholder="admin@SFGC.org" value="admin@SFGC.org" autocomplete="username" required>
           </div>
         </div>
 
@@ -45,7 +44,7 @@
           <label for="loginPassword"><i class="fa-solid fa-lock"></i> Password</label>
           <div class="input-icon-wrapper">
             <i class="fa-solid fa-key field-icon"></i>
-            <input type="password" id="loginPassword" class="form-control with-icon" placeholder="••••••••" value="admin123" required>
+            <input type="password" id="loginPassword" class="form-control with-icon" placeholder="••••••••" value="admin123" autocomplete="current-password" required>
             <button type="button" class="btn-toggle-pwd" onclick="app.togglePasswordVisibility('loginPassword', this)" title="Show/Hide Password">
               <i class="fa-solid fa-eye"></i>
             </button>
@@ -57,18 +56,12 @@
           <i class="fa-solid fa-arrow-right"></i>
         </button>
 
-        <div class="quick-demo-login">
-          <span>⚡ Fast Sign In Demo</span>
-          <button type="button" class="btn btn-sm btn-outline btn-demo-fill" onclick="app.quickFillLogin('admin@churchconnect.org', 'admin123')">
-            <i class="fa-solid fa-bolt text-amber"></i> Fill Admin Credentials (admin123)
-          </button>
-        </div>
 
         <div id="loginErrorMsg" class="login-error-msg" style="display: none;"></div>
       </form>
 
       <div class="login-footer-note">
-        <i class="fa-solid fa-shield-halved"></i> 256-Bit Encrypted Secure Church Portal
+        <i class="fa-solid fa-shield-halved"></i> SFGC Secure Sanctuary Portal
       </div>
     </div>
   </div>
@@ -78,12 +71,13 @@
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon"><i class="fa-solid fa-church"></i></div>
+        <div class="brand-icon"><img src="/logo.png" alt="SFGC Logo" class="brand-logo-img"></div>
         <div class="brand-info">
-          <h2>ChurchConnect</h2>
-          <span>Admin & Media Center</span>
+          <h2>SFGC</h2>
+          <span>Satellite City Full Gospel Church</span>
         </div>
       </div>
+
 
       <nav class="nav-menu">
         <a href="#overview" class="nav-item active" data-tab="overview">
@@ -131,6 +125,9 @@
     <main class="main-content">
       <!-- Top Navbar -->
       <header class="top-nav">
+        <button class="mobile-nav-toggle" id="btnMobileNavToggle" onclick="app.toggleMobileSidebar()" title="Toggle Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
         <div class="page-title">
           <h1 id="tabTitle">Overview & Insights</h1>
           <p id="tabSubtitle">Real-time church metrics, administration, and live service control.</p>
@@ -276,7 +273,7 @@
                 <div class="monitor-info" id="activeSongTitle">No Song Loaded on Projector</div>
               </div>
               <div class="stage-screen" id="stageScreen">
-                <div class="stage-watermark">ChurchConnect Pro Live Engine</div>
+                <div class="stage-watermark">SFGC Pro Live Engine</div>
                 <div class="stage-content" id="stageScreenContent">
                   <p class="stage-placeholder">Select a song from the left list to begin projection</p>
                 </div>
@@ -318,6 +315,9 @@
                 <option value="Children's Ministry">Children's Ministry</option>
                 <option value="Security">Security</option>
               </select>
+              <button class="btn btn-primary" onclick="app.openAddMemberModal()">
+                <i class="fa-solid fa-user-plus"></i> Add Member
+              </button>
             </div>
           </div>
 
@@ -474,6 +474,66 @@
 
       <!-- TAB 8: BIBLE READING PLANS & MEMBER STATS -->
       <section id="tab-bibleplans" class="tab-pane">
+        
+        <!-- Active User Bible Reading & Today's Portion Card -->
+        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(99, 102, 241, 0.3);">
+          <div class="card-header">
+            <div>
+              <span class="badge badge-primary mb-1">Active Bible Reading Plan</span>
+              <h3 id="userActivePlanTitle">1-Year Complete Bible Reading Plan</h3>
+              <p class="subtitle-text" id="userActivePlanSubtitle">Day 1 Portion • 1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక</p>
+            </div>
+            <button class="btn btn-primary" id="btnMarkPassageRead" onclick="app.markCurrentPassageReadSubmit()">
+              <i class="fa-solid fa-circle-check"></i> Mark Today's Passage Complete
+            </button>
+          </div>
+
+          <div style="margin-top: 16px; margin-bottom: 12px;">
+            <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:6px;">
+              <span>Reading Progress</span>
+              <span id="userProgressPercentText">0% Completed</span>
+            </div>
+            <div style="background: rgba(255,255,255,0.1); border-radius:10px; height:10px; overflow:hidden;">
+              <div id="userProgressBarFill" style="background: linear-gradient(90deg, #6366f1, #10b981); height:100%; width:0%; transition: width 0.4s ease;"></div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 14px; text-align:center;">
+            <div style="background:rgba(255,255,255,0.04); padding:10px; border-radius:10px;">
+              <small style="color:var(--text-muted); display:block;">Completed Days</small>
+              <strong id="userCompletedDaysCount" style="font-size:16px;">0 Days</strong>
+            </div>
+            <div style="background:rgba(255,255,255,0.04); padding:10px; border-radius:10px;">
+              <small style="color:var(--text-muted); display:block;">Remaining Days</small>
+              <strong id="userRemainingDaysCount" style="font-size:16px;">365 Days</strong>
+            </div>
+            <div style="background:rgba(255,255,255,0.04); padding:10px; border-radius:10px;">
+              <small style="color:var(--text-muted); display:block;">Current Streak</small>
+              <strong id="userCurrentStreakCount" style="font-size:16px; color:#f59e0b;">🔥 0 Days</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's God's Promise Feature Card -->
+        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05)); border: 1px solid rgba(245, 158, 11, 0.3);">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-dove text-amber"></i> Today's God's Promise (దేవుని వాగ్దానము)</h3>
+              <p class="subtitle-text">Scripture promise for meditation and daily strength.</p>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="app.loadTodayPromise()"><i class="fa-solid fa-rotate"></i> Refresh Promise</button>
+          </div>
+          <div style="padding: 12px 0;">
+            <blockquote id="promiseVerseText" style="font-size: 16px; font-weight: 600; color: #fef08a; line-height: 1.6; margin-bottom: 8px;">
+              "యెహోవా నా కాపరి; నాకు లేమి కలుగదు."
+            </blockquote>
+            <p id="promiseRefText" style="font-size: 13px; color: var(--text-muted); font-weight: 600;">
+              — కీర్తనలు 23:1 (Psalms 23:1)
+            </p>
+          </div>
+        </div>
+
+        <!-- Statistics Cards Grid -->
         <div class="stats-grid mb-4">
           <div class="stat-card stat-blue">
             <div class="stat-icon"><i class="fa-solid fa-users-viewfinder"></i></div>
@@ -502,158 +562,116 @@
           <div class="stat-card stat-purple">
             <div class="stat-icon"><i class="fa-solid fa-brain"></i></div>
             <div class="stat-data">
-              <span class="stat-label">AI Quiz System</span>
-              <h3 id="statPlanAi">Active</h3>
-              <small class="stat-sub">Passage verification (3 attempts)</small>
+              <span class="stat-label">Reading Consistency</span>
+              <h3 id="statPlanConsistency">100%</h3>
+              <small class="stat-sub">Daily completion rate</small>
             </div>
           </div>
         </div>
 
-        <div class="content-grid-2">
-          <!-- Member Reading Leaderboard & Streaks -->
-          <div class="glass-card">
-            <div class="card-header">
-              <h3><i class="fa-solid fa-trophy text-amber"></i> Top Reading Members & Streaks</h3>
-              <button class="btn btn-sm btn-outline" onclick="app.loadBiblePlanStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Member ID</th>
-                    <th>Plan</th>
-                    <th>Current Day</th>
-                    <th>Completed</th>
-                    <th>Streak 🔥</th>
-                  </tr>
-                </thead>
-                <tbody id="planLeaderboardBody">
-                  <tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading stats...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        <!-- Interactive 365-Day Visual Bible Reading Plan Builder & Manager -->
-        <div class="glass-card mt-4">
+        <!-- Member Reading Leaderboard (Positioned Below Statistics) -->
+        <div class="glass-card mb-4">
           <div class="card-header">
-            <div>
-              <h3><i class="fa-solid fa-calendar-check text-primary"></i> 365-Day Bible Reading Plan Visual Builder & Manager</h3>
-              <p class="subtitle-text">Configure day-by-day readings (Day 1 up to Day 365). Select Book, Chapters, and Summary, and save directly to MongoDB.</p>
-            </div>
+            <h3><i class="fa-solid fa-trophy text-amber"></i> Top Reading Members & Streaks</h3>
+            <button class="btn btn-sm btn-outline" onclick="app.loadBiblePlanStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
           </div>
-
-          <div class="form-row-2">
-            <div class="form-group">
-              <label>Select Plan Template to Edit</label>
-              <select id="adminPlanPresetSelect" class="form-select" onchange="app.loadPlanBuilderPreset(this.value)">
-                <option value="1-year-canonical">📖 1-Year Canonical Plan (365 Days)</option>
-                <option value="2-year-canonical">📖 2-Year Bible Reading Plan (730 Days)</option>
-                <option value="custom-360-plan">📖 Custom 360-Day Church Reading Plan</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Plan Identifier (Key ID)</label>
-              <input type="text" id="builderPlanId" class="form-control" value="1-year-canonical">
-            </div>
-          </div>
-
-          <div class="form-row-2">
-            <div class="form-group">
-              <label>Plan Title (English)</label>
-              <input type="text" id="builderTitleEnglish" class="form-control" value="1-Year Complete Bible Reading Plan">
-            </div>
-            <div class="form-group">
-              <label>Plan Title (Telugu / తెలుగు శీర్షిక)</label>
-              <input type="text" id="builderTitleTelugu" class="form-control" value="1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక">
-            </div>
-          </div>
-
-          <!-- Day-by-Day Reading Portion Adder Box -->
-          <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 20px; margin-top: 16px; margin-bottom: 20px;">
-            <h4 style="color:#a5b4fc; font-size:14px; margin-bottom:12px;"><i class="fa-solid fa-plus-circle"></i> Add / Edit Reading Portion for Selected Day</h4>
-            
-            <div style="display:grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap:12px;">
-              <div class="form-group">
-                <label>Day # (1–365)</label>
-                <input type="number" id="builderDayNum" class="form-control" min="1" max="730" value="1" onchange="app.onBuilderDayChange(this.value)">
-              </div>
-              <div class="form-group">
-                <label>Bible Book (గ్రంథము)</label>
-                <select id="builderBookSelect" class="form-select" onchange="app.onBuilderBookChange(this.value)">
-                  <!-- 66 Books populated dynamically -->
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Start Chapter</label>
-                <input type="number" id="builderStartCh" class="form-control" min="1" max="150" value="1" oninput="app.updatePortionSummaryPreview()">
-              </div>
-              <div class="form-group">
-                <label>End Chapter</label>
-                <input type="number" id="builderEndCh" class="form-control" min="1" max="150" value="3" oninput="app.updatePortionSummaryPreview()">
-              </div>
-            </div>
-
-            <div class="form-group mt-2">
-              <label>Portion Summary (తెలుగు / English Summary)</label>
-              <input type="text" id="builderSummary" class="form-control" placeholder="ఉదా: ఆదికాండము 1–3 / Genesis 1–3">
-            </div>
-
-            <button type="button" class="btn btn-outline mt-2" onclick="app.addPortionToCurrentPlan()">
-              <i class="fa-solid fa-plus"></i> Add Reading Portion to Day
-            </button>
-          </div>
-
-          <!-- Portions List Table -->
-          <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+          <div class="table-responsive">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Day</th>
-                  <th>Book (English & Telugu)</th>
-                  <th>Chapters</th>
-                  <th>Summary</th>
-                  <th>Action</th>
+                  <th>Rank & Member</th>
+                  <th>Plan</th>
+                  <th>Current Day</th>
+                  <th>Completed</th>
+                  <th>Streak 🔥</th>
                 </tr>
               </thead>
-              <tbody id="builderPortionsTableBody">
-                <tr><td colspan="5" class="text-center py-3 text-muted">No reading portions added yet. Select day and add portions above.</td></tr>
+              <tbody id="planLeaderboardBody">
+                <tr><td colspan="5" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading stats...</td></tr>
               </tbody>
             </table>
           </div>
+        </div>
 
-          <div style="display:flex; gap:12px; align-items:center; margin-top:20px;">
-            <button class="btn btn-primary" id="btnSaveBuilderPlan" onclick="app.saveVisualPlanSubmit()">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy 365-Day Plan to Database
-            </button>
-            <span id="builderTotalCountBadge" class="badge badge-primary" style="font-size:13px; padding:8px 12px;">0 Days Configured</span>
+        <!-- Bible Plans Cards Grid -->
+        <div class="glass-card mb-4">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-calendar-check text-primary"></i> Church Bible Reading Plans Directory</h3>
+              <p class="subtitle-text">1-3 Year & short-term Bible Reading Plans available for church members.</p>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px;">
+            <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 16px; padding: 18px;">
+              <span class="badge badge-primary mb-2">365 Days</span>
+              <h4 style="font-size:16px; margin-bottom:4px;">📖 1-Year Complete Bible Plan</h4>
+              <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">1 సంవత్సర సమగ్ర బైబిల్ పఠన ప్రణాళిక</p>
+              <button type="button" class="btn btn-sm btn-primary" style="width:100%;" onclick="app.openShareLinkPage('1-year-canonical')">
+                <i class="fa-solid fa-sliders"></i> Configure & Share Link
+              </button>
+            </div>
+            <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 16px; padding: 18px;">
+              <span class="badge badge-primary mb-2" style="background: rgba(139, 92, 246, 0.2); color: #c084fc;">730 Days</span>
+              <h4 style="font-size:16px; margin-bottom:4px;">📖 2-Year Bible Reading Plan</h4>
+              <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">2 సంవత్సరాల బైబిల్ పఠన ప్రణాళిక</p>
+              <button type="button" class="btn btn-sm btn-primary" style="width:100%;" onclick="app.openShareLinkPage('2-year-canonical')">
+                <i class="fa-solid fa-sliders"></i> Configure & Share Link
+              </button>
+            </div>
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 16px; padding: 18px;">
+              <span class="badge badge-success mb-2">1095 Days</span>
+              <h4 style="font-size:16px; margin-bottom:4px;">📖 3-Year Bible Reading Plan</h4>
+              <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">3 సంవత్సరాల దేవుని వాక్య పఠన ప్రణాళిక</p>
+              <button type="button" class="btn btn-sm btn-primary" style="width:100%;" onclick="app.openShareLinkPage('3-year-canonical')">
+                <i class="fa-solid fa-sliders"></i> Configure & Share Link
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Custom Daily Promise Editor (Telugu & English) -->
+        <!-- Bottom Configuration Navigation Bar -->
+        <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid var(--border-card); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <h4 style="font-size: 16px; margin-bottom: 2px;"><i class="fa-solid fa-gear text-primary"></i> Advanced Bible Configuration Portal</h4>
+            <p style="font-size: 12px; color: var(--text-muted);">Access step-by-step plan generator, automatic chapter calculator, and configuration copy links.</p>
+          </div>
+          <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-outline" onclick="app.copyPublicShareLink()">
+              <i class="fa-solid fa-link text-amber"></i> Copy Configuration Link
+            </button>
+            <button type="button" class="btn btn-primary" onclick="app.openShareLinkPage()">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Bible Configuration Site
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Daily Promise Editor Modal / Form -->
         <div class="glass-card mt-4">
           <div class="card-header">
-            <h3><i class="fa-solid fa-dove text-primary"></i> Today's God's Promise Editor (రోజువారీ దేవుని వాగ్దానము)</h3>
+            <h3><i class="fa-solid fa-pen-to-square text-primary"></i> Publish Today's God's Promise (రోజువారీ వాగ్దానము)</h3>
           </div>
-          <p class="subtitle-text mb-3">Set today's featured promise in Telugu. If not set, AI will automatically choose a daily scripture promise.</p>
           <div class="form-row-2">
             <div class="form-group">
-              <label>Promise Verse in Telugu (తెలుగు వాగ్దాన వాక్యము) *</label>
+              <label>Promise Verse in Telugu *</label>
               <textarea id="adminPromiseTelugu" class="form-control" rows="2" placeholder="ఉదా: యెహోవా నా కాపరి; నాకు లేమి కలుగదు..."></textarea>
             </div>
             <div class="form-group">
-              <label>Scripture Reference (రిఫరెన్స్) *</label>
+              <label>Scripture Reference *</label>
               <input type="text" id="adminPromiseRef" class="form-control" placeholder="ఉదా: కీర్తనలు 23:1 / Psalms 23:1">
             </div>
           </div>
-          <div class="form-group">
-            <label>Promise Verse in English (Optional)</label>
-            <input type="text" id="adminPromiseEnglish" class="form-control" placeholder="e.g. The Lord is my shepherd; I shall not want.">
-          </div>
           <button class="btn btn-primary mt-2" onclick="app.saveDailyPromiseSubmit()">
-            <i class="fa-solid fa-check"></i> Publish Today's God's Promise (వాగ్దానాన్ని ప్రచురించు)
+            <i class="fa-solid fa-check"></i> Publish Today's Promise
           </button>
         </div>
+      </section>
+
+
+
+
+        <!-- Custom Daily Promise Editor (Telugu & English) -->
+        
       </section>
 
       <!-- TAB 9: API EXPLORER -->
@@ -714,43 +732,65 @@
         <button class="modal-close" onclick="app.closeModal('songModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
+        <input type="hidden" id="songIdInput">
         <div class="form-row-2">
           <div class="form-group">
             <label>Song Title *</label>
             <input type="text" id="songTitleInput" class="form-control" placeholder="e.g. Amazing Grace / స్తోత్రం చెల్లింతుము">
           </div>
           <div class="form-group">
-            <label>Language</label>
+            <label>Language *</label>
             <select id="songLangInput" class="form-select">
+              <option value="Telugu" selected>Telugu (తెలుగు)</option>
               <option value="English">English</option>
-              <option value="Telugu">Telugu</option>
             </select>
           </div>
         </div>
         <div class="form-row-2">
           <div class="form-group">
             <label>Category</label>
-            <input type="text" id="songCategoryInput" class="form-control" placeholder="Worship Songs, Praise, Revival">
+            <input type="text" id="songCategoryInput" class="form-control" value="Worship Songs" placeholder="Worship Songs, Praise, Revival">
           </div>
           <div class="form-group">
-            <label>YouTube Video Link</label>
+            <label>YouTube Video Link (Optional)</label>
             <input type="text" id="songYoutubeInput" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
           </div>
         </div>
         <div class="form-group">
           <label>Guitar / Keyboard Chords (Optional)</label>
-          <textarea id="songChordsInput" class="form-control font-mono" rows="2" placeholder="e.g. G    C    G..."></textarea>
+          <textarea id="songChordsInput" class="form-control font-mono" rows="2" placeholder="e.g. Em    C    G    D..."></textarea>
         </div>
         <div class="form-group">
-          <label>Lyrics Slides *</label>
-          <small class="hint-text mb-2">Separate slides using "---" or add slide by slide below:</small>
-          <div id="slidesEditorContainer">
+          <label style="display:block; margin-bottom:6px; font-weight:600;">
+            <i class="fa-solid fa-align-left text-primary"></i> Song Lyrics (Wide Text Editor) *
+          </label>
+          <div style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 12px; margin-bottom: 10px;">
+            <small style="color: #a5b4fc; display: block; font-size: 12px;">
+              <i class="fa-solid fa-circle-info"></i> <strong>Smart Auto-Slide Verse Converter Rules:</strong><br>
+              • <strong>Single Enter (Enter)</strong>: Keeps lines inside the <em>same verse/slide</em> (with gap).<br>
+              • <strong>Double Enter (Blank Line)</strong>: Automatically divides lyrics into <em>separate verses/slides</em> for live projection!
+            </small>
+          </div>
+          <textarea id="songFullLyricsInput" class="form-control lyrics-wide-box" rows="8" placeholder="ఆరాధనకు యోగ్యుడా నా యేసయ్యా...&#10;నీకే నా స్తోత్రములు&#10;&#10;(Double Enter for Verse 2)&#10;పరిశుద్ధుడా పరమ తండ్రి..." oninput="app.onFullLyricsInputChange(this.value)"></textarea>
+        </div>
+
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="margin:0; font-size:13px; color:var(--text-muted);">
+              <i class="fa-solid fa-layer-group"></i> Extracted Projection Slides Preview (<span id="parsedSlidesCount">0</span> Slides)
+            </label>
+            <button type="button" class="btn btn-sm btn-outline" onclick="app.toggleManualSlidesEditor()">
+              <i class="fa-solid fa-sliders"></i> Advanced Manual Slide Editor
+            </button>
+          </div>
+          <div id="slidesEditorContainer" style="display:none; margin-top:8px;">
             <!-- Dynamic slide boxes -->
           </div>
-          <button type="button" class="btn btn-sm btn-outline mt-2" onclick="app.addSlideInputBox()">
-            <i class="fa-solid fa-plus"></i> Add Slide
-          </button>
+          <div id="slidesPreviewList" class="slides-preview-box">
+            <span class="text-muted" style="font-size:12px;">Type or paste full song above to preview slides automatically.</span>
+          </div>
         </div>
+
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="app.closeModal('songModal')">Cancel</button>
@@ -892,19 +932,70 @@
         <button class="modal-close" onclick="app.closeModal('loginModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
-        <p style="font-size:13px; color:#666; margin-bottom:14px;">Log in as Administrator to create and manage events, songs, and notices.</p>
+        <p style="font-size:13px; color:#94a3b8; margin-bottom:14px;">Log in as Administrator to create and manage events, songs, and notices.</p>
         <div class="form-group">
           <label>Admin Email</label>
-          <input type="email" id="loginEmail" class="form-control" value="admin@churchconnect.org">
+          <input type="email" id="modalLoginEmail" class="form-control" value="admin@SFGC.org">
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="loginPassword" class="form-control" value="admin123">
+          <input type="password" id="modalLoginPassword" class="form-control" value="admin123">
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="app.closeModal('loginModal')">Cancel</button>
-        <button class="btn btn-primary" onclick="app.performLogin()">Sign In as Admin</button>
+        <button class="btn btn-primary" id="btnModalLoginSubmit" onclick="app.performModalLogin()">Sign In as Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Registering New Member directly -->
+  <div id="addMemberModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-plus text-primary"></i> Register New Church Member Profile</h3>
+        <button class="modal-close" onclick="app.closeModal('addMemberModal')">&times;</button>
+      </div>
+      <div class="modal-body form-body">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="addMemberName" class="form-control" placeholder="e.g. Samuel Kumar">
+          </div>
+          <div class="form-group">
+            <label>Email Address *</label>
+            <input type="email" id="addMemberEmail" class="form-control" placeholder="samuel@SFGC.org">
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Password *</label>
+            <input type="password" id="addMemberPassword" class="form-control" placeholder="••••••••" value="member123">
+          </div>
+          <div class="form-group">
+            <label>Mobile / Phone</label>
+            <input type="text" id="addMemberPhone" class="form-control" placeholder="+91 9876543210">
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Family Name / Unit</label>
+            <input type="text" id="addMemberFamily" class="form-control" placeholder="e.g. Kumar Family">
+          </div>
+          <div class="form-group">
+            <label>Role Access Level</label>
+            <select id="addMemberRole" class="form-select">
+              <option value="Member">Member (Standard User)</option>
+              <option value="Admin">Admin</option>
+              <option value="Worship Leader">Worship Leader</option>
+              <option value="Media Team">Media Team Lead</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('addMemberModal')">Cancel</button>
+        <button class="btn btn-primary" id="btnSubmitAddMember" onclick="app.saveAddMemberSubmit()">Save Member Profile</button>
       </div>
     </div>
   </div>
@@ -1004,7 +1095,7 @@
         </div>
         <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
           <input type="checkbox" id="noticeIsPinned" style="width:18px; height:18px; cursor:pointer;">
-          <label for="noticeIsPinned" style="margin:0; cursor:pointer; font-weight:600; color:#2d3748;">📌 Pin Notice to Top of Announcement Feed</label>
+          <label for="noticeIsPinned" style="margin:0; cursor:pointer; font-weight:600; color:#cbd5e1;">📌 Pin Notice to Top of Announcement Feed</label>
         </div>
       </div>
       <div class="modal-footer">
@@ -1013,6 +1104,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Floating Toast Notification Box -->
+  <div id="toastContainer" class="toast-container"></div>
 
   <script src="app.js"></script>
 </body>

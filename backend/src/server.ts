@@ -74,7 +74,7 @@ const startServer = async () => {
 
   server.listen(config.port, () => {
     console.log(`\n======================================================`);
-    console.log(`🚀 ChurchConnect Backend Server Running!`);
+    console.log(`🚀 SFGC Backend Server Running!`);
     console.log(`📡 REST API Base:        http://localhost:${config.port}/api`);
     console.log(`📊 Web Admin Dashboard:  http://localhost:${config.port}`);
     console.log(`🔌 Socket.IO Real-time:  ws://localhost:${config.port}`);

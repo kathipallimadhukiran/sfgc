@@ -272,7 +272,7 @@ export default function HomeScreen() {
       const verseText = isBibleTel ? (dailyPromise?.verseTelugu || dailyVerse) : (dailyPromise?.verseEnglish || dailyVerse);
       const refText = isBibleTel ? (dailyPromise?.referenceTelugu || '') : (dailyPromise?.referenceEnglish || '');
       await Share.share({
-        message: `🕊️ *${isTel ? 'నేటి దేవుని వాగ్దానము' : 'Today\'s God\'s Promise'}* 🕊️\n\n"${verseText}"\n${refText ? `— ${refText}` : ''}\n\nShared from ChurchConnect Mobile App.`,
+        message: `🕊️ *${isTel ? 'నేటి దేవుని వాగ్దానము' : 'Today\'s God\'s Promise'}* 🕊️\n\n"${verseText}"\n${refText ? `— ${refText}` : ''}\n\nShared from SFGC Mobile App.`,
       });
     } catch (error) {
       console.log('Share error:', error);
