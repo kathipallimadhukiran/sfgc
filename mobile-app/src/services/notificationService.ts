@@ -1,24 +1,26 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-// Configure notification behavior for foreground mode
+let Notifications: any = null;
 try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
+  Notifications = require('expo-notifications');
+  if (Notifications && Notifications.setNotificationHandler) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  }
 } catch (e) {
-  console.log('Notifications setup warning:', e);
+  console.log('expo-notifications module optional load:', e);
 }
 
 class NotificationService {
   private isConfigured = false;
 
   async init(): Promise<void> {
-    if (this.isConfigured || Platform.OS === 'web') return;
+    if (this.isConfigured || Platform.OS === 'web' || !Notifications) return;
 
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -31,7 +33,7 @@ class NotificationService {
 
       if (finalStatus === 'granted') {
         this.isConfigured = true;
-        console.log('✅ Local push notifications initialized');
+        console.log('✅ System local notifications configured');
       }
     } catch (err) {
       console.log('Push notification permission warning:', err);
@@ -40,6 +42,11 @@ class NotificationService {
 
   async triggerNotification(title: string, body: string, data?: any): Promise<void> {
     try {
+      if (!Notifications) {
+        console.log('📢 System Notification:', title, '-', body);
+        return;
+      }
+
       await this.init();
       await Notifications.scheduleNotificationAsync({
         content: {
