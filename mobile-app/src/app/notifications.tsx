@@ -279,6 +279,48 @@ export default function NotificationsScreen() {
             {editingId ? 'Edit Announcement' : 'Post Announcement'}
           </Title>
           <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={[styles.inputLabel, { color: '#6366f1', marginTop: 4 }]}>⚡ Quick Pre-Saved Templates</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 6 }}>
+              <Button
+                mode="outlined"
+                compact
+                style={{ marginRight: 6 }}
+                onPress={() => {
+                  setNewTitle('📢 Sunday Miracle Worship Service');
+                  setNewDesc('Warm welcome to attend our Sunday Divine Worship & Holy Communion Service.');
+                  setNewTime('09:30 AM');
+                  setNewLoc('Main Sanctuary');
+                }}
+              >
+                📢 Sunday Service
+              </Button>
+              <Button
+                mode="outlined"
+                compact
+                style={{ marginRight: 6 }}
+                onPress={() => {
+                  setNewTitle('🔥 Midweek Cottage Prayer');
+                  setNewDesc('Join us for midweek cottage prayer and intercessory worship for church families.');
+                  setNewTime('06:30 PM');
+                  setNewLoc('Branch Chapel');
+                }}
+              >
+                🔥 Cottage Prayer
+              </Button>
+              <Button
+                mode="outlined"
+                compact
+                style={{ marginRight: 6 }}
+                onPress={() => {
+                  setNewTitle('☕ Coffee & Fellowship Gathering');
+                  setNewDesc('Stay back after worship service for delicious refreshments and warm fellowship.');
+                  setNewTime('11:45 AM');
+                  setNewLoc('Fellowship Hall');
+                }}
+              >
+                ☕ Fellowship
+              </Button>
+            </ScrollView>
             
             <Text style={styles.inputLabel}>Notice Title *</Text>
             <TextInput

@@ -546,39 +546,68 @@ class ChurchApp {
 
   // PROJECTION & LIVE LYRICS METHODS
   renderProjectionSongsList() {
-    const list = document.getElementById('projSongsList');
-    if (!list) return;
+    this.filterProjectionSongs();
+  }
 
-    if (this.songs.length === 0) {
-      list.innerHTML = '<p class="text-muted p-2">No songs found in catalog.</p>';
-      return;
-    }
-
-    list.innerHTML = this.songs.map(song => `
-      <div class="proj-song-item ${this.activeSong?._id === song._id ? 'active' : ''}" onclick="app.loadSongToProjector('${song._id}')">
-        <h4>${song.title}</h4>
-        <small>${song.language} • ${song.lyrics?.length || 0} Slides</small>
-      </div>
-    `).join('');
+  setSongFilterLang(lang) {
+    this.selectedSongLangFilter = lang;
+    const btns = document.querySelectorAll('.proj-filter-btn');
+    btns.forEach(b => {
+      if (b.dataset.lang === lang) {
+        b.classList.add('active', 'btn-primary');
+        b.classList.remove('btn-outline');
+      } else {
+        b.classList.remove('active', 'btn-primary');
+        b.classList.add('btn-outline');
+      }
+    });
+    this.filterProjectionSongs();
   }
 
   filterProjectionSongs() {
-    const query = (document.getElementById('projSongSearch').value || '').toLowerCase();
-    const filtered = this.songs.filter(s => 
-      s.title.toLowerCase().includes(query) || 
-      s.language.toLowerCase().includes(query) ||
-      (s.lyrics || []).some(l => l.text.toLowerCase().includes(query))
-    );
-
     const list = document.getElementById('projSongsList');
     if (!list) return;
 
-    list.innerHTML = filtered.map(song => `
-      <div class="proj-song-item ${this.activeSong?._id === song._id ? 'active' : ''}" onclick="app.loadSongToProjector('${song._id}')">
-        <h4>${song.title}</h4>
-        <small>${song.language} • ${song.lyrics?.length || 0} Slides</small>
-      </div>
-    `).join('');
+    const query = (document.getElementById('projSongSearch')?.value || '').toLowerCase().trim();
+    const langFilter = this.selectedSongLangFilter || 'all';
+
+    let filtered = this.songs;
+
+    if (langFilter !== 'all') {
+      filtered = filtered.filter(s => (s.language || '').toLowerCase() === langFilter.toLowerCase());
+    }
+
+    if (query) {
+      filtered = filtered.filter(s => 
+        s.title.toLowerCase().includes(query) || 
+        (s.category || '').toLowerCase().includes(query) ||
+        (s.lyrics || []).some(l => l.text.toLowerCase().includes(query))
+      );
+    }
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="text-center py-4 text-muted" style="font-size:13px;"><i class="fa-solid fa-music-slash mb-1" style="font-size:24px; opacity:0.5;"></i><br>No matching worship songs found</div>';
+      return;
+    }
+
+    list.innerHTML = filtered.map(song => {
+      const isActive = this.activeSong?._id === song._id;
+      const hasChords = (song.lyrics || []).some(l => l.chords || (l.text && l.text.includes('[')));
+      return `
+        <div class="proj-song-card ${isActive ? 'active-proj-card' : ''}" onclick="app.loadSongToProjector('${song._id}')">
+          <div class="proj-card-top">
+            <h4 class="proj-card-title">${song.title}</h4>
+            ${isActive ? '<span class="proj-badge-live"><span class="pulse-red-dot"></span> LIVE NOW</span>' : ''}
+          </div>
+          <div class="proj-card-meta">
+            <span class="badge ${song.language === 'Telugu' ? 'badge-telugu' : 'badge-english'}">${song.language || 'Telugu'}</span>
+            <span class="badge badge-category">${song.category || 'Worship'}</span>
+            <span class="badge badge-slides"><i class="fa-solid fa-layer-group"></i> ${song.lyrics?.length || 0} Slides</span>
+            ${hasChords ? '<span class="badge badge-chords"><i class="fa-solid fa-guitar"></i> Chords</span>' : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   loadSongToProjector(songId) {
@@ -1500,10 +1529,89 @@ class ChurchApp {
     }
   }
 
+  openNoticeModal(notice = null) {
+    document.getElementById('noticeId').value = notice ? (notice._id || '') : '';
+    document.getElementById('noticeTitle').value = notice ? (notice.title || '') : '';
+    document.getElementById('noticeDesc').value = notice ? (notice.description || '') : '';
+    document.getElementById('noticeLoc').value = notice ? (notice.location || '') : '';
+    document.getElementById('noticeDate').value = notice ? (notice.date || '').split('T')[0] : new Date().toISOString().split('T')[0];
+    document.getElementById('noticeTime').value = notice ? (notice.time || '') : '';
+    document.getElementById('noticeImage').value = notice ? (notice.image || '') : '';
+    document.getElementById('noticeIsPinned').checked = notice ? Boolean(notice.isPinned) : false;
+    
+    const tmplSelect = document.getElementById('noticeTemplateSelect');
+    if (tmplSelect) tmplSelect.value = '';
+
+    const fileInput = document.getElementById('noticeBannerFile');
+    if (fileInput) fileInput.value = '';
+    this.handleNoticeUrlInput(notice ? (notice.image || '') : '');
+
+    document.getElementById('noticeModal').classList.add('active');
+  }
+
+  editNotice(id) {
+    const notice = this.notices.find(n => n._id === id);
+    if (notice) {
+      this.openNoticeModal(notice);
+    }
+  }
+
+  handleNoticeTemplateSelect(templateKey) {
+    const templates = {
+      sunday_service: {
+        title: '📢 Sunday Miracle Worship & Holy Communion Service',
+        description: 'Warm welcome to attend our Sunday Divine Worship & Holy Communion Service. Come with your family and experience God\'s presence and anointed word!',
+        location: 'Main Sanctuary',
+        time: '09:30 AM - 11:30 AM'
+      },
+      cottage_prayer: {
+        title: '🔥 Midweek Cottage & Intercessory Prayer Meeting',
+        description: 'Join us for midweek cottage prayer and intercessory worship. Let us stand in prayer for our church families, sickness healing, and spiritual revival.',
+        location: 'Branch Chapel & Online Zoom',
+        time: '06:30 PM - 08:00 PM'
+      },
+      fellowship_meal: {
+        title: '☕ Coffee & Christian Fellowship Gathering',
+        description: 'Stay back after the Sunday worship service for delicious refreshments, coffee, tea, and warm fellowship with our church family.',
+        location: 'Fellowship Hall',
+        time: '11:45 AM - 12:30 PM'
+      },
+      special_speaker: {
+        title: '🎙️ Special Guest Evangelist Revival Service',
+        description: 'Special anointed miracle revival meeting with guest preacher. Special prayer for divine healing, deliverance, and spiritual breakthrough will be conducted.',
+        location: 'Main Sanctuary',
+        time: '06:00 PM - 08:30 PM'
+      },
+      youth_fellowship: {
+        title: '🎸 Youth & Young Adults Worship Gathering',
+        description: 'Energetic praise & worship, inspiring testimony, interactive bible discussion, and snacks for all youth and young adults!',
+        location: 'Youth Hall',
+        time: '05:00 PM - 07:00 PM'
+      },
+      fasting_prayer: {
+        title: '🙏 Combined Church Fasting & Prayer Service',
+        description: 'Special church-wide 1-day fasting & prayer gathering. Come seeking God\'s face for our families, church expansion, and country.',
+        location: 'Main Sanctuary',
+        time: '10:00 AM - 01:00 PM'
+      }
+    };
+
+    const tmpl = templates[templateKey];
+    if (tmpl) {
+      document.getElementById('noticeTitle').value = tmpl.title;
+      document.getElementById('noticeDesc').value = tmpl.description;
+      document.getElementById('noticeLoc').value = tmpl.location;
+      document.getElementById('noticeTime').value = tmpl.time;
+      document.getElementById('noticeDate').value = new Date().toISOString().split('T')[0];
+    }
+  }
+
   async saveNoticeSubmit() {
+    const id = document.getElementById('noticeId').value.trim();
     const title = document.getElementById('noticeTitle').value.trim();
     const description = document.getElementById('noticeDesc').value.trim();
     const location = document.getElementById('noticeLoc').value.trim();
+    const dateInput = document.getElementById('noticeDate').value.trim();
     const time = document.getElementById('noticeTime').value.trim();
     const image = document.getElementById('noticeImage').value.trim();
     const isPinned = document.getElementById('noticeIsPinned').checked;
@@ -1513,23 +1621,34 @@ class ChurchApp {
       return;
     }
 
-    this.setButtonLoading('btnSubmitNotice', true, 'Broadcasting Notice...');
+    let date = dateInput || new Date().toISOString();
+    if (dateInput && !dateInput.includes('T')) {
+      const d = new Date(`${dateInput}T09:00:00`);
+      date = isNaN(d.getTime()) ? dateInput : d.toISOString();
+    }
+
+    const payload = { title, description, location, date, time, image, isPinned };
+
+    this.setButtonLoading('btnSubmitNotice', true, id ? 'Updating Notice...' : 'Broadcasting Notice...');
 
     try {
-      const res = await this.authFetch('/api/notices', {
-        method: 'POST',
-        body: JSON.stringify({ title, description, location, time, image, isPinned })
+      const url = id ? `/api/notices/${id}` : '/api/notices';
+      const method = id ? 'PUT' : 'POST';
+      const res = await this.authFetch(url, {
+        method,
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
-        this.showToast('🎉 Notice broadcast successfully!', 'success');
+        this.showToast(id ? '🎉 Notice updated successfully!' : '🎉 Notice broadcast successfully!', 'success');
+        document.getElementById('noticeId').value = '';
         this.closeModal('noticeModal');
         await this.refreshAll();
       }
     } catch (e) {
-      this.showToast('Notice creation failed: ' + e.message, 'error');
+      this.showToast('Notice operation failed: ' + e.message, 'error');
     } finally {
-      this.setButtonLoading('btnSubmitNotice', false, '', 'Post Notice');
+      this.setButtonLoading('btnSubmitNotice', false, '', id ? 'Update Notice' : 'Post Notice');
     }
   }
 

@@ -306,9 +306,14 @@
             <div class="section-title">
               <h3><i class="fa-solid fa-list-music"></i> Select Song to Project</h3>
             </div>
+            <div class="song-filter-pills" style="display:flex; gap:6px; margin-bottom:10px;">
+              <button type="button" class="btn btn-xs btn-primary proj-filter-btn active" data-lang="all" onclick="app.setSongFilterLang('all')">All Songs</button>
+              <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="Telugu" onclick="app.setSongFilterLang('Telugu')">Telugu</button>
+              <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="English" onclick="app.setSongFilterLang('English')">English</button>
+            </div>
             <div class="search-input-wrap">
               <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" id="projSongSearch" placeholder="Search song title or lyrics..." oninput="app.filterProjectionSongs()">
+              <input type="text" id="projSongSearch" placeholder="Search song title, lyrics, or category..." oninput="app.filterProjectionSongs()" autocomplete="off">
             </div>
             <div class="proj-songs-list" id="projSongsList">
               <!-- Loaded dynamically -->
@@ -863,74 +868,76 @@
     <div class="modal-box">
       <div class="modal-header">
         <h3 id="eventModalTitle">Create Church Event / Service</h3>
-        <button class="modal-close" onclick="app.closeModal('eventModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('eventModal')">&times;</button>
       </div>
-      <div class="modal-body form-body">
-        <input type="hidden" id="eventId">
-        <div class="form-group">
-          <label>Event Title *</label>
-          <input type="text" id="eventTitle" class="form-control" placeholder="e.g. Sunday Miracle Worship Service">
-        </div>
-        <div class="form-row-2">
+      <form autocomplete="off" onsubmit="return false;">
+        <div class="modal-body form-body">
+          <input type="hidden" id="eventId">
           <div class="form-group">
-            <label>Preacher / Speaker</label>
-            <select id="eventSpeakerSelect" class="form-control" onchange="app.handleSpeakerSelectChange(this.value)">
-              <option value="Pastor John Doe">🎙️ Pastor John Doe</option>
-              <option value="Pastor David">🎙️ Pastor David</option>
-              <option value="Evangelist Billy Graham">🎙️ Evangelist Billy Graham</option>
-              <option value="custom">✏️ Custom Preacher Speaker...</option>
-            </select>
-            <input type="text" id="eventSpeakerCustom" class="form-control" placeholder="Type preacher / speaker name..." style="display:none; margin-top:8px;">
+            <label>Event Title *</label>
+            <input type="text" id="eventTitle" class="form-control" placeholder="e.g. Sunday Miracle Worship Service" autocomplete="off">
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Preacher / Speaker</label>
+              <select id="eventSpeakerSelect" class="form-control" onchange="app.handleSpeakerSelectChange(this.value)">
+                <option value="Pastor John Doe">🎙️ Pastor John Doe</option>
+                <option value="Pastor David">🎙️ Pastor David</option>
+                <option value="Evangelist Billy Graham">🎙️ Evangelist Billy Graham</option>
+                <option value="custom">✏️ Custom Preacher Speaker...</option>
+              </select>
+              <input type="text" id="eventSpeakerCustom" class="form-control" placeholder="Type preacher / speaker name..." style="display:none; margin-top:8px;" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Venue / Location *</label>
+              <select id="eventVenueSelect" class="form-control" onchange="app.handleVenueSelectChange(this.value)">
+                <option value="Main Sanctuary">🏢 Main Sanctuary</option>
+                <option value="Youth Chapel">🏢 Youth Chapel</option>
+                <option value="Branch Church 2">🏢 Branch Church 2</option>
+                <option value="custom">✏️ Custom Venue Location...</option>
+              </select>
+              <input type="text" id="eventVenueCustom" class="form-control" placeholder="Type location / venue details..." style="display:none; margin-top:8px;" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Event Date *</label>
+              <input type="date" id="eventDate" class="form-control" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Event Time</label>
+              <input type="text" id="eventTime" class="form-control" placeholder="09:30 AM - 11:30 AM" autocomplete="off">
+            </div>
           </div>
           <div class="form-group">
-            <label>Venue / Location *</label>
-            <select id="eventVenueSelect" class="form-control" onchange="app.handleVenueSelectChange(this.value)">
-              <option value="Main Sanctuary">🏢 Main Sanctuary</option>
-              <option value="Youth Chapel">🏢 Youth Chapel</option>
-              <option value="Branch Church 2">🏢 Branch Church 2</option>
-              <option value="custom">✏️ Custom Venue Location...</option>
-            </select>
-            <input type="text" id="eventVenueCustom" class="form-control" placeholder="Type location / venue details..." style="display:none; margin-top:8px;">
-          </div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label>Event Date *</label>
-            <input type="date" id="eventDate" class="form-control">
+            <label>Event Poster / Banner Image</label>
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+              <input type="file" id="eventBannerFile" accept="image/*" class="form-control" onchange="app.handleBannerFileUpload(event)" style="flex:1;">
+            </div>
+            <input type="text" id="eventBanner" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleBannerUrlInput(this.value)" autocomplete="off">
+            <small class="hint-text">Select poster image from gallery/computer or paste image URL</small>
+            <div id="eventBannerPreviewContainer" style="display:none; margin-top:8px; text-align:center;">
+              <img id="eventBannerPreview" src="" style="max-height:140px; max-width:100%; border-radius:8px; border:1px solid #ddd; object-fit:cover;">
+            </div>
           </div>
           <div class="form-group">
-            <label>Event Time</label>
-            <input type="text" id="eventTime" class="form-control" placeholder="09:30 AM - 11:30 AM">
+            <label>Google Maps Location Link (Optional)</label>
+            <input type="url" id="eventMapsLocation" class="form-control" placeholder="https://maps.google.com/?q=..." autocomplete="off">
+          </div>
+          <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px; background:#f8f9fa; padding:10px 12px; border-radius:8px; border:1px solid #e9ecef;">
+            <input type="checkbox" id="eventRequiresRSVP" style="width:18px; height:18px; cursor:pointer;">
+            <label for="eventRequiresRSVP" style="margin:0; cursor:pointer; font-weight:600; color:#2d3748;">👥 Enable RSVP & Track Attendee Count</label>
+          </div>
+          <div class="form-group">
+            <label>Description & Details</label>
+            <textarea id="eventDesc" class="form-control" rows="2" placeholder="Enter special instructions or event outline..." autocomplete="off"></textarea>
           </div>
         </div>
-        <div class="form-group">
-          <label>Event Poster / Banner Image</label>
-          <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-            <input type="file" id="eventBannerFile" accept="image/*" class="form-control" onchange="app.handleBannerFileUpload(event)" style="flex:1;">
-          </div>
-          <input type="text" id="eventBanner" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleBannerUrlInput(this.value)">
-          <small class="hint-text">Select poster image from gallery/computer or paste image URL</small>
-          <div id="eventBannerPreviewContainer" style="display:none; margin-top:8px; text-align:center;">
-            <img id="eventBannerPreview" src="" style="max-height:140px; max-width:100%; border-radius:8px; border:1px solid #ddd; object-fit:cover;">
-          </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="app.closeModal('eventModal')">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btnSubmitEvent" onclick="app.saveEventSubmit()">Publish Event</button>
         </div>
-        <div class="form-group">
-          <label>Google Maps Location Link (Optional)</label>
-          <input type="url" id="eventMapsLocation" class="form-control" placeholder="https://maps.google.com/?q=...">
-        </div>
-        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px; background:#f8f9fa; padding:10px 12px; border-radius:8px; border:1px solid #e9ecef;">
-          <input type="checkbox" id="eventRequiresRSVP" style="width:18px; height:18px; cursor:pointer;">
-          <label for="eventRequiresRSVP" style="margin:0; cursor:pointer; font-weight:600; color:#2d3748;">👥 Enable RSVP & Track Attendee Count</label>
-        </div>
-        <div class="form-group">
-          <label>Description & Details</label>
-          <textarea id="eventDesc" class="form-control" rows="2" placeholder="Enter special instructions or event outline..."></textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('eventModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnSubmitEvent" onclick="app.saveEventSubmit()">Publish Event</button>
-      </div>
+      </form>
     </div>
   </div>
 
@@ -1058,53 +1065,70 @@
         </div>
 
         <div class="form-group mt-2">
-          <label>Add New Custom Department Tag</label>
-          <input type="text" id="editMemberCustomDept" class="form-control" placeholder="e.g. Prayer Warriors, Maintenance...">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('editMemberModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnSaveMemberAccess" onclick="app.saveMemberAccessSubmit()">Save Access & Department</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal for Notice Creation -->
+          <label>Add New  <!-- Modal for Notice Creation -->
   <div id="noticeModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-header">
         <h3>Post Church Notice / Alert</h3>
-        <button class="modal-close" onclick="app.closeModal('noticeModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('noticeModal')">&times;</button>
       </div>
-      <div class="modal-body form-body">
-        <div class="form-group">
-          <label>Notice Title *</label>
-          <input type="text" id="noticeTitle" class="form-control" placeholder="e.g. Annual General Meeting">
-        </div>
-        <div class="form-group">
-          <label>Description *</label>
-          <textarea id="noticeDesc" class="form-control" rows="3" placeholder="Notice details..."></textarea>
-        </div>
-        <div class="form-row-2">
+      <form autocomplete="off" onsubmit="return false;">
+        <div class="modal-body form-body">
+          <input type="hidden" id="noticeId">
+          <div class="form-group" style="background:rgba(99, 102, 241, 0.08); padding:10px 12px; border-radius:8px; border:1px solid rgba(99, 102, 241, 0.2);">
+            <label style="font-weight:700; color:#6366f1; font-size:12.5px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Select Pre-Saved Announcement Template (Optional)</label>
+            <select id="noticeTemplateSelect" class="form-control" style="font-size:13px; margin-top:4px;" onchange="app.handleNoticeTemplateSelect(this.value)">
+              <option value="">-- Custom Announcement / Type Your Own --</option>
+              <option value="sunday_service">📢 Sunday Miracle Worship & Holy Communion Service</option>
+              <option value="cottage_prayer">🔥 Midweek Cottage & Intercessory Prayer Meeting</option>
+              <option value="fellowship_meal">☕ Coffee & Christian Fellowship Gathering</option>
+              <option value="special_speaker">🎙️ Special Guest Evangelist Revival Service</option>
+              <option value="youth_fellowship">🎸 Youth & Young Adults Worship Gathering</option>
+              <option value="fasting_prayer">🙏 Combined Church Fasting & Prayer Service</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Notice Title *</label>
+            <input type="text" id="noticeTitle" class="form-control" placeholder="e.g. Annual General Meeting" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Description *</label>
+            <textarea id="noticeDesc" class="form-control" rows="3" placeholder="Notice details..." autocomplete="off"></textarea>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Notice Date</label>
+              <input type="date" id="noticeDate" class="form-control" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Time</label>
+              <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 10:30 AM" autocomplete="off">
+            </div>
+          </div>
           <div class="form-group">
             <label>Location / Wing</label>
-            <input type="text" id="noticeLoc" class="form-control" placeholder="e.g. Main Sanctuary">
+            <input type="text" id="noticeLoc" class="form-control" placeholder="e.g. Main Sanctuary" autocomplete="off">
           </div>
           <div class="form-group">
-            <label>Time</label>
-            <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 12:30 PM">
+            <label>Notice Banner / Poster Image</label>
+            <input type="file" id="noticeBannerFile" accept="image/*" class="form-control mb-2" onchange="app.handleNoticeFileUpload(event)">
+            <input type="text" id="noticeImage" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleNoticeUrlInput(this.value)" autocomplete="off">
+            <div id="noticeImagePreviewContainer" style="display:none; margin-top:8px; text-align:center;">
+              <img id="noticeImagePreview" src="" style="max-height:120px; max-width:100%; border-radius:8px; border:1px solid #ddd; object-fit:cover;">
+            </div>
+          </div>
+          <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <input type="checkbox" id="noticeIsPinned" style="width:18px; height:18px; cursor:pointer;">
+            <label for="noticeIsPinned" style="margin:0; cursor:pointer; font-weight:600; color:#cbd5e1;">📌 Pin Notice to Top of Announcement Feed</label>
           </div>
         </div>
-        <div class="form-group">
-          <label>Notice Banner / Poster Image</label>
-          <input type="file" id="noticeBannerFile" accept="image/*" class="form-control mb-2" onchange="app.handleNoticeFileUpload(event)">
-          <input type="text" id="noticeImage" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleNoticeUrlInput(this.value)">
-          <div id="noticeImagePreviewContainer" style="display:none; margin-top:8px; text-align:center;">
-            <img id="noticeImagePreview" src="" style="max-height:120px; max-width:100%; border-radius:8px; border:1px solid #ddd; object-fit:cover;">
-          </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="app.closeModal('noticeModal')">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btnSubmitNotice" onclick="app.saveNoticeSubmit()">Post Notice</button>
         </div>
-        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
-          <input type="checkbox" id="noticeIsPinned" style="width:18px; height:18px; cursor:pointer;">
+      </form>
+    </div>
+  </div>px; height:18px; cursor:pointer;">
           <label for="noticeIsPinned" style="margin:0; cursor:pointer; font-weight:600; color:#cbd5e1;">📌 Pin Notice to Top of Announcement Feed</label>
         </div>
       </div>

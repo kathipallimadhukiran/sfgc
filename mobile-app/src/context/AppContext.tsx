@@ -12,6 +12,7 @@ import io, { Socket } from 'socket.io-client';
 import { songsService, SongItem } from '../services/songsService';
 import { eventsService, EventItem } from '../services/eventsService';
 import { noticesService, NoticeItem } from '../services/noticesService';
+import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
 import { API_URL } from '../constants/config';
 import { router } from 'expo-router';
@@ -586,10 +587,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           return [newNotice, ...prev];
         });
 
-        Alert.alert(
+        // Trigger System Notification
+        notificationService.triggerNotification(
           newNotice.title,
           newNotice.description,
-          [{ text: 'Dismiss', style: 'cancel' }]
+          { type: 'NOTICE', id: newNotice._id || newNotice.id }
         );
       });
 
@@ -605,6 +607,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           return [newEvent, ...prev];
         });
         refreshData();
+
+        // Trigger System Notification
+        notificationService.triggerNotification(
+          `📅 New Event: ${newEvent.title}`,
+          `📍 ${newEvent.venue}${newEvent.time ? ` at ${newEvent.time}` : ''}`,
+          { type: 'EVENT', id: newEvent._id || newEvent.id }
+        );
       });
 
       newSocket.on('new_video_notification', (payload: {
@@ -635,13 +644,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
         refreshData();
 
-        Alert.alert(
+        // Trigger System Notification
+        notificationService.triggerNotification(
           `🎬 ${payload.title}`,
           payload.message,
-          [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Watch Video', onPress: () => router.push('/live-stream') }
-          ]
+          { type: 'VIDEO', videoId: payload.videoId }
         );
       });
 
@@ -739,6 +746,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         }
       );
+
+      newSocket.on('new_promise_notification', (payload: any) => {
+        refreshData();
+        notificationService.triggerNotification(
+          `🌅 ${payload.title || "Today's Daily Promise"}`,
+          `"${payload.verseTelugu}" - ${payload.referenceTelugu}`,
+          { type: 'PROMISE' }
+        );
+      });
 
       newSocket.on(
         'sessionEnded',
