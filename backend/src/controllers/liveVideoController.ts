@@ -240,10 +240,12 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
     console.warn('⚠️ Engine 1 RSS fetch warning:', err);
   }
 
-  // Engine 2: Instant Channel HTML Scraper (/videos and /live tabs)
+  // Engine 2: Instant Channel HTML Scraper (/videos, /streams, /live, and main page)
   const tabs = [
     `https://www.youtube.com/channel/${channelId}/videos`,
-    `https://www.youtube.com/channel/${channelId}/live`
+    `https://www.youtube.com/channel/${channelId}/streams`,
+    `https://www.youtube.com/channel/${channelId}/live`,
+    `https://www.youtube.com/channel/${channelId}`,
   ];
 
   for (const pageUrl of tabs) {
@@ -257,17 +259,39 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
       });
       if (pageResp.ok) {
         const html = await pageResp.text();
-        const videoBlocks = html.split('"videoRenderer":{');
-        for (let i = 1; i < videoBlocks.length; i++) {
-          const block = videoBlocks[i];
+
+        // 2a. Match gridVideoRenderer, videoRenderer, compactVideoRenderer, reelItemRenderer blocks
+        const blockSplit = html.split(/"(?:gridVideoRenderer|videoRenderer|compactVideoRenderer|reelItemRenderer)":\{/);
+        for (let i = 1; i < blockSplit.length; i++) {
+          const block = blockSplit[i].substring(0, 1500);
           const idMatch = block.match(/"videoId":"([^"]{11})"/);
-          const titleMatch = block.match(/"title":\{"runs":\[\{"text":"([^"]+)"\}/);
           if (idMatch && idMatch[1]) {
             const yId = idMatch[1].trim();
-            const rawTitle = titleMatch && titleMatch[1] ? titleMatch[1] : 'Sanctuary Worship Video';
+
+            let rawTitle = 'Sanctuary Worship Video';
+            const titleMatch = block.match(/"title":\{.*?"text":"([^"]+)"/);
+            const simpleMatch = block.match(/"title":\{.*?"simpleText":"([^"]+)"/);
+
+            if (titleMatch && titleMatch[1]) {
+              rawTitle = titleMatch[1];
+            } else if (simpleMatch && simpleMatch[1]) {
+              rawTitle = simpleMatch[1];
+            }
+
             const vTitle = decodeXmlEntities(rawTitle);
-            if (!foundVideosMap.has(yId)) {
+            if (yId.length === 11 && (!foundVideosMap.has(yId) || foundVideosMap.get(yId)?.includes('('))) {
               foundVideosMap.set(yId, vTitle);
+            }
+          }
+        }
+
+        // 2b. Match all videoId strings in the page HTML as fallback
+        const videoIdMatches = html.match(/"videoId":"([^"]{11})"/g);
+        if (videoIdMatches) {
+          for (const vm of videoIdMatches) {
+            const yId = vm.replace(/"videoId":"|"/g, '').trim();
+            if (yId.length === 11 && !foundVideosMap.has(yId)) {
+              foundVideosMap.set(yId, `Sanctuary Worship Service (${yId})`);
             }
           }
         }

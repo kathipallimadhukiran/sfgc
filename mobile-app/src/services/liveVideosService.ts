@@ -44,6 +44,14 @@ class LiveVideosService {
       return { success: false, message: error?.message || 'Unable to update video.' };
     }
   }
+
+  async syncChannel(channelId?: string): Promise<{ success: boolean; message?: string; videos?: LiveVideoItem[] }> {
+    try {
+      return await apiClient.post('/api/stream/videos/sync-channel', { channelId });
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Unable to sync YouTube channel.' };
+    }
+  }
 }
 
 export const liveVideosService = new LiveVideosService();
