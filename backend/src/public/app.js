@@ -1211,42 +1211,89 @@ class ChurchApp {
 
   // EVENTS METHODS
   renderEventsTable() {
+    const totalCount = this.events ? this.events.length : 0;
+    
+    // Update Overview & Events Tab Stat Counters
+    const statEventsCount = document.getElementById('statEventsCount');
+    if (statEventsCount) statEventsCount.innerText = totalCount;
+
+    const statTotalEventsCount = document.getElementById('statTotalEventsCount');
+    if (statTotalEventsCount) statTotalEventsCount.innerText = totalCount;
+
+    const badgeEventsCount = document.getElementById('badgeEventsCount');
+    if (badgeEventsCount) badgeEventsCount.innerText = `${totalCount} ${totalCount === 1 ? 'Event' : 'Events'}`;
+
+    let totalRSVPs = 0;
+    let upcomingCount = 0;
+    const nowTimestamp = new Date().getTime() - (24 * 60 * 60 * 1000);
+
+    if (Array.isArray(this.events)) {
+      this.events.forEach(ev => {
+        totalRSVPs += (ev.rsvps || []).length;
+        const evTime = new Date(ev.date).getTime();
+        if (isNaN(evTime) || evTime >= nowTimestamp) {
+          upcomingCount++;
+        }
+      });
+    }
+
+    const statTotalEventRSVPs = document.getElementById('statTotalEventRSVPs');
+    if (statTotalEventRSVPs) statTotalEventRSVPs.innerText = totalRSVPs;
+
+    const statUpcomingEventsCount = document.getElementById('statUpcomingEventsCount');
+    if (statUpcomingEventsCount) statUpcomingEventsCount.innerText = upcomingCount;
+
     const tbody = document.getElementById('eventsTableBody');
     if (!tbody) return;
 
-    if (this.events.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No events created yet.</td></tr>';
+    if (totalCount === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted"><i class="fa-solid fa-calendar-xmark" style="font-size:32px; color:#cbd5e1; margin-bottom:8px; display:block;"></i>No church events created yet. Click <strong>Create New Event</strong> above to publish your first service.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = this.events.map(ev => `
-      <tr>
-        <td>
-          <div style="display:flex; align-items:center; gap:10px;">
-            ${(ev.banner || ev.imageUrl) ? `<img src="${ev.banner || ev.imageUrl}" style="width:44px; height:44px; border-radius:6px; object-fit:cover; border:1px solid #eee;">` : ''}
-            <div>
-              <strong>${ev.title}</strong>
-              <div style="font-size:11px; color:#666;">${ev.speaker ? `🎙️ ${ev.speaker}` : ''}</div>
+    tbody.innerHTML = this.events.map(ev => {
+      const parsedDate = new Date(ev.date);
+      const dateDisplay = !isNaN(parsedDate.getTime()) 
+        ? parsedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+        : ev.date;
+
+      return `
+        <tr>
+          <td>
+            <div style="display:flex; align-items:center; gap:12px;">
+              ${(ev.banner || ev.imageUrl) 
+                ? `<img src="${ev.banner || ev.imageUrl}" style="width:48px; height:48px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; box-shadow:0 2px 6px rgba(0,0,0,0.06);">` 
+                : `<div style="width:48px; height:48px; border-radius:8px; background:linear-gradient(135deg,#f59e0b,#d97706); display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px;"><i class="fa-solid fa-calendar"></i></div>`}
+              <div>
+                <strong style="color:#0f172a; font-size:14px;">${ev.title}</strong>
+                <div style="font-size:12px; color:#64748b; margin-top:2px;">${ev.speaker ? `🎙️ ${ev.speaker}` : 'Church Service Gathering'}</div>
+              </div>
             </div>
-          </div>
-        </td>
-        <td>${ev.venue}</td>
-        <td>${new Date(ev.date).toLocaleDateString()} ${ev.time ? `• ${ev.time}` : ''}</td>
-        <td>
-          ${ev.requiresRSVP 
-            ? `<span class="badge badge-success"><i class="fa-solid fa-users"></i> ${(ev.rsvps || []).length} RSVP Attending</span>` 
-            : `<span class="badge badge-secondary">Open Gathering (No RSVP)</span>`}
-        </td>
-        <td>
-          <button class="btn btn-sm btn-outline" style="padding: 6px 10px; margin-right: 4px;" onclick="app.editEvent('${ev._id}')" title="Edit Event">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </button>
-          <button class="btn btn-sm btn-danger-action" style="padding: 6px 10px;" onclick="app.deleteEvent('${ev._id}')" title="Delete Event">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </td>
-      </tr>
-    `).join('');
+          </td>
+          <td style="font-weight:600; color:#334155;">${ev.speaker || 'Senior Pastor'}</td>
+          <td><span style="display:inline-flex; align-items:center; gap:5px; background:#f1f5f9; padding:4px 10px; border-radius:6px; font-weight:600; color:#475569; font-size:12px;"><i class="fa-solid fa-location-dot text-amber"></i> ${ev.venue}</span></td>
+          <td>
+            <div style="font-weight:600; color:#0f172a; font-size:13px;">${dateDisplay}</div>
+            <div style="font-size:11px; color:#64748b;">${ev.time ? `🕒 ${ev.time}` : ''}</div>
+          </td>
+          <td>
+            ${ev.requiresRSVP 
+              ? `<span class="badge" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:5px 10px; border-radius:12px; font-weight:700;"><i class="fa-solid fa-users"></i> ${(ev.rsvps || []).length} Attending</span>` 
+              : `<span class="badge" style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; padding:5px 10px; border-radius:12px;">Open Gathering</span>`}
+          </td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-sm" style="background:#f8fafc; border:1px solid #cbd5e1; color:#334155; padding:6px 12px; border-radius:8px; font-weight:600;" onclick="app.editEvent('${ev._id}')" title="Edit Event">
+                <i class="fa-solid fa-pen-to-square text-primary"></i> Edit
+              </button>
+              <button class="btn btn-sm btn-danger-action" style="padding:6px 12px; border-radius:8px; font-weight:600;" onclick="app.deleteEvent('${ev._id}')" title="Delete Event">
+                <i class="fa-solid fa-trash"></i> Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
 
   openEventModal(evt = null) {
