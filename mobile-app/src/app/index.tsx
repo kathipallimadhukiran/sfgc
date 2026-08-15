@@ -192,10 +192,12 @@ export default function HomeScreen() {
 
   useEffect(() => {
     joinLiveSession();
-    loadPlanAndStreak();
     loadDailyPromise();
-    return () => leaveLiveSession();
-  }, [language, bibleLanguage, selectedBiblePlan]);
+    loadPlanAndStreak();
+    return () => {
+      leaveLiveSession();
+    };
+  }, [selectedBiblePlan, user, language, bibleLanguage]);
 
   useEffect(() => {
     const checkPlanPrompt = async () => {

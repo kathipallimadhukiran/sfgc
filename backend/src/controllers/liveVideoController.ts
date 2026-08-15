@@ -4,8 +4,16 @@ import { Notice } from '../models/Notice';
 
 const extractYoutubeId = (url: string): string | null => {
   if (!url) return null;
-  const match = url.match(/^.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
-  return match && match[1].length === 11 ? match[1] : null;
+  const trimmed = url.trim();
+  if (trimmed.includes('youtube.com/live/')) {
+    const parts = trimmed.split('youtube.com/live/');
+    if (parts[1]) {
+      const id = parts[1].split('?')[0].split('&')[0];
+      if (id && id.length === 11) return id;
+    }
+  }
+  const match = trimmed.match(/^.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|live\/|watch\?v=|&v=)([^#&?]{11})(?:[?#&].*)?$/i);
+  return match && match[1] ? match[1] : null;
 };
 
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -113,6 +121,67 @@ export const updateLiveVideo = async (req: Request, res: Response, next: NextFun
     res.status(200).json({ success: true, video });
   } catch (error) {
     next(error);
+  }
+};
+
+// @route   POST /api/stream/videos/sync-channel
+// @desc    100% Free Auto-Sync YouTube Channel videos directly via public RSS feed
+export const syncYouTubeChannelVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { channelId, channelUrl } = req.body;
+    let targetChannelId = channelId ? String(channelId).trim() : '';
+
+    if (!targetChannelId && channelUrl) {
+      if (channelUrl.includes('channel/UC')) {
+        targetChannelId = channelUrl.split('channel/')[1].split('/')[0].split('?')[0];
+      }
+    }
+
+    if (!targetChannelId) {
+      res.status(400).json({ success: false, message: 'A valid YouTube Channel ID (e.g., UC...) is required.' });
+      return;
+    }
+
+    const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${targetChannelId}`;
+    const rssResp = await fetch(rssFeedUrl);
+    const xmlText = await rssResp.text();
+
+    const entryMatches = xmlText.split('<entry>');
+    let importedCount = 0;
+
+    for (let i = 1; i < entryMatches.length; i++) {
+      const entryStr = entryMatches[i];
+      const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+      const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
+
+      if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
+        const yId = videoIdMatch[1].trim();
+        const vTitle = titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+
+        const exists = await LiveVideo.findOne({ youtubeId: yId });
+        if (!exists) {
+          await LiveVideo.create({
+            youtubeId: yId,
+            youtubeUrl: `https://www.youtube.com/watch?v=${yId}`,
+            title: vTitle,
+            categoryId: 'sunday',
+            thumbnail: `https://img.youtube.com/vi/${yId}/hqdefault.jpg`,
+          });
+          importedCount++;
+        }
+      }
+    }
+
+    const videos = await LiveVideo.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: `🎉 Successfully synced ${importedCount} new videos from YouTube channel!`,
+      importedCount,
+      videos,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to sync YouTube channel videos', error: error.message });
   }
 };
 

@@ -194,14 +194,14 @@ export default function AppTabs() {
         }}
       />
 
-      {/* Live Stream Tab Screen (YouTube Live Video Embed) */}
+      {/* YouTube Videos Tab Screen */}
       <Tabs.Screen
         name="live-stream"
         options={{
-          title: language === 'Telugu' ? 'లైవ్ ప్రసారం' : 'Live Stream',
+          title: language === 'Telugu' ? 'యూట్యూబ్ వీడియోలు' : 'YouTube Videos',
           headerLeft: profileAvatarHeaderLeft,
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="video" color={color} size={size} />
+            <MaterialCommunityIcons name="youtube" color={color} size={size} />
           ),
         }}
       />

@@ -44,7 +44,7 @@ const BIBLE_QUOTES = [
 ];
 
 export default function BibleScreen() {
-  const { language, bibleLanguage, themeMode, setLanguage, t, user, selectedBiblePlan } = useApp();
+  const { language, bibleLanguage, themeMode, setLanguage, t, user, selectedBiblePlan, setSelectedBiblePlan } = useApp();
   
   // Localized theme mode override for Bible screen only
   const [localThemeMode, setLocalThemeMode] = useState<'light' | 'dark' | null>(null);
@@ -114,6 +114,7 @@ export default function BibleScreen() {
   const [todayPortion, setTodayPortion] = useState<DailyPortion | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgressData | null>(null);
   const [quizModalVisible, setQuizModalVisible] = useState(false);
+  const [selectedPlanModalVisible, setSelectedPlanModalVisible] = useState(false);
 
   // Pull-to-refresh state
   const [refreshing, setRefreshing] = useState(false);
@@ -794,7 +795,29 @@ export default function BibleScreen() {
         </View>
 
         {/* Today's Bible Study Plan & Streak Card */}
-        {todayPortion && (
+        {!selectedBiblePlan ? (
+          <View style={[styles.studyPlanCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, marginBottom: 18, alignItems: 'center', paddingVertical: 22, paddingHorizontal: 16 }]}>
+            <MaterialCommunityIcons name="book-open-page-variant-outline" size={44} color={theme.primary} style={{ marginBottom: 8 }} />
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.text, textAlign: 'center', marginBottom: 4 }}>
+              {language === 'Telugu' ? 'బైబిల్ పఠన ప్రణాళికను ఎంచుకోండి' : 'Choose Your Bible Reading Plan'}
+            </Text>
+            <Text style={{ fontSize: 12.5, color: theme.textSecondary, textAlign: 'center', marginBottom: 14, lineHeight: 18 }}>
+              {language === 'Telugu'
+                ? 'దేవుని వాక్యాన్ని ప్రతిరోజూ క్రమంగా ధ్యానించడానికి మీ ప్లాన్‌ను ఎంచుకోండి.'
+                : 'Select a reading plan to systematically read and meditate on God\'s Word daily.'}
+            </Text>
+            <Button
+              mode="contained"
+              buttonColor={theme.primary}
+              textColor="#ffffff"
+              style={{ borderRadius: 12 }}
+              onPress={() => setSelectedPlanModalVisible(true)}
+            >
+              {language === 'Telugu' ? '📖 ప్లాన్ ఎంచుకోండి (Select Reading Plan)' : '📖 Select Reading Plan'}
+            </Button>
+          </View>
+        ) : (
+          todayPortion && (
           <View style={[styles.studyPlanCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, marginBottom: 18 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <View style={{ flex: 1 }}>
@@ -925,7 +948,7 @@ export default function BibleScreen() {
               </View>
             )}
           </View>
-        )}
+        ))}
 
         {/* Dynamic bilingual scripture quote card */}
         <Card style={[styles.quoteCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, marginBottom: 20 }]}>
@@ -1164,6 +1187,103 @@ export default function BibleScreen() {
         titleTelugu="బైబిల్ శోధన (వాయిస్ / టైపింగ్)"
         titleEnglish="Bible Search (Voice / Text)"
       />
+
+      {/* Plan Selection Encouragement Modal */}
+      <Portal>
+        <Modal
+          visible={selectedPlanModalVisible}
+          onDismiss={() => setSelectedPlanModalVisible(false)}
+          contentContainerStyle={{
+            backgroundColor: theme.backgroundElement,
+            margin: 20,
+            padding: 20,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: theme.cardBorder,
+          }}
+        >
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+            <MaterialCommunityIcons name="book-open-page-variant" size={48} color={theme.primary} />
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.text, marginTop: 8, textAlign: 'center' }}>
+              {language === 'Telugu' ? 'బైబిల్ పఠన ప్రణాళికను ఎంచుకోండి' : 'Choose Your Bible Reading Plan'}
+            </Text>
+            <Text style={{ fontSize: 13, color: theme.textSecondary, textAlign: 'center', marginTop: 4, paddingHorizontal: 8 }}>
+              {language === 'Telugu'
+                ? 'దేవుని పరిశుద్ధ గ్రంథాన్ని ప్రతిరోజూ క్రమంగా చదివి ధ్యానించడానికి మీ ప్రణాళికను ఎంచుకోండి.'
+                : 'Systematically read and meditate on God\'s Word every day with a plan.'}
+            </Text>
+          </View>
+
+          <Divider style={{ marginBottom: 14, backgroundColor: theme.cardBorder }} />
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              setSelectedBiblePlan('1-year-canonical');
+              setSelectedPlanModalVisible(false);
+            }}
+            style={{
+              padding: 14,
+              borderRadius: 14,
+              backgroundColor: selectedBiblePlan === '1-year-canonical' ? theme.accentBackground : theme.backgroundSelected,
+              borderWidth: selectedBiblePlan === '1-year-canonical' ? 2 : 1,
+              borderColor: selectedBiblePlan === '1-year-canonical' ? theme.primary : theme.cardBorder,
+              marginBottom: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <MaterialCommunityIcons name="star-circle" size={28} color={theme.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text }}>
+                {language === 'Telugu' ? '1-సంవత్సర ప్రణాళిక (365 Days)' : '1-Year Canonical Plan (365 Days)'}
+              </Text>
+              <Text style={{ fontSize: 11.5, color: theme.textSecondary, marginTop: 2 }}>
+                {language === 'Telugu' ? 'రోజుకు 3-4 అధ్యాయాలు (ఆదికాండము నుండి ప్రకటన)' : 'Read 3-4 chapters daily from Genesis to Revelation'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              setSelectedBiblePlan('2-year-canonical');
+              setSelectedPlanModalVisible(false);
+            }}
+            style={{
+              padding: 14,
+              borderRadius: 14,
+              backgroundColor: selectedBiblePlan === '2-year-canonical' ? theme.accentBackground : theme.backgroundSelected,
+              borderWidth: selectedBiblePlan === '2-year-canonical' ? 2 : 1,
+              borderColor: selectedBiblePlan === '2-year-canonical' ? theme.primary : theme.cardBorder,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <MaterialCommunityIcons name="book-clock-outline" size={28} color={theme.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text }}>
+                {language === 'Telugu' ? '2-సంవత్సరాల ప్రణాళిక (730 Days)' : '2-Year Guided Plan (730 Days)'}
+              </Text>
+              <Text style={{ fontSize: 11.5, color: theme.textSecondary, marginTop: 2 }}>
+                {language === 'Telugu' ? 'రోజుకు 1-2 అధ్యాయాలు (సులువైన వేగము)' : 'Read 1-2 chapters daily at a relaxed pace'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <Button
+            mode="outlined"
+            textColor={theme.textSecondary}
+            onPress={() => setSelectedPlanModalVisible(false)}
+            style={{ borderRadius: 10 }}
+          >
+            {language === 'Telugu' ? 'తర్వాత ఎంచుకుంటాను (Skip)' : 'Skip for now'}
+          </Button>
+        </Modal>
+      </Portal>
 
       {/* 3. Bible Reading Plan Quiz Modal */}
       {todayPortion && (

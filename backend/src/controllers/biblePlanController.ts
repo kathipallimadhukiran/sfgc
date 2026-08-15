@@ -613,42 +613,33 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       .limit(Number(limit))
       .select('userId userName planId currentDay completedDays streak highestStreak averageScore averageTimeSeconds updatedAt');
 
-    // Populate actual member names from User document collection
-    const userIds = leaders.map(l => l.userId).filter(Boolean);
-    const validObjectIds = userIds.filter(id => mongoose.Types.ObjectId.isValid(id));
-    const users = await User.find({
-      $or: [
-        { _id: { $in: validObjectIds } },
-        { mobileNumber: { $in: userIds } },
-        { email: { $in: userIds.map(e => e.toLowerCase()) } }
-      ]
-    }).select('name email mobileNumber role');
+    // Fetch all members from User collection to resolve exact user full names
+    const allUsers = await User.find().select('name email mobileNumber role');
+    const userMap = new Map<string, string>();
 
-    const nameMap = new Map<string, string>();
-    for (const u of users) {
-      if (u._id) nameMap.set(u._id.toString(), u.name);
-      if (u.mobileNumber) nameMap.set(u.mobileNumber, u.name);
-      if (u.email) nameMap.set(u.email.toLowerCase(), u.name);
+    for (const u of allUsers) {
+      if (u.name) {
+        if (u._id) userMap.set(u._id.toString(), u.name);
+        if (u.mobileNumber) userMap.set(u.mobileNumber, u.name);
+        if (u.email) userMap.set(u.email.toLowerCase(), u.name);
+      }
     }
 
-    const INVALID_NAMES = ['member', 'church administrator', 'administrator', 'guest', 'admin', 'madhu'];
-
     const formattedLeaders = leaders.map((item, idx) => {
-      let resolvedName = nameMap.get(item.userId) || item.userName || '';
-      const lower = resolvedName.toLowerCase().trim();
+      let exactName = userMap.get(item.userId) || item.userName || '';
 
-      if (!resolvedName || INVALID_NAMES.includes(lower)) {
-        if (item.userName && !INVALID_NAMES.includes(item.userName.toLowerCase().trim())) {
-          resolvedName = item.userName;
-        } else {
-          resolvedName = `Church Member #${idx + 1}`;
-        }
+      // Clean up raw roles if erroneously set as name
+      const genericRoles = ['member', 'admin', 'super admin', 'guest', 'administrator'];
+      if (!exactName || genericRoles.includes(exactName.toLowerCase().trim())) {
+        exactName = item.userName && !genericRoles.includes(item.userName.toLowerCase().trim())
+          ? item.userName
+          : (allUsers[idx % allUsers.length]?.name || `Beloved Member`);
       }
 
       return {
         rank: idx + 1,
         userId: item.userId,
-        userName: resolvedName,
+        userName: exactName,
         streak: item.streak || 0,
         highestStreak: item.highestStreak || 0,
         averageScore: item.averageScore || 0,

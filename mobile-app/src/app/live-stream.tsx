@@ -11,6 +11,7 @@ import {
   Share,
   Linking,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
 import { Text, Portal, Modal, Button, Divider } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
@@ -353,6 +354,14 @@ export default function LiveStreamScreen() {
           style={styles.feedScroll}
           contentContainerStyle={{ paddingBottom: 110 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={loadVideos}
+              colors={[theme.primary]}
+              tintColor={theme.primary}
+            />
+          }
         >
 
           {/* ── Top Hero Section ──────────────────────────────────────────────── */}
@@ -360,25 +369,12 @@ export default function LiveStreamScreen() {
             <View style={styles.topTitleRow}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.topTitle, { color: theme.text }]}>
-                  {isTel ? 'తెలుగు వీడియోలు' : 'Telugu Videos'}
+                  {isTel ? 'యూట్యూబ్ వీడియోలు' : 'YouTube Videos'}
                 </Text>
                 <Text style={[styles.topSubtitle, { color: subtleText }]}>
-                  {isTel ? 'తాజా క్రైస్తవ వీడియోలు' : 'Latest Christian Worship Videos'}
+                  {isTel ? 'తాజా క్రైస్తవ ఆరాధనా వీడియోలు' : 'Latest Christian Worship Videos'}
                 </Text>
               </View>
-
-              {isAdmin && (
-                <TouchableOpacity
-                  style={[styles.primaryAddBtn, { backgroundColor: theme.primary }]}
-                  onPress={() => setAddVideoModalVisible(true)}
-                  activeOpacity={0.88}
-                >
-                  <MaterialCommunityIcons name="plus" size={18} color="#ffffff" />
-                  <Text style={styles.primaryAddBtnText}>
-                    {isTel ? 'YouTube వీడియో' : 'Add Video'}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             {/* Rounded Search Bar */}
@@ -625,6 +621,33 @@ export default function LiveStreamScreen() {
 
         </ScrollView>
 
+        {/* ── Floating Action Button (FAB) in Bottom Right Corner for Admins ── */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              bottom: 20,
+              right: 20,
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: theme.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              elevation: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.35,
+              shadowRadius: 6,
+              zIndex: 999,
+            }}
+            onPress={() => setAddVideoModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="plus" size={28} color="#ffffff" />
+          </TouchableOpacity>
+        )}
+
         {/* ══════════════════════════════════════════════════════════════════════ */}
         {/* MODAL 1 — Edit Live Stream URL                                        */}
         {/* ══════════════════════════════════════════════════════════════════════ */}
@@ -684,7 +707,7 @@ export default function LiveStreamScreen() {
           <Modal
             visible={addVideoModalVisible}
             onDismiss={() => setAddVideoModalVisible(false)}
-            contentContainerStyle={[styles.modal, { backgroundColor: theme.backgroundElement, maxHeight: '92%' }]}
+            contentContainerStyle={[styles.modal, { backgroundColor: theme.backgroundElement }]}
           >
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
@@ -848,7 +871,7 @@ const styles = StyleSheet.create({
   topTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.3 },
   topSubtitle: { fontSize: 12, marginTop: 2 },
   primaryAddBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 1,
     paddingHorizontal: 13, paddingVertical: 9, borderRadius: 20,
     elevation: 2,
   },
