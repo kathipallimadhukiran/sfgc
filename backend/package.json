@@ -6,9 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
-    "seed": "ts-node-dev src/seed/seedData.ts",
-    "clean": "ts-node-dev src/seed/cleanDb.ts"
+    "start": "node dist/server.js"
   },
   "keywords": [
     "church",

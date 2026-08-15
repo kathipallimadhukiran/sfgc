@@ -897,14 +897,14 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: Platform.OS === 'ios' ? 52 : (StatusBar.currentHeight || 24) + 14,
+    paddingBottom: 1,
+    paddingTop: 10,
   },
   greetingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   greetingText: {
     fontSize: 13,

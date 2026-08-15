@@ -24,9 +24,6 @@ const COLLECTION = 'events';
 class EventsService {
   private initialized = false;
 
-  async initSeedData(): Promise<void> {
-    this.initialized = true;
-  }
 
   // Get all events
   async getEvents(): Promise<{ success: boolean; events: EventItem[] }> {
@@ -54,7 +51,7 @@ class EventsService {
       }
 
       // 2. Local fallback
-      await this.initSeedData();
+     
       const events = await mongoService.find(COLLECTION, {
         sort: { date: 1 }
       });

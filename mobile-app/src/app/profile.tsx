@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
 import { StyleSheet, ScrollView, View, Platform, Alert, TouchableOpacity } from 'react-native';
-import { Card, Title, Paragraph, Button, Text, TextInput, Avatar, HelperText, Checkbox, Divider, IconButton, ActivityIndicator, Modal, Portal } from 'react-native-paper';
+import { Card, Title, Paragraph, Button, Text, TextInput, Avatar, HelperText, Checkbox, Divider, IconButton, ActivityIndicator, Modal, Portal, Menu } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '@/services/authService';
 import { departmentService, DepartmentItem } from '@/services/departmentService';
 
 const DEFAULT_DEPARTMENTS = ['Worship Team', 'Choir', 'Media Team', 'Children\'s Ministry', 'Security', 'Prayer Team', 'Ushering'];
+
+const MINISTRY_OPTIONS = [
+  'Worship Team & Choir',
+  'Media & Technology',
+  'Children\'s Ministry & Sunday School',
+  'Youth & Student Ministry',
+  'Prayer & Intercession',
+  'Security & Ushering',
+  'Evangelism & Outreach',
+  'Ladies Fellowship',
+  'Senior Members Care',
+];
 
 const inputTheme = {
   colors: {
@@ -132,6 +145,42 @@ export default function ProfileScreen() {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [showMembersList, setShowMembersList] = useState(false);
   const [searchMemberQuery, setSearchMemberQuery] = useState('');
+  const [filterDept, setFilterDept] = useState<string>('All');
+  const [showFilterDeptMenu, setShowFilterDeptMenu] = useState(false);
+
+  // Admin Duty Assignment modal states
+  const [selectedMemberForAssignment, setSelectedMemberForAssignment] = useState<any>(null);
+  const [assignmentTitle, setAssignmentTitle] = useState('');
+  const [assignmentRole, setAssignmentRole] = useState('');
+  const [assignmentDept, setAssignmentDept] = useState('');
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
+  const handleSaveAssignment = async () => {
+    if (!selectedMemberForAssignment || !assignmentTitle.trim() || !assignmentRole.trim()) {
+      alert('Please fill out assignment title and role.');
+      return;
+    }
+    try {
+      const res = await authService.addAssignment(selectedMemberForAssignment._id, {
+        title: assignmentTitle.trim(),
+        role: assignmentRole.trim(),
+        department: assignmentDept || selectedMemberForAssignment.departments?.[0] || 'General',
+        status: 'Assigned',
+        date: new Date().toISOString(),
+      });
+      if (res.success) {
+        alert(`🎉 Duty assignment created for ${selectedMemberForAssignment.name}!`);
+        setShowAssignModal(false);
+        setAssignmentTitle('');
+        setAssignmentRole('');
+        fetchMembers();
+      } else {
+        alert(res.message || 'Failed to add duty assignment.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error creating duty assignment.');
+    }
+  };
 
   // Registration form state (Role removed, defaults to Member)
   const [regData, setRegData] = useState({
@@ -154,10 +203,13 @@ export default function ProfileScreen() {
   // Family Card collapse/expand and edit states
   const [showFamilyCardDetails, setShowFamilyCardDetails] = useState(false);
   const [showEditFamilyModal, setShowEditFamilyModal] = useState(false);
+  const [showProfileMinistryDropdown, setShowProfileMinistryDropdown] = useState(false);
   const [editFamilyData, setEditFamilyData] = useState({
+    email: user?.email || '',
     familyName: user?.familyName || '',
     location: user?.location || '',
     mobileNumber: user?.mobileNumber || '',
+    secondaryMobileNumber: user?.secondaryMobileNumber || '',
     birthday: user?.birthday || '',
     baptismDate: user?.baptismDate || '',
     familyHeadName: user?.familyHeadName || '',
@@ -165,6 +217,19 @@ export default function ProfileScreen() {
     familyMembersCount: String(user?.familyMembersCount || '1'),
     ministry: user?.ministry || '',
   });
+
+  React.useEffect(() => {
+    const checkInitialRegistration = async () => {
+      try {
+        const flag = await AsyncStorage.getItem('just_registered');
+        if (flag === 'true') {
+          await AsyncStorage.removeItem('just_registered');
+          setActiveModal('bible_plan');
+        }
+      } catch (e) {}
+    };
+    checkInitialRegistration();
+  }, []);
 
   // Bible Study Plan selection state - removed (now from AppContext)
   // Custom Bible Plan states
@@ -481,11 +546,12 @@ export default function ProfileScreen() {
                 <Divider style={{ marginVertical: 6, backgroundColor: theme.cardBorder }} />
 
                 {!showEditFamilyModal ? (
-                  <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
-                    <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'ఈమెయిల్:' : 'Email:'}</Text> {user.email}</Paragraph>
+                  <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                    <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'ఈమెయిల్:' : 'Email:'}</Text> {user.email || 'N/A'}</Paragraph>
                     <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'కుటుంబం పేరు:' : 'Family Name:'}</Text> {user.familyName || 'N/A'}</Paragraph>
                     <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'ప్రాంతం:' : 'Location:'}</Text> {user.location || 'N/A'}</Paragraph>
-                    <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'ఫోన్:' : 'Phone:'}</Text> {user.mobileNumber || 'N/A'}</Paragraph>
+                    <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'ప్రాథమిక ఫోన్ (లాక్ చేయబడింది):' : 'Primary Phone (Locked):'}</Text> 🔒 {user.mobileNumber || 'N/A'}</Paragraph>
+                    <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'రెండవ ఫోన్ నంబర్:' : 'Secondary Mobile:'}</Text> {user.secondaryMobileNumber || 'N/A'}</Paragraph>
                     {user.birthday && <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'పుట్టినరోజు:' : 'Birthday:'}</Text> {user.birthday}</Paragraph>}
                     {user.baptismDate && <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'బాప్తిస్మపు తేదీ:' : 'Baptism Date:'}</Text> {user.baptismDate}</Paragraph>}
                     <Paragraph style={{ marginVertical: 4, fontSize: 13.5, color: theme.text }}><Text style={{ fontWeight: 'bold' }}>{isTel ? 'కుటుంబ పెద్ద:' : 'Family Head:'}</Text> {user.familyHeadName || 'N/A'}</Paragraph>
@@ -503,7 +569,55 @@ export default function ProfileScreen() {
                     </Button>
                   </ScrollView>
                 ) : (
-                  <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
+                  <ScrollView style={{ maxHeight: 380 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, marginBottom: 4 }}>
+                      {isTel ? 'ఈమెయిల్ చిరునామా' : 'Email Address'}
+                    </Text>
+                    <TextInput
+                      placeholder="e.g. member@example.com"
+                      value={editFamilyData.email}
+                      onChangeText={val => setEditFamilyData({ ...editFamilyData, email: val })}
+                      mode="outlined"
+                      theme={inputTheme}
+                      textColor={theme.text}
+                      placeholderTextColor={theme.textSecondary}
+                      left={<TextInput.Icon icon="email-outline" color={theme.textSecondary} />}
+                      style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected }}
+                    />
+
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, marginBottom: 4 }}>
+                      {isTel ? 'ప్రాథమిక ఫోన్ నంబర్ (లాక్ చేయబడింది)' : 'Primary Mobile Number (Locked)'}
+                    </Text>
+                    <TextInput
+                      value={editFamilyData.mobileNumber}
+                      editable={false}
+                      mode="outlined"
+                      theme={inputTheme}
+                      textColor={theme.textSecondary}
+                      left={<TextInput.Icon icon="lock" color={theme.textSecondary} />}
+                      style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected, opacity: 0.7 }}
+                    />
+
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, marginBottom: 4 }}>
+                      {isTel ? 'రెండవ ఫోన్ నంబర్ (యాక్టివ్)' : 'Secondary / Alternate Mobile Number'}
+                    </Text>
+                    <TextInput
+                      placeholder="e.g. 9876543210"
+                      value={editFamilyData.secondaryMobileNumber}
+                      onChangeText={val => {
+                        const clean = val.replace(/\D/g, '').slice(0, 10);
+                        setEditFamilyData({ ...editFamilyData, secondaryMobileNumber: clean });
+                      }}
+                      mode="outlined"
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      theme={inputTheme}
+                      textColor={theme.text}
+                      placeholderTextColor={theme.textSecondary}
+                      left={<TextInput.Icon icon="phone-plus-outline" color={theme.primary} />}
+                      style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected }}
+                    />
+
                     <TextInput
                       label="Family Name"
                       value={editFamilyData.familyName}
@@ -518,16 +632,6 @@ export default function ProfileScreen() {
                       value={editFamilyData.location}
                       onChangeText={val => setEditFamilyData({ ...editFamilyData, location: val })}
                       mode="outlined"
-                      theme={inputTheme}
-                      textColor={theme.text}
-                      style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected }}
-                    />
-                    <TextInput
-                      label="Mobile Number"
-                      value={editFamilyData.mobileNumber}
-                      onChangeText={val => setEditFamilyData({ ...editFamilyData, mobileNumber: val })}
-                      mode="outlined"
-                      keyboardType="phone-pad"
                       theme={inputTheme}
                       textColor={theme.text}
                       style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected }}
@@ -579,15 +683,53 @@ export default function ProfileScreen() {
                       textColor={theme.text}
                       style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected }}
                     />
-                    <TextInput
-                      label="Ministry Interest"
-                      value={editFamilyData.ministry}
-                      onChangeText={val => setEditFamilyData({ ...editFamilyData, ministry: val })}
-                      mode="outlined"
-                      theme={inputTheme}
-                      textColor={theme.text}
-                      style={{ marginBottom: 16, backgroundColor: theme.backgroundSelected }}
-                    />
+
+                    {/* Ministry Interest Selection Dropdown */}
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, marginBottom: 4 }}>
+                      {isTel ? 'ఆసక్తిగల పరిచర్య విభాగం' : 'Ministry Interest Selection'}
+                    </Text>
+                    <View style={{ marginBottom: 16 }}>
+                      <Menu
+                        visible={showProfileMinistryDropdown}
+                        onDismiss={() => setShowProfileMinistryDropdown(false)}
+                        anchor={
+                          <TouchableOpacity onPress={() => setShowProfileMinistryDropdown(true)} activeOpacity={0.8}>
+                            <View pointerEvents="none">
+                              <TextInput
+                                mode="outlined"
+                                value={editFamilyData.ministry || (isTel ? '-- పరిచర్యను ఎంచుకోండి --' : '-- Select Ministry --')}
+                                editable={false}
+                                theme={inputTheme}
+                                textColor={theme.text}
+                                left={<TextInput.Icon icon="hands-pray" color={theme.primary} />}
+                                right={<TextInput.Icon icon="chevron-down" color={theme.textSecondary} />}
+                                style={{ backgroundColor: theme.backgroundSelected }}
+                              />
+                            </View>
+                          </TouchableOpacity>
+                        }
+                        contentStyle={{ backgroundColor: theme.backgroundElement, borderRadius: 12 }}
+                      >
+                        <Menu.Item
+                          onPress={() => {
+                            setEditFamilyData({ ...editFamilyData, ministry: '' });
+                            setShowProfileMinistryDropdown(false);
+                          }}
+                          title={isTel ? '-- దేనినీ ఎంచుకోవద్దు --' : '-- None / Select Later --'}
+                        />
+                        <Divider />
+                        {MINISTRY_OPTIONS.map((minItem) => (
+                          <Menu.Item
+                            key={minItem}
+                            onPress={() => {
+                              setEditFamilyData({ ...editFamilyData, ministry: minItem });
+                              setShowProfileMinistryDropdown(false);
+                            }}
+                            title={minItem}
+                          />
+                        ))}
+                      </Menu>
+                    </View>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                       <Button mode="outlined" style={{ flex: 1 }} onPress={() => setShowEditFamilyModal(false)} textColor="#c62828">
                         {isTel ? 'వెనుకకు' : 'Back'}
@@ -1181,19 +1323,20 @@ export default function ProfileScreen() {
             onDismiss={() => setActiveModal(null)} 
             contentContainerStyle={styles.modalContainer}
           >
-            <Card style={{ borderRadius: 20, width: '90%', backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, borderWidth: 1 }}>
+            <Card style={{ borderRadius: 20, width: '92%', backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, borderWidth: 1 }}>
               <Card.Content style={{ paddingVertical: 18 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <Title style={{ fontSize: 16, fontWeight: 'bold', color: theme.text }}>
-                    {isTel ? 'సభ్యుల డైరెక్టరీ నిర్వహణ' : 'Manage Members Directory'}
+                    {isTel ? 'సభ్యుల డైరెక్టరీ & విభాగాలు' : 'Manage Members & Voluntary Departments'}
                   </Title>
                   <IconButton icon="close" iconColor={theme.text} size={22} onPress={() => setActiveModal(null)} style={{ margin: 0 }} />
                 </View>
                 <Divider style={{ marginVertical: 6, backgroundColor: theme.cardBorder }} />
                 
+                {/* Search Bar */}
                 <TextInput
                   label={isTel ? 'సభ్యులను శోధించండి' : 'Search Members'}
-                  placeholder={isTel ? 'పేరు లేదా ఈమెయిల్ ద్వారా శోధించండి...' : 'Search by name or email...'}
+                  placeholder={isTel ? 'పేరు లేదా ఈమెయిల్ ద్వారా...' : 'Search by name, email or phone...'}
                   value={searchMemberQuery}
                   onChangeText={setSearchMemberQuery}
                   mode="outlined"
@@ -1201,47 +1344,184 @@ export default function ProfileScreen() {
                   textColor={theme.text}
                   placeholderTextColor={theme.textSecondary}
                   activeOutlineColor={theme.primary}
-                  style={{ marginBottom: 12, backgroundColor: theme.backgroundSelected, height: 44 }}
+                  style={{ marginBottom: 8, backgroundColor: theme.backgroundSelected, height: 40 }}
                   contentStyle={{ fontSize: 13 }}
                   left={<TextInput.Icon icon="magnify" color={theme.textSecondary} />}
                 />
 
-                <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+                {/* Department Filter Selector */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textSecondary }}>
+                    {isTel ? 'విభాగము వారిగా ఫిల్టర్:' : 'Filter by Department:'}
+                  </Text>
+                  <Menu
+                    visible={showFilterDeptMenu}
+                    onDismiss={() => setShowFilterDeptMenu(false)}
+                    anchor={
+                      <TouchableOpacity 
+                        onPress={() => setShowFilterDeptMenu(true)} 
+                        style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.backgroundSelected, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: theme.cardBorder }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.primary }}>{filterDept}</Text>
+                        <MaterialCommunityIcons name="chevron-down" size={16} color={theme.primary} style={{ marginLeft: 4 }} />
+                      </TouchableOpacity>
+                    }
+                    contentStyle={{ backgroundColor: theme.backgroundElement, borderRadius: 10 }}
+                  >
+                    <Menu.Item onPress={() => { setFilterDept('All'); setShowFilterDeptMenu(false); }} title="All Departments" />
+                    <Divider />
+                    {departmentsList.map((d) => (
+                      <Menu.Item key={d._id || d.name} onPress={() => { setFilterDept(d.name); setShowFilterDeptMenu(false); }} title={d.name} />
+                    ))}
+                  </Menu>
+                </View>
+
+                <ScrollView style={{ maxHeight: 280 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                   {loadingMembers ? (
                     <ActivityIndicator style={{ marginVertical: 20 }} color={theme.primary} size="large" />
                   ) : (
                     members
-                      .filter(m => 
-                        m.name?.toLowerCase().includes(searchMemberQuery.toLowerCase()) ||
-                        m.email?.toLowerCase().includes(searchMemberQuery.toLowerCase())
-                      )
+                      .filter(m => {
+                        const matchesSearch = 
+                          m.name?.toLowerCase().includes(searchMemberQuery.toLowerCase()) ||
+                          m.email?.toLowerCase().includes(searchMemberQuery.toLowerCase()) ||
+                          m.mobileNumber?.includes(searchMemberQuery);
+                        const matchesDept = filterDept === 'All' || (Array.isArray(m.departments) && m.departments.includes(filterDept));
+                        return matchesSearch && matchesDept;
+                      })
                       .map(m => (
                         <View key={m._id} style={{ 
-                          flexDirection: 'row', 
-                          alignItems: 'center', 
                           paddingVertical: 10, 
                           borderBottomWidth: 1, 
                           borderBottomColor: theme.cardBorder,
-                          justifyContent: 'space-between'
                         }}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text }}>{m.name}</Text>
-                            <Text style={{ fontSize: 11, color: theme.textSecondary }}>{m.email} ({m.role})</Text>
-                            {m.mobileNumber ? <Text style={{ fontSize: 11, color: theme.textSecondary }}>📞 {m.mobileNumber}</Text> : null}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text }}>{m.name}</Text>
+                              <Text style={{ fontSize: 11, color: theme.textSecondary }}>{m.email || 'No email'} ({m.role})</Text>
+                              {m.mobileNumber ? <Text style={{ fontSize: 11, color: theme.textSecondary }}>📞 {m.mobileNumber}</Text> : null}
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Button
+                                mode="outlined"
+                                compact
+                                textColor={theme.primary}
+                                style={{ borderColor: theme.primary, borderRadius: 8, height: 32 }}
+                                labelStyle={{ fontSize: 11, marginVertical: 0 }}
+                                onPress={() => {
+                                  setSelectedMemberForAssignment(m);
+                                  setAssignmentDept(m.departments?.[0] || departmentsList[0]?.name || 'General');
+                                  setShowAssignModal(true);
+                                }}
+                              >
+                                {isTel ? 'బాధ్యత ఇవ్వు' : 'Assign Duty'}
+                              </Button>
+                              {m._id !== user.id && (
+                                <IconButton
+                                  icon="trash-can-outline"
+                                  iconColor="#d32f2f"
+                                  size={18}
+                                  onPress={() => handleDeleteMember(m._id, m.name)}
+                                  style={{ margin: 0 }}
+                                />
+                              )}
+                            </View>
                           </View>
-                          {m._id !== user.id && (
-                            <IconButton
-                              icon="trash-can-outline"
-                              iconColor="#d32f2f"
-                              size={20}
-                              onPress={() => handleDeleteMember(m._id, m.name)}
-                              style={{ margin: 0 }}
-                            />
+                          {/* Department Badges */}
+                          {Array.isArray(m.departments) && m.departments.length > 0 ? (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                              {m.departments.map((depName: string) => (
+                                <View key={depName} style={{ backgroundColor: theme.accentBackground, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.primary }}>🏷️ {depName}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          ) : (
+                            <Text style={{ fontSize: 10, color: theme.textSecondary, fontStyle: 'italic', marginTop: 2 }}>No voluntary departments joined</Text>
                           )}
                         </View>
                       ))
                   )}
                 </ScrollView>
+              </Card.Content>
+            </Card>
+          </Modal>
+
+          {/* Admin Assign Duty Modal */}
+          <Modal
+            visible={showAssignModal}
+            onDismiss={() => setShowAssignModal(false)}
+            contentContainerStyle={styles.modalContainer}
+          >
+            <Card style={{ borderRadius: 20, width: '90%', backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, borderWidth: 1 }}>
+              <Card.Content style={{ paddingVertical: 18 }}>
+                <Title style={{ fontSize: 16, fontWeight: 'bold', color: theme.text, marginBottom: 8 }}>
+                  Assign Duty to {selectedMemberForAssignment?.name}
+                </Title>
+                <Divider style={{ marginBottom: 12, backgroundColor: theme.cardBorder }} />
+
+                <TextInput
+                  label="Duty Title"
+                  placeholder="e.g. Sunday Service Audio Operator"
+                  value={assignmentTitle}
+                  onChangeText={setAssignmentTitle}
+                  mode="outlined"
+                  theme={inputTheme}
+                  textColor={theme.text}
+                  placeholderTextColor={theme.textSecondary}
+                  style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected }}
+                />
+
+                <TextInput
+                  label="Role / Task"
+                  placeholder="e.g. Lead Sound Mixing"
+                  value={assignmentRole}
+                  onChangeText={setAssignmentRole}
+                  mode="outlined"
+                  theme={inputTheme}
+                  textColor={theme.text}
+                  placeholderTextColor={theme.textSecondary}
+                  style={{ marginBottom: 10, backgroundColor: theme.backgroundSelected }}
+                />
+
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, marginBottom: 4 }}>
+                  Select Voluntary Department:
+                </Text>
+                <View style={{ marginBottom: 16 }}>
+                  <Menu
+                    visible={showDeptDropdown}
+                    onDismiss={() => setShowDeptDropdown(false)}
+                    anchor={
+                      <TouchableOpacity onPress={() => setShowDeptDropdown(true)} activeOpacity={0.8}>
+                        <View pointerEvents="none">
+                          <TextInput
+                            mode="outlined"
+                            value={assignmentDept || 'General'}
+                            editable={false}
+                            theme={inputTheme}
+                            textColor={theme.text}
+                            right={<TextInput.Icon icon="chevron-down" color={theme.textSecondary} />}
+                            style={{ backgroundColor: theme.backgroundSelected }}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    }
+                    contentStyle={{ backgroundColor: theme.backgroundElement, borderRadius: 12 }}
+                  >
+                    {departmentsList.map((d) => (
+                      <Menu.Item key={d._id || d.name} onPress={() => { setAssignmentDept(d.name); setShowDeptDropdown(false); }} title={d.name} />
+                    ))}
+                  </Menu>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <Button mode="outlined" style={{ flex: 1 }} onPress={() => setShowAssignModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button mode="contained" buttonColor={theme.primary} style={{ flex: 1 }} onPress={handleSaveAssignment}>
+                    Assign
+                  </Button>
+                </View>
               </Card.Content>
             </Card>
           </Modal>

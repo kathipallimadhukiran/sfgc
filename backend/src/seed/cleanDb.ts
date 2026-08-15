@@ -6,7 +6,6 @@ import { Notice } from '../models/Notice';
 import { LiveState } from '../models/LiveState';
 import { User } from '../models/User';
 import { UserPlanProgress } from '../models/biblePlanModel';
-import { seedInitialDatabase } from './seedData';
 import { config } from '../config/config';
 
 const cleanDatabase = async () => {
@@ -35,7 +34,6 @@ const cleanDatabase = async () => {
     console.log(`✅ Deleted ${deletedProgress.deletedCount} progress records.`);
 
     console.log('🌱 Re-seeding initial user accounts...');
-    await seedInitialDatabase();
 
     console.log('🔄 Resetting Live Stream session to inactive...');
     await LiveState.findOneAndUpdate(

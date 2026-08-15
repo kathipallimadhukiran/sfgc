@@ -24,6 +24,7 @@ export interface UserProfile {
   familyName?: string;
   location?: string;
   mobileNumber?: string;
+  secondaryMobileNumber?: string;
   familyHeadMobileNumber?: string;
   familyHeadName?: string;
   familyMembersCount?: number | string;
@@ -42,19 +43,22 @@ class AuthService {
   // Register a new user: Strictly saves into MongoDB via Backend API
   async register(userData: Partial<UserProfile>): Promise<{ success: boolean; token?: string; user?: any; message?: string }> {
     try {
-      const email = userData.email?.trim() ? userData.email.trim().toLowerCase() : undefined;
+      const rawEmail = userData.email?.trim() ? userData.email.trim().toLowerCase() : '';
       const mobileNumber = userData.mobileNumber?.trim() || '';
 
       if (!userData.password) {
         return { success: false, message: 'Password is required.' };
       }
-      if (!email && !mobileNumber) {
+      if (!rawEmail && !mobileNumber) {
         return { success: false, message: 'Please provide either an email address or mobile number.' };
       }
 
+      // Legacy backend fallback email if email is omitted
+      const emailToUse = rawEmail || (mobileNumber ? `member_${mobileNumber.replace(/\D/g, '')}@sfgc.org` : '');
+
       const res = await apiClient.post('/api/auth/register', {
         ...userData,
-        ...(email ? { email } : {}),
+        email: emailToUse,
         mobileNumber,
       });
 

@@ -9,7 +9,6 @@ import { connectDB } from './config/db';
 import apiRoutes from './routes';
 import { errorHandler } from './middleware/errorHandler';
 import { setupLiveLyricsSocket, initLiveStateFromDB } from './sockets/liveLyricsSocket';
-import { seedInitialDatabase } from './seed/seedData';
 
 const app: Application = express();
 const server = http.createServer(app);
@@ -69,7 +68,7 @@ setupLiveLyricsSocket(io);
 // Start Server & Connect Database
 const startServer = async () => {
   await connectDB();
-  await seedInitialDatabase();
+  
   await initLiveStateFromDB();
 
   server.listen(config.port, () => {

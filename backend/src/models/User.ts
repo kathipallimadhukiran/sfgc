@@ -21,6 +21,7 @@ export interface IUser extends Document {
   familyName?: string;
   location?: string;
   mobileNumber?: string;
+  secondaryMobileNumber?: string;
   familyHeadName?: string;
   familyHeadMobileNumber?: string;
   familyHeadEmail?: string;
@@ -65,6 +66,7 @@ const UserSchema = new Schema<IUser>({
   familyName: { type: String, default: '' },
   location: { type: String, default: '' },
   mobileNumber: { type: String, default: '', trim: true },
+  secondaryMobileNumber: { type: String, default: '', trim: true },
   familyHeadName: { type: String, default: '' },
   familyHeadMobileNumber: { type: String, default: '' },
   familyHeadEmail: { type: String, default: '' },

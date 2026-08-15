@@ -16,14 +16,14 @@ export const seedInitialDatabase = async () => {
 
       // Seed Default Administrator
       await User.create({
-        name: 'Church Administrator',
+        name: 'Senior Pastor / Church Leadership',
         email: 'admin@SFGC.org',
         password: 'admin123',
         role: 'Admin',
         familyName: 'Church Leadership Family',
         location: 'Main Sanctuary',
         mobileNumber: '+91 9876543210',
-        familyHeadName: 'Church Administrator',
+        familyHeadName: 'Senior Pastor',
         familyMembersCount: 1,
         ministry: 'Administration & Media',
         departments: ['Media Team', 'Worship Team', "Children's Ministry"],

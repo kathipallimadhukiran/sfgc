@@ -139,6 +139,35 @@ class BiblePlanService {
     };
   }
 
+  // Reset user's bible plan progress to clean 0-streak state upon new registration
+  async resetUserProgress(userId: string, planId: string = '1-year-canonical'): Promise<UserProgressData> {
+    const now = new Date();
+    const end = new Date(now);
+    end.setDate(end.getDate() + 365);
+
+    const freshProgress: UserProgressData = {
+      userId,
+      userName: 'Member',
+      planId,
+      currentDay: 1,
+      completedDays: [],
+      readMarkedDays: [],
+      startDate: now.toISOString(),
+      targetEndDate: end.toISOString(),
+      streak: 0,
+      highestStreak: 0,
+      averageScore: 0,
+      dailyAttempts: {},
+      quizScores: {},
+    };
+
+    try {
+      await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(freshProgress));
+    } catch (e) {}
+
+    return freshProgress;
+  }
+
   // Mark Today's Scripture Portion as Read
   async markDayAsRead(day: number, userId: string = 'guest_user', planId: string = '1-year-canonical'): Promise<boolean> {
     try {

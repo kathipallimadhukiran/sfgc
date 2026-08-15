@@ -22,20 +22,7 @@ const INITIAL_SEED_NOTICES: NoticeItem[] = [];
 class NoticesService {
   private initialized = false;
 
-  async initSeedData(): Promise<void> {
-    if (this.initialized) return;
-    try {
-      const existing = await mongoService.find(COLLECTION, { limit: 1 });
-      if (existing.length === 0) {
-        for (const notice of INITIAL_SEED_NOTICES) {
-          await mongoService.insertOne(COLLECTION, notice);
-        }
-      }
-      this.initialized = true;
-    } catch (err) {
-      console.warn('Notices seed init warning:', err);
-    }
-  }
+
 
   // Get all notices
   async getNotices(): Promise<{ success: boolean; notices: NoticeItem[] }> {
@@ -52,7 +39,6 @@ class NoticesService {
       }
 
       // 2. Local Fallback
-      await this.initSeedData();
       const notices = await mongoService.find(COLLECTION, {
         sort: { createdAt: -1 }
       });

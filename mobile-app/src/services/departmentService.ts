@@ -12,13 +12,13 @@ class DepartmentService {
   async getDepartments(): Promise<{ success: boolean; departments: DepartmentItem[]; message?: string }> {
     try {
       const res = await apiClient.get('/api/departments');
-      if (res.success && Array.isArray(res.departments)) {
+      if (res && res.success && Array.isArray(res.departments)) {
         return { success: true, departments: res.departments };
       }
-      return { success: false, departments: [], message: res.message || 'Failed to fetch departments.' };
+      return { success: false, departments: [], message: res?.message || 'Failed to fetch departments.' };
     } catch (err: any) {
-      console.error('getDepartments error:', err);
-      return { success: false, departments: [], message: err.message || 'Network error fetching departments.' };
+      // Endpoint 404 or backend offline fallback quietly
+      return { success: false, departments: [], message: err.message || 'Offline fallback.' };
     }
   }
 

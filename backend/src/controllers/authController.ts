@@ -191,7 +191,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
     }
 
     const allowedUpdates = [
-      'name', 'familyName', 'location', 'mobileNumber', 'familyHeadName',
+      'name', 'email', 'familyName', 'location', 'mobileNumber', 'secondaryMobileNumber', 'familyHeadName',
       'familyHeadMobileNumber', 'familyHeadEmail', 'familyMembersCount',
       'birthday', 'baptismDate', 'ministry', 'address', 'departments', 'favorites'
     ];

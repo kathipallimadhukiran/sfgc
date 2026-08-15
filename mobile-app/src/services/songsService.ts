@@ -28,21 +28,7 @@ const INITIAL_SEED_SONGS: SongItem[] = [];
 class SongsService {
   private initialized = false;
 
-  async initSeedData(): Promise<void> {
-    if (this.initialized) return;
-    try {
-      const existing = await mongoService.find(COLLECTION, { limit: 1 });
-      if (existing.length === 0) {
-        for (const song of INITIAL_SEED_SONGS) {
-          await mongoService.insertOne(COLLECTION, song);
-        }
-      }
-      this.initialized = true;
-    } catch (err) {
-      console.warn('Songs seed init warning:', err);
-    }
-  }
-
+ 
   // Get all songs: Fetch from Backend API with local fallback
   async getSongs(language?: string, search?: string): Promise<{ success: boolean; songs: SongItem[] }> {
     try {
@@ -65,7 +51,6 @@ class SongsService {
       }
 
       // 2. Local Fallback
-      await this.initSeedData();
       const query: any = {};
       if (language && language !== 'All') query.language = language;
 
@@ -93,7 +78,6 @@ class SongsService {
         }
       } catch (e) {}
 
-      await this.initSeedData();
       const song = await mongoService.findOne(COLLECTION, { _id: id });
       if (song) return { success: true, song };
 
