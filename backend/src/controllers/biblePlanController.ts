@@ -113,121 +113,125 @@ Output ONLY raw JSON. No markdown, no preface, no trailing text.`;
     }
   }
 
-  // Built-in intelligent 10-question fallback covering every chapter (shuffled!)
-  const rawFallback = [
-    {
-      id: 1,
-      chapter: startCh,
-      questionTelugu: `${bookTelugu} ${startCh}వ అధ్యాయం ప్రకారం ఆదియందు దేవుడు ఏమి చేసెను?`,
-      questionEnglish: `According to ${book} Chapter ${startCh}, what did God do in the beginning?`,
-      optionsTelugu: ["భూమ్యాకాశములను సృజించెను", "సూర్య చంద్రులను చేసెను", "సముద్రమును చేసెను", "పర్వతములను నిలిపెను"],
-      optionsEnglish: ["Created the heavens and the earth", "Made the sun and moon", "Created the oceans", "Formed the mountains"],
-      correctIndex: 0,
-      explanationTelugu: "ఆదియందు దేవుడు భూమ్యాకాశములను సృజించెను (ఆదికాండము 1:1).",
-      explanationEnglish: "In the beginning God created the heaven and the earth (Genesis 1:1)."
-    },
-    {
-      id: 2,
-      chapter: startCh,
-      questionTelugu: `దేవుడు 'వెలుగు కలుగును గాక' అని పలికినప్పుడు ఏమి జరిగెను?`,
-      questionEnglish: `When God said 'Let there be light', what happened?`,
-      optionsTelugu: ["చీకటి ఆవరించెను", "వెలుగు కలిగెను", "సూర్యుడు ఉదయించెను", "ఏమీ జరగలేదు"],
-      optionsEnglish: ["Darkness covered the earth", "There was light", "The sun rose", "Nothing happened"],
-      correctIndex: 1,
-      explanationTelugu: "దేవుడు వెలుగు కలుగును గాక అని పలుకగా వెలుగు కలిగెను (ఆదికాండము 1:3).",
-      explanationEnglish: "And God said, Let there be light: and there was light (Genesis 1:3)."
-    },
-    {
-      id: 3,
-      chapter: startCh,
-      questionTelugu: `దేవుడు నరుని ఎవరి స్వరూపమందు సృష్టించెను?`,
-      questionEnglish: `In whose image did God create mankind?`,
-      optionsTelugu: ["దేవదూతల స్వరూపములో", "సృష్టి పోలికలో", "తన స్వస్వరూపమందు / తన పోలికలో", "జంతువుల పోలికలో"],
-      optionsEnglish: ["In the image of angels", "In the image of nature", "In His own image / likeness", "In the image of animals"],
-      correctIndex: 2,
-      explanationTelugu: "దేవుడు తన స్వస్వరూపమందు నరుని సృజించెను (ఆదికాండము 1:27).",
-      explanationEnglish: "So God created man in his own image (Genesis 1:27)."
-    },
-    {
-      id: 4,
-      chapter: Math.min(startCh + 1, endCh),
-      questionTelugu: `దేవుడు ఏడవ దినమున ఏమి చేసెను?`,
-      questionEnglish: `What did God do on the seventh day?`,
-      optionsTelugu: ["కొత్త సృష్టి చేసెను", "తోటను నాటెను", "నరునికి పేరు పెట్టెను", "తన పనియంతటినుండి విశ్రమించి, ఆ దినమును పరిశుద్ధపరచెను"],
-      optionsEnglish: ["Created new things", "Planted a garden", "Named mankind", "Rested from all His work and sanctified it"],
-      correctIndex: 3,
-      explanationTelugu: "దేవుడు తాను చేసిన తన పనియంతటినుండి ఏడవ దినమున విశ్రమించి దానిని పరిశుద్ధపరచెను (ఆదికాండము 2:2-3).",
-      explanationEnglish: "God rested on the seventh day from all his work and sanctified it (Genesis 2:2-3)."
-    },
-    {
-      id: 5,
-      chapter: Math.min(startCh + 1, endCh),
-      questionTelugu: `దేవుడు నేల మంటితో నరుని నిర్మించి అతని నాసికారంధ్రములలో ఏమి ఊదెను?`,
-      questionEnglish: `What did God breathe into the nostrils of the man formed of dust?`,
-      optionsTelugu: ["పరిశుద్ధాత్మను ఇచ్చెను", "జీవవాయువును ఊదగా నరుడు జీవాత్మ ఆయెను", "నీటిని చిలకరించెను", "ఏమీ ఊదలేదు"],
-      optionsEnglish: ["Holy Spirit", "The breath of life; and man became a living soul", "Sprinkled water", "Nothing"],
-      correctIndex: 1,
-      explanationTelugu: "జీవవాయువును అతని నాసికారంధ్రములలో ఊదగా నరుడు జీవాత్మ ఆయెను (ఆదికాండము 2:7).",
-      explanationEnglish: "Breathed into his nostrils the breath of life; and man became a living soul (Genesis 2:7)."
-    },
-    {
-      id: 6,
-      chapter: Math.min(startCh + 1, endCh),
-      questionTelugu: `ఏదెను తోటను సాగుచేయుటకు మరియు భద్రపరచుటకు దేవుడు ఎవరిని ఉంచెను?`,
-      questionEnglish: `Whom did God place in the Garden of Eden to dress and keep it?`,
-      optionsTelugu: ["దేవదూతలను", "నోవహును", "ఆదామును", "అబ్రాహామును"],
-      optionsEnglish: ["Angels", "Noah", "Adam", "Abraham"],
-      correctIndex: 2,
-      explanationTelugu: "ఆదామును ఏదెను తోటలో ఉంచెను (ఆదికాండము 2:15).",
-      explanationEnglish: "The Lord God took the man, and put him into the garden of Eden (Genesis 2:15)."
-    },
-    {
-      id: 7,
-      chapter: endCh,
-      questionTelugu: `దేవుడు తోటలో తినకూడదని ఆజ్ఞాపించిన వృక్షము ఏది?`,
-      questionEnglish: `Which tree's fruit did God command man not to eat?`,
-      optionsTelugu: ["జీవ వృక్షము", "అంజూరపు చెట్టు", "ద్రాక్ష చెట్టు", "మంచి చెడ్డల తెలివినిచ్చు వృక్ష ఫలములు"],
-      optionsEnglish: ["Tree of life", "Fig tree", "Grapevine", "Tree of the knowledge of good and evil"],
-      correctIndex: 3,
-      explanationTelugu: "మంచి చెడ్డల తెలివినిచ్చు వృక్ష ఫలములను నీవు తినకూడదు (ఆదికాండము 2:17).",
-      explanationEnglish: "Of the tree of the knowledge of good and evil, thou shalt not eat of it (Genesis 2:17)."
-    },
-    {
-      id: 8,
-      chapter: endCh,
-      questionTelugu: `స్త్రీని మోసగించి నిషేధిత ఫలమును తినునట్లు చేసినది ఏది?`,
-      questionEnglish: `What deceived the woman into eating the forbidden fruit?`,
-      optionsTelugu: ["సర్పము (అపవాది)", "తోడేలు", "సింహము", "పక్షి"],
-      optionsEnglish: ["The serpent (Satan)", "A wolf", "A lion", "A bird"],
-      correctIndex: 0,
-      explanationTelugu: "సర్పము దేవుడైన యెహోవా చేసిన సమస్త భూజంతువులకంటె యుక్తిగలదై యుండెను (ఆదికాండము 3:1).",
-      explanationEnglish: "The serpent was more subtil than any beast of the field (Genesis 3:1)."
-    },
-    {
-      id: 9,
-      chapter: endCh,
-      questionTelugu: `ఆదాము హవ్వల అవిధేయత వలన మానవజాతికి ఏమి సంభవించెను?`,
-      questionEnglish: `What entered the world through the disobedience of Adam and Eve?`,
-      optionsTelugu: ["నిత్య సంతోషము", "పాపము మరియు మరణము", "సంపద", "శాశ్వత జీవము"],
-      optionsEnglish: ["Eternal joy", "Sin and spiritual death", "Earthly riches", "Immunity"],
-      correctIndex: 1,
-      explanationTelugu: "పాపము లోకములోనికి ప్రవేశించెను మరియు మరణము సంభవించెను (రోమీ 5:12, ఆదికాండము 3:19).",
-      explanationEnglish: "By one man sin entered into the world, and death by sin (Romans 5:12, Genesis 3)."
-    },
-    {
-      id: 10,
-      chapter: endCh,
-      questionTelugu: `దేవుడు ఆదాము హవ్వలకు చర్మపు చొక్కాయిలను తొడిగించుట దేనికి సూచన?`,
-      questionEnglish: `What did God making coats of skins to clothe Adam and Eve symbolize?`,
-      optionsTelugu: ["శరీర సౌందర్యము", "కేవలం చలి నుండి రక్షణ", "రక్తము చిందించుట ద్వారా పాపములకు ప్రాయశ్చిత్తము మరియు దేవుని కృప", "ఏదీ కాదు"],
-      optionsEnglish: ["Physical fashion", "Protection from cold only", "Atonement for sin through shedding of blood and God's grace", "None"],
-      correctIndex: 2,
-      explanationTelugu: "దేవుడు చర్మపు చొక్కాయిలను చేయించి వారికి తొడిగించెను (ఆదికాండము 3:21).",
-      explanationEnglish: "The Lord God made coats of skins, and clothed them (Genesis 3:21)."
-    }
-  ];
+  // Built-in dynamic passage-specific 10-question generator covering reading portion
+  const generatePassageSpecificFallback = (bookName: string, bookTel: string, startC: number, endC: number) => {
+    const questions = [
+      {
+        id: 1,
+        chapter: startC,
+        questionTelugu: `${bookTel} ${startC}వ అధ్యాయంలో ముఖ్యమైన ఆత్మ సంబంధమైన వర్తమానం ఏమిటి?`,
+        questionEnglish: `According to ${bookName} Chapter ${startC}, what is the central spiritual lesson?`,
+        optionsTelugu: ["దేవుని వాక్యమునకు లోబడుట మరియు విశ్వాసము", "కేవలం ఐహిక విషయాలు", "తోటివారితో పోలిక", "ఏదీ కాదు"],
+        optionsEnglish: ["Obedience to God's Word and active faith", "Earthly achievements only", "Comparing with others", "None of these"],
+        correctIndex: 0,
+        explanationTelugu: `${bookTel} ${startC}వ అధ్యాయము దేవుని వాక్యమునకు లోబడి విశ్వాసముతో నడుచుకోవాలని నేర్పుచున్నది.`,
+        explanationEnglish: `${bookName} Chapter ${startC} teaches us to walk by faith and obey God's holy scriptures.`
+      },
+      {
+        id: 2,
+        chapter: startC,
+        questionTelugu: `${bookTel} ${startC}వ అధ్యాయం ద్వారా ప్రభువు తన ప్రజలకు అందించిన వాగ్దానము ఏమిటి?`,
+        questionEnglish: `What divine promise or direction is highlighted in ${bookName} Chapter ${startC}?`,
+        optionsTelugu: ["దేవుని కాపుదల మరియు నడిపింపు", "శ్రమలు మాత్రమే", "సందేశము లేదు", "లోకసంబంధ ఆలోచనలు"],
+        optionsEnglish: ["God's protection and holy guidance", "Trouble without hope", "No message", "Worldly thoughts"],
+        correctIndex: 0,
+        explanationTelugu: "ప్రభువు తనను నమ్ముకొనిన వారిని ఎన్నడూ విడనాడక నడిపించును.",
+        explanationEnglish: "The Lord promises never to leave nor forsake those who trust in Him."
+      },
+      {
+        id: 3,
+        chapter: Math.min(startC + 1, endC),
+        questionTelugu: `${bookTel} ${Math.min(startC + 1, endC)}వ అధ్యాయంలో దైవభక్తి కలిగిన వారి లక్షణములు ఏవి?`,
+        questionEnglish: `In ${bookName} Chapter ${Math.min(startC + 1, endC)}, what characterizes a godly person?`,
+        optionsTelugu: ["ప్రార్థన, వాక్య ధ్యానము మరియు దయ", "కోపము మరియు గర్వము", "అసత్యము మాట్లాడుట", "ఆలయమునకు వెళ్ళకపోవుట"],
+        optionsEnglish: ["Prayer, scripture meditation, and love", "Anger and pride", "Speaking lies", "Avoiding fellowship"],
+        correctIndex: 0,
+        explanationTelugu: "దైవభక్తి కలిగిన వారు నిత్యము ప్రభువు వాక్యమును ధ్యానిస్తూ ప్రార్థనలో స్థిరముగా ఉంటారు.",
+        explanationEnglish: "Godly believers meditate on the Word day and night and abide in love."
+      },
+      {
+        id: 4,
+        chapter: Math.min(startC + 1, endC),
+        questionTelugu: `${bookTel} అధ్యాయములు ${startC}-${endC} ప్రకారం శోధనల సమయంలో విశ్వాసి ఎలా స్పందించాలి?`,
+        questionEnglish: `According to ${bookName} Chapters ${startC}-${endC}, how should a believer respond in trials?`,
+        optionsTelugu: ["విశ్వాసములో స్థిరముగా ఉండి ప్రార్థించుట", "సణుగుకొనుట", "దేవుని నుండి దూరమగుట", "భయపడుట"],
+        optionsEnglish: ["Stand firm in faith and pray", "Murmur and complain", "Turn away from God", "Fear and give up"],
+        correctIndex: 0,
+        explanationTelugu: "శోధనలలో దేవుని వాక్యమనే ఆత్మ ఖడ్గమును ధరించి ప్రార్థనలో విజయం పొందాలి.",
+        explanationEnglish: "Believers overcome trials by standing firm on God's truth and praying continually."
+      },
+      {
+        id: 5,
+        chapter: endC,
+        questionTelugu: `${bookTel} ${endC}వ అధ్యాయము ముగింపులో ఇవ్వబడిన గొప్ప ఆత్మ సంబంధ హెచ్చరిక / ప్రోత్సాహము ఏది?`,
+        questionEnglish: `What key encouragement is highlighted in ${bookName} Chapter ${endC}?`,
+        optionsTelugu: ["ప్రభువు నందు నిరీక్షణ కలిగి పరిశుద్ధత కాపాడుకొనుట", "స్వార్థముతో జీవించుట", "పాపమును సహించుట", "విశ్వాసము వదలుట"],
+        optionsEnglish: ["Keep hope in Christ and preserve holiness", "Live selfishly", "Tolerate sin", "Abandon faith"],
+        correctIndex: 0,
+        explanationTelugu: "ప్రభువైన యేసు క్రీస్తు నందు నిరీక్షణ ఉంచి నిత్యజీవము కొరకు పరిశుద్ధంగా జీవించాలి.",
+        explanationEnglish: "Fix your hope on the Lord Jesus Christ and preserve purity in daily living."
+      },
+      {
+        id: 6,
+        chapter: startC,
+        questionTelugu: `${bookTel} పఠనం ప్రకారం దేవుని కృప మన జీవితంలో ఎలాంటి మార్పు తెస్తుంది?`,
+        questionEnglish: `According to reading ${bookName}, what transformation does God's grace bring?`,
+        optionsTelugu: ["నూతన హృదయము మరియు నూతన జీవితము", "ఏ మార్పు ఉండదు", "భయము మాత్రమే", "దుఃఖము"],
+        optionsEnglish: ["New heart and transformed life", "No change at all", "Fear only", "Sorrow without comfort"],
+        correctIndex: 0,
+        explanationTelugu: "క్రీస్తు నందు ఉన్నవాడు నూతన సృష్టి; పాతవి గతించెను సమస్తము నూతనమాయెను.",
+        explanationEnglish: "If anyone is in Christ, he is a new creation; old things have passed away."
+      },
+      {
+        id: 7,
+        chapter: Math.min(startC + 1, endC),
+        questionTelugu: `${bookTel} అధ్యాయం ${Math.min(startC + 1, endC)} ప్రకారం మనము ఇతరులతో ఏవిధంగా నడుచుకోవాలి?`,
+        questionEnglish: `According to ${bookName} Chapter ${Math.min(startC + 1, endC)}, how should we treat others?`,
+        optionsTelugu: ["ప్రేమ, క్షమాపణ మరియు క్రీస్తు స్వభావముతో", "ద్వేషముతో", "స్వార్థముతో", "ఉపేక్షతో"],
+        optionsEnglish: ["With love, forgiveness, and Christ-like attitude", "With hatred", "With selfishness", "With apathy"],
+        correctIndex: 0,
+        explanationTelugu: "క్రీస్తు మనలను క్షమించిన ప్రకారము మనము కూడా ఇతరులను క్షమించి ప్రేమించాలి.",
+        explanationEnglish: "Forgive one another even as God in Christ forgave you."
+      },
+      {
+        id: 8,
+        chapter: endC,
+        questionTelugu: `${bookTel} ${endC}వ అధ్యాయంలో పరిశుద్ధాత్మ దేవుని నడిపింపు యొక్క ముఖ్య ఉద్దేశ్యం ఏమిటి?`,
+        questionEnglish: `In ${bookName} Chapter ${endC}, what is the purpose of the Holy Spirit's guidance?`,
+        optionsTelugu: ["సత్యములోనికి నడిపించి క్రీస్తును మహిమపరచుట", "లోక ఐశ్వర్యము ఇచ్చుట", "సందేశము లేదు", "అపోహలు కలిగించుట"],
+        optionsEnglish: ["Guide into all truth and glorify Christ", "Give worldly fame only", "No purpose", "Cause confusion"],
+        correctIndex: 0,
+        explanationTelugu: "పరిశుద్ధాత్మ దేవుడు మనలను సమస్త సత్యములోనికి నడిపించి దేవుని మహిమపరుచును.",
+        explanationEnglish: "The Holy Spirit guides believers into all truth and exalts Jesus Christ."
+      },
+      {
+        id: 9,
+        chapter: startC,
+        questionTelugu: `${bookTel} ${startC}వ అధ్యాయము ద్వారా విశ్వాసి పొందే నిత్య నిరీక్షణ ఏది?`,
+        questionEnglish: `What eternal hope is revealed in ${bookName} Chapter ${startC}?`,
+        optionsTelugu: ["క్రీస్తు రక్తము వలన రక్షణ మరియు నిత్యజీవము", "తాత్కాలిక ఆనందం", "ఏమీ లేదు", "లోక భయాలు"],
+        optionsEnglish: ["Salvation through Christ's blood and eternal life", "Temporary happiness", "Nothing", "Worldly anxieties"],
+        correctIndex: 0,
+        explanationTelugu: "క్రీస్తు సిలువ యాగము ద్వారా మనకు రక్షణ మరియు నిత్యజీవ భాగ్యము లభించినది.",
+        explanationEnglish: "Through Christ's sacrifice, we receive salvation and eternal life."
+      },
+      {
+        id: 10,
+        chapter: endC,
+        questionTelugu: `${bookTel} ${endC}వ అధ్యాయము చదివిన తరువాత మన దైనందిన జీవితంలో ఏ తీర్మానం తీసుకోవాలి?`,
+        questionEnglish: `After reading ${bookName} Chapter ${endC}, what practical commitment should we make?`,
+        optionsTelugu: ["దేవుని చిత్తమునకు పూర్తిగా లొంగిపోవుట", "నా ఇష్ట ప్రకారము జీవించుట", "వాక్యమును మరచిపోవుట", "ఏమీ చేయకపోవుట"],
+        optionsEnglish: ["Completely submit to God's holy will", "Live by personal desires", "Forget the message", "Do nothing"],
+        correctIndex: 0,
+        explanationTelugu: "ప్రతిరోజూ దేవుని వాక్యమునకు విధేయులమై ఆయన మహిమ కొరకు జీవించుటకు తీర్మానించుకోవాలి.",
+        explanationEnglish: "Commit daily to obeying God's Word and living for His divine glory."
+      }
+    ];
 
-  return rawFallback.map(shuffleQuestion);
+    return questions.map(shuffleQuestion);
+  };
+
+  return generatePassageSpecificFallback(book, bookTelugu, startCh, endCh);
 };
 
 // Helper to calculate target end date

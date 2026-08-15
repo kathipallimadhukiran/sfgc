@@ -183,10 +183,12 @@ class BiblePlanService {
       }, { timeout: 4000 });
     } catch (e) {}
 
+    const userKey = `${this.localProgressKey}_${userId}_${planId}`;
     const progress = await this.getUserProgress(userId, planId);
     if (!progress.readMarkedDays) progress.readMarkedDays = [];
     if (!progress.readMarkedDays.includes(day)) {
       progress.readMarkedDays.push(day);
+      await AsyncStorage.setItem(userKey, JSON.stringify(progress));
       await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(progress));
     }
     return true;
@@ -395,7 +397,8 @@ class BiblePlanService {
         } else if (data.streakReset) {
           currentProg.streak = 0;
         }
-        currentProg.averageScore = data.averageScore || currentProg.averageScore;
+        const userKey = `${this.localProgressKey}_${userId}_${planId}`;
+        await AsyncStorage.setItem(userKey, JSON.stringify(currentProg));
         await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(currentProg));
 
         return data;
@@ -434,6 +437,8 @@ class BiblePlanService {
       currentProg.averageScore = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
     }
 
+    const userKey = `${this.localProgressKey}_${userId}_${planId}`;
+    await AsyncStorage.setItem(userKey, JSON.stringify(currentProg));
     await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(currentProg));
 
     return {

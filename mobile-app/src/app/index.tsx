@@ -553,7 +553,7 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              {/* Action: Go to Read Button / Locked Tomorrow Status */}
+              {/* Action: Go to Read & Mark as Read Buttons / Locked Tomorrow Status */}
               {isTodayCompleted ? (
                 <View style={[styles.lockedTomorrowBanner, { backgroundColor: '#f0fdf4', borderColor: '#86efac' }]}>
                   <MaterialCommunityIcons name="lock-clock" size={18} color="#16a34a" />
@@ -562,16 +562,42 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               ) : (
-                <TouchableOpacity 
-                  activeOpacity={0.85}
-                  onPress={() => router.push({ pathname: '/bible', params: { autoOpenChapter: todayPortion.startChapter, autoOpenBook: todayPortion.book } })}
-                  style={[styles.planBtn, { backgroundColor: theme.primary }]}
-                >
-                  <MaterialCommunityIcons name="book-open-page-variant" size={18} color="#ffffff" />
-                  <Text style={styles.planBtnText}>
-                    {isTel ? 'వాక్యం చదవండి (Go to Read)' : 'Go to Read Chapters'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity 
+                    activeOpacity={0.85}
+                    onPress={() => router.push({ pathname: '/bible', params: { autoOpenChapter: todayPortion.startChapter, autoOpenBook: todayPortion.book } })}
+                    style={[styles.planBtn, { flex: 1, backgroundColor: theme.primary }]}
+                  >
+                    <MaterialCommunityIcons name="book-open-page-variant" size={16} color="#ffffff" />
+                    <Text style={[styles.planBtnText, { fontSize: 12 }]}>
+                      {isTel ? 'వాక్యం చదవండి' : 'Go to Read'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    activeOpacity={0.85}
+                    onPress={async () => {
+                      await biblePlanService.markDayAsRead(todayPortion.day, user?.id || 'guest_user', selectedBiblePlan || '1-year-canonical');
+                      await loadPlanAndStreak();
+                    }}
+                    style={[
+                      styles.planBtn, 
+                      { 
+                        flex: 1, 
+                        backgroundColor: userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#e0f2fe' : '#10b981',
+                      }
+                    ]}
+                  >
+                    <MaterialCommunityIcons 
+                      name={userProgress?.readMarkedDays?.includes(todayPortion.day) ? 'checkbox-marked-circle' : 'check-circle-outline'} 
+                      size={16} 
+                      color={userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : '#ffffff'} 
+                    />
+                    <Text style={[styles.planBtnText, { fontSize: 12, color: userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : '#ffffff' }]}>
+                      {userProgress?.readMarkedDays?.includes(todayPortion.day) ? (isTel ? 'చదివాను ✅' : 'Read ✅') : (isTel ? 'చదివాను మార్క్' : 'Mark as Read')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </>
           )
