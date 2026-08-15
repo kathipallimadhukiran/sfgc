@@ -131,25 +131,102 @@ export const updateLiveVideo = async (req: Request, res: Response, next: NextFun
   }
 };
 
+const decodeXmlEntities = (str: string): string => {
+  return str
+    .replace(/<!\[CDATA\[|\]\]>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+};
+
+const resolveChannelId = async (input: string): Promise<string | null> => {
+  if (!input) return null;
+  let raw = input.trim();
+
+  // 1. Direct UC ID matching (24 characters starting with UC)
+  if (/^UC[\w-]{22}$/.test(raw)) {
+    return raw;
+  }
+
+  // 2. Extract from URL containing channel/UC...
+  if (raw.includes('channel/UC')) {
+    const match = raw.match(/channel\/(UC[\w-]{22})/);
+    if (match && match[1]) return match[1];
+  }
+
+  // 3. Extract from video URL /watch?v= or /live/ by fetching video page HTML
+  if (raw.includes('watch?v=') || raw.includes('youtu.be/') || raw.includes('youtube.com/live/')) {
+    const vId = extractYoutubeId(raw);
+    if (vId) {
+      try {
+        const vResp = await fetch(`https://www.youtube.com/watch?v=${vId}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        });
+        if (vResp.ok) {
+          const vHtml = await vResp.text();
+          const match = vHtml.match(/(?:channel_id=|"channelId":"|"externalId":"|"browseId":")(UC[\w-]{22})/);
+          if (match && match[1]) return match[1];
+        }
+      } catch (err) {
+        console.warn('Could not extract channelId from video page:', err);
+      }
+    }
+  }
+
+  // 4. Handle handle URL, custom handle @name or username
+  let targetUrl = raw;
+  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+    if (targetUrl.startsWith('@')) {
+      targetUrl = `https://www.youtube.com/${targetUrl}`;
+    } else {
+      targetUrl = `https://www.youtube.com/@${targetUrl}`;
+    }
+  }
+
+  try {
+    const resp = await fetch(targetUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+    });
+    if (resp.ok) {
+      const html = await resp.text();
+      const match = html.match(/(?:channel_id=|"channelId":"|"externalId":"|"browseId":")(UC[\w-]{22})/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+  } catch (err) {
+    console.warn('Could not resolve YouTube handle HTML:', err);
+  }
+
+  return null;
+};
+
 // @route   POST /api/stream/videos/sync-channel
 // @desc    100% Free Auto-Sync YouTube Channel videos directly via public RSS feed
 export const syncYouTubeChannelVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { channelId, channelUrl } = req.body;
-    let targetChannelId = channelId ? String(channelId).trim() : '';
+    const rawInput = (channelId || channelUrl || '').trim();
 
-    if (!targetChannelId && channelUrl) {
-      if (channelUrl.includes('channel/UC')) {
-        targetChannelId = channelUrl.split('channel/')[1].split('/')[0].split('?')[0];
-      }
-    }
-
-    if (!targetChannelId) {
-      res.status(400).json({ success: false, message: 'A valid YouTube Channel ID (e.g., UC...) is required.' });
+    if (!rawInput) {
+      res.status(400).json({ success: false, message: 'A YouTube Channel ID, Channel URL, or Handle (@name) is required.' });
       return;
     }
 
-    // Save Channel ID permanently to LiveState so background polling job checks automatically
+    const targetChannelId = await resolveChannelId(rawInput);
+
+    if (!targetChannelId) {
+      res.status(400).json({
+        success: false,
+        message: `Could not resolve a valid YouTube Channel ID from "${rawInput}". Please enter your 24-character Channel ID starting with UC (found in YouTube Studio -> Customization -> Basic info).`
+      });
+      return;
+    }
+
+    // Save resolved Channel ID permanently to LiveState so 24/7 background polling job checks automatically
     await LiveState.findOneAndUpdate(
       { key: 'active_session' },
       { $set: { channelId: targetChannelId, autoSyncEnabled: true } },
@@ -158,8 +235,16 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 
     const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${targetChannelId}`;
     const rssResp = await fetch(rssFeedUrl);
-    const xmlText = await rssResp.text();
+    
+    if (!rssResp.ok) {
+      res.status(400).json({
+        success: false,
+        message: `YouTube RSS feed unavailable for Channel ID: ${targetChannelId}. Please verify the Channel ID in YouTube Studio.`
+      });
+      return;
+    }
 
+    const xmlText = await rssResp.text();
     const entryMatches = xmlText.split('<entry>');
     let importedCount = 0;
 
@@ -170,7 +255,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 
       if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
         const yId = videoIdMatch[1].trim();
-        const vTitle = titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+        const vTitle = decodeXmlEntities(titleMatch[1]);
 
         const exists = await LiveVideo.findOne({ youtubeId: yId });
         if (!exists) {
@@ -219,7 +304,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 
     res.status(200).json({
       success: true,
-      message: `🎉 Saved YouTube Channel ID (${targetChannelId}) & synced ${importedCount} new videos! Automatic 24/7 background checking is active.`,
+      message: `🎉 Saved Channel ID (${targetChannelId})! Synced ${importedCount} new videos. Automatic 24/7 background checking is ACTIVE!`,
       channelId: targetChannelId,
       importedCount,
       videos,
@@ -253,7 +338,7 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
 
       if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
         const yId = videoIdMatch[1].trim();
-        const vTitle = titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+        const vTitle = decodeXmlEntities(titleMatch[1]);
 
         const exists = await LiveVideo.findOne({ youtubeId: yId });
         if (!exists) {
