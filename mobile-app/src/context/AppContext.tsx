@@ -184,14 +184,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const loadCache = async () => {
       try {
-        // Migration: Run once to clear stale cached dummy notices, songs, and events
-        const hasClearedCache = await AsyncStorage.getItem('hasClearedStaleCache_v4');
+        // Migration: Run once to clear stale cached dummy progress, notices, songs, and events
+        const hasClearedCache = await AsyncStorage.getItem('hasClearedStaleCache_v5');
         if (!hasClearedCache) {
           await AsyncStorage.removeItem('@church_app_db_notices');
           await AsyncStorage.removeItem('@church_app_db_songs');
           await AsyncStorage.removeItem('@church_app_db_events');
-          await AsyncStorage.setItem('hasClearedStaleCache_v4', 'true');
-          console.log('🧹 Stale local cache cleared successfully!');
+          await AsyncStorage.removeItem('@bible_plan_user_progress_1-year-canonical');
+          await AsyncStorage.removeItem('@bible_plan_user_progress_guest_user');
+          await AsyncStorage.setItem('hasClearedStaleCache_v5', 'true');
+          console.log('🧹 Stale local cache and un-scoped Bible plan progress cleared!');
         }
 
         const savedToken = await AsyncStorage.getItem('userToken');

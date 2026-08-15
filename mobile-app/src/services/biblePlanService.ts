@@ -84,17 +84,19 @@ class BiblePlanService {
 
   // Get user's progress, dates, and streak
   async getUserProgress(userId: string = 'guest_user', planId: string = '1-year-canonical'): Promise<UserProgressData> {
+    const userKey = `${this.localProgressKey}_${userId}_${planId}`;
+
     try {
       const resp = await axios.get(`${API_URL}/api/bible-plans/progress/${userId}?planId=${planId}`, { timeout: 4000 });
       if (resp.data && resp.data.data) {
         const progress = resp.data.data;
-        await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(progress));
+        await AsyncStorage.setItem(userKey, JSON.stringify(progress));
         return progress;
       }
     } catch (e) {}
 
     try {
-      const saved = await AsyncStorage.getItem(`${this.localProgressKey}_${planId}`);
+      const saved = await AsyncStorage.getItem(userKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (!parsed.readMarkedDays) parsed.readMarkedDays = [];
@@ -111,7 +113,7 @@ class BiblePlanService {
           const diffDays = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
           if (diffDays > 1) {
             parsed.streak = 0;
-            await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(parsed));
+            await AsyncStorage.setItem(userKey, JSON.stringify(parsed));
           }
         }
         return parsed;
@@ -141,6 +143,8 @@ class BiblePlanService {
 
   // Reset user's bible plan progress to clean 0-streak state upon new registration
   async resetUserProgress(userId: string, planId: string = '1-year-canonical'): Promise<UserProgressData> {
+    const userKey = `${this.localProgressKey}_${userId}_${planId}`;
+    const defaultKey = `${this.localProgressKey}_${planId}`;
     const now = new Date();
     const end = new Date(now);
     end.setDate(end.getDate() + 365);
@@ -162,7 +166,8 @@ class BiblePlanService {
     };
 
     try {
-      await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(freshProgress));
+      await AsyncStorage.setItem(userKey, JSON.stringify(freshProgress));
+      await AsyncStorage.removeItem(defaultKey);
     } catch (e) {}
 
     return freshProgress;

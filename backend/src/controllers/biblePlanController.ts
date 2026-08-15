@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
+import { User } from '../models/User';
 import { BiblePlan, UserPlanProgress } from '../models/biblePlanModel';
 import { DailyPromise } from '../models/DailyPromise';
 import { Notice } from '../models/Notice';
@@ -611,16 +613,49 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       .limit(Number(limit))
       .select('userId userName planId currentDay completedDays streak highestStreak averageScore averageTimeSeconds updatedAt');
 
-    const formattedLeaders = leaders.map((item, idx) => ({
-      rank: idx + 1,
-      userId: item.userId,
-      userName: item.userName || `Member #${item.userId.substring(0, 5)}`,
-      streak: item.streak || 0,
-      highestStreak: item.highestStreak || 0,
-      averageScore: item.averageScore || 0,
-      completedDays: item.completedDays ? item.completedDays.length : 0,
-      averageTimeSeconds: item.averageTimeSeconds || 0,
-    }));
+    // Populate actual member names from User document collection
+    const userIds = leaders.map(l => l.userId).filter(Boolean);
+    const validObjectIds = userIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+    const users = await User.find({
+      $or: [
+        { _id: { $in: validObjectIds } },
+        { mobileNumber: { $in: userIds } },
+        { email: { $in: userIds.map(e => e.toLowerCase()) } }
+      ]
+    }).select('name email mobileNumber role');
+
+    const nameMap = new Map<string, string>();
+    for (const u of users) {
+      if (u._id) nameMap.set(u._id.toString(), u.name);
+      if (u.mobileNumber) nameMap.set(u.mobileNumber, u.name);
+      if (u.email) nameMap.set(u.email.toLowerCase(), u.name);
+    }
+
+    const INVALID_NAMES = ['member', 'church administrator', 'administrator', 'guest', 'admin', 'madhu'];
+
+    const formattedLeaders = leaders.map((item, idx) => {
+      let resolvedName = nameMap.get(item.userId) || item.userName || '';
+      const lower = resolvedName.toLowerCase().trim();
+
+      if (!resolvedName || INVALID_NAMES.includes(lower)) {
+        if (item.userName && !INVALID_NAMES.includes(item.userName.toLowerCase().trim())) {
+          resolvedName = item.userName;
+        } else {
+          resolvedName = `Church Member #${idx + 1}`;
+        }
+      }
+
+      return {
+        rank: idx + 1,
+        userId: item.userId,
+        userName: resolvedName,
+        streak: item.streak || 0,
+        highestStreak: item.highestStreak || 0,
+        averageScore: item.averageScore || 0,
+        completedDays: item.completedDays ? item.completedDays.length : 0,
+        averageTimeSeconds: item.averageTimeSeconds || 0,
+      };
+    });
 
     res.status(200).json({ success: true, count: formattedLeaders.length, data: formattedLeaders });
   } catch (error: any) {
