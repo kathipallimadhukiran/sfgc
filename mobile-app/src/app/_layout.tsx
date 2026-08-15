@@ -1,9 +1,15 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { useColorScheme, View, ActivityIndicator, LogBox } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import AppTabs from '@/components/app-tabs';
 import { AppProvider, useApp } from '@/context/AppContext';
 import AuthScreen from './auth';
+
+// Suppress non-critical deprecation warnings in logs
+LogBox.ignoreLogs([
+  '[expo-av]: Expo AV has been deprecated',
+  'Expo AV has been deprecated',
+]);
 
 /**
  * AuthGate — renders the Sign In / Register screen when no user is logged in,

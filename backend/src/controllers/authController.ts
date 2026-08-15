@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User, IUser } from '../models/User';
+import { PushToken } from '../models/PushToken';
 import { config } from '../config/config';
 import { AuthRequest } from '../middleware/auth';
 
@@ -32,7 +33,8 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       baptismDate,
       ministry,
       address,
-      departments
+      departments,
+      pushToken
     } = req.body;
 
     if (!password || (!name && !email && !mobileNumber)) {
@@ -85,9 +87,19 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       ministry: ministry || '',
       address: address || '',
       departments: Array.isArray(departments) ? departments : [],
+      pushToken: pushToken || '',
       assignments: [],
       favorites: []
     });
+
+    if (pushToken) {
+      await PushToken.findOneAndUpdate(
+        { token: pushToken },
+        { token: pushToken, userId: newUser._id.toString() },
+        { upsert: true }
+      );
+      console.log(`📱 Push token registered during sign up for user ${newUser.name}: ${pushToken}`);
+    }
 
     const token = generateToken(newUser);
 
@@ -124,7 +136,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 // @desc    Login user with email/mobile number & password
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email, mobileNumber, credential, password } = req.body;
+    const { email, mobileNumber, credential, password, pushToken } = req.body;
 
     const identifier = (email || mobileNumber || credential || '').trim();
 
@@ -152,6 +164,17 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     if (!isMatch) {
       res.status(401).json({ success: false, message: 'Invalid password. Please check your credentials.' });
       return;
+    }
+
+    if (pushToken) {
+      user.pushToken = pushToken;
+      await user.save();
+      await PushToken.findOneAndUpdate(
+        { token: pushToken },
+        { token: pushToken, userId: user._id.toString() },
+        { upsert: true }
+      );
+      console.log(`📱 Push token updated on login for user ${user.name}: ${pushToken}`);
     }
 
     const token = generateToken(user);

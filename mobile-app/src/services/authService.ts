@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiClient } from './apiClient';
+import { notificationService } from './notificationService';
 
 export interface DutyAssignment {
   _id?: string;
@@ -53,6 +54,9 @@ class AuthService {
         return { success: false, message: 'Please provide either an email address or mobile number.' };
       }
 
+      // Fetch device Expo Push Token
+      const pushToken = await notificationService.init().catch(() => null);
+
       // Legacy backend fallback email if email is omitted
       const emailToUse = rawEmail || (mobileNumber ? `member_${mobileNumber.replace(/\D/g, '')}@sfgc.org` : '');
 
@@ -60,6 +64,7 @@ class AuthService {
         ...userData,
         email: emailToUse,
         mobileNumber,
+        pushToken: pushToken || notificationService.pushToken || '',
       });
 
       if (res.success && res.token && res.user) {
@@ -92,7 +97,15 @@ class AuthService {
         return { success: false, message: 'Please enter your email or mobile number and password.' };
       }
 
-      const res = await apiClient.post('/api/auth/login', { credential: cleanCredential, email: cleanCredential, password });
+      // Fetch device Expo Push Token
+      const pushToken = await notificationService.init().catch(() => null);
+
+      const res = await apiClient.post('/api/auth/login', {
+        credential: cleanCredential,
+        email: cleanCredential,
+        password,
+        pushToken: pushToken || notificationService.pushToken || '',
+      });
 
       if (res.success && res.token && res.user) {
         // Permanently persist token & user session for 1-time sign in

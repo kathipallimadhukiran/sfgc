@@ -9,9 +9,18 @@ export const MONGODB_DATABASE = process.env.EXPO_PUBLIC_MONGODB_DATABASE || 'SFG
 const resolveBackendUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
-  // If envUrl is set, use it directly
+  // If envUrl is explicitly defined in environment, use it
   if (envUrl && envUrl.length > 0) {
     return envUrl;
+  }
+
+  // If running via Expo CLI / Expo Go in development, detect host IP dynamically
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).experienceUrl || '';
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return `http://${ip}:5000`;
+    }
   }
 
   // Default to live Render cloud backend
@@ -21,4 +30,4 @@ const resolveBackendUrl = (): string => {
 export const API_URL = resolveBackendUrl();
 export const AUTH_URL = `${API_URL}/api/auth`;
 
-console.log(`🔗 [ChurchApp] Backend Server URL configured to: ${API_URL}`);
+console.log(`🔗 [ChurchApp] Backend Server URL resolved to: ${API_URL}`);
