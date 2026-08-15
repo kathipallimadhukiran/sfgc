@@ -1125,7 +1125,7 @@ select option:hover, select option:focus, select option:checked {
   border-radius: var(--radius-lg);
   width: 90%;
   max-width: 550px;
-  max-height: 90vh;
+  max-height:cal(88vh-130px);
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);

@@ -852,29 +852,29 @@
   </div>
 
   <!-- Modal for Event Creation & Editing -->
-  <div id="eventModal" class="modal-overlay">
-    <div class="modal-box" style="max-width: 650px; border-radius: 16px;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 18px 24px;">
+  <div id="eventModal" class="modal-overlay" style="padding: 16px;">
+    <div class="modal-box" style="max-width: 650px; max-height: 88vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; margin: auto;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 16px 20px; flex-shrink: 0;">
         <h3 id="eventModalTitle" style="color: #fff; font-size: 18px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-calendar-plus text-amber"></i> Create Church Event / Service
         </h3>
         <button type="button" class="modal-close" style="color: #fff; opacity: 0.8;" onclick="app.closeModal('eventModal')">&times;</button>
       </div>
-      <form autocomplete="off" onsubmit="return false;">
-        <div class="modal-body form-body" style="padding: 24px;">
+      <form autocomplete="off" onsubmit="return false;" style="display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; margin: 0;">
+        <div class="modal-body form-body" style="padding: 20px; overflow-y: auto; flex: 1; max-height: calc(88vh - 130px);">
           <input type="hidden" id="eventId">
 
           <!-- Event Title -->
-          <div class="form-group" style="margin-bottom: 16px;">
+          <div class="form-group" style="margin-bottom: 14px;">
             <label style="font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Event / Service Title *</label>
             <div style="position: relative;">
-              <input type="text" id="eventTitle" class="form-control" placeholder="e.g. Sunday Morning Miracle Worship & Word Service" autocomplete="off" style="padding-left: 38px;">
+              <input type="text" id="eventTitle" class="form-control" placeholder="e.g. Sunday Morning Miracle Worship Service" autocomplete="off" style="padding-left: 38px;">
               <i class="fa-solid fa-heading" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
             </div>
           </div>
 
           <!-- Speaker & Venue -->
-          <div class="form-row-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="form-row-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
             <div class="form-group" style="margin: 0;">
               <label style="font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Preacher / Speaker</label>
               <div style="position: relative;">
@@ -892,7 +892,7 @@
           </div>
 
           <!-- Date & Time -->
-          <div class="form-row-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="form-row-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
             <div class="form-group" style="margin: 0;">
               <label style="font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Event Date *</label>
               <div style="position: relative;">
@@ -910,27 +910,27 @@
           </div>
 
           <!-- Poster Image Upload Card -->
-          <div class="form-group" style="margin-bottom: 16px; background: #f8fafc; padding: 14px; border-radius: 12px; border: 1px dashed #cbd5e1;">
-            <label style="font-weight: 600; color: #334155; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+          <div class="form-group" style="margin-bottom: 14px; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px dashed #cbd5e1;">
+            <label style="font-weight: 600; color: #334155; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-image text-amber"></i> Event Poster / Banner Image
             </label>
-            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
               <input type="file" id="eventBannerFile" accept="image/*" class="form-control" onchange="app.handleBannerFileUpload(event)" style="flex: 1; background: #fff;">
             </div>
             <div style="position: relative;">
               <input type="text" id="eventBanner" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleBannerUrlInput(this.value)" autocomplete="off" style="background: #fff; padding-left: 38px;">
               <i class="fa-solid fa-link" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
             </div>
-            <div id="eventBannerPreviewContainer" style="display: none; margin-top: 12px; text-align: center; position: relative;">
-              <img id="eventBannerPreview" src="" style="max-height: 150px; max-width: 100%; border-radius: 10px; border: 1px solid #cbd5e1; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-              <button type="button" class="btn btn-sm btn-danger-action" style="position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 6px 9px;" onclick="document.getElementById('eventBanner').value=''; app.handleBannerUrlInput('');" title="Remove Banner">
+            <div id="eventBannerPreviewContainer" style="display: none; margin-top: 10px; text-align: center; position: relative;">
+              <img id="eventBannerPreview" src="" style="max-height: 120px; max-width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+              <button type="button" class="btn btn-sm btn-danger-action" style="position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 4px 8px;" onclick="document.getElementById('eventBanner').value=''; app.handleBannerUrlInput('');" title="Remove Banner">
                 <i class="fa-solid fa-trash"></i>
               </button>
             </div>
           </div>
 
           <!-- Maps Link -->
-          <div class="form-group" style="margin-bottom: 16px;">
+          <div class="form-group" style="margin-bottom: 14px;">
             <label style="font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Google Maps Location Link (Optional)</label>
             <div style="position: relative;">
               <input type="url" id="eventMapsLocation" class="form-control" placeholder="https://maps.google.com/?q=..." autocomplete="off" style="padding-left: 38px;">
@@ -939,27 +939,27 @@
           </div>
 
           <!-- RSVP Toggle Card -->
-          <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: #eff6ff; padding: 12px 16px; border-radius: 12px; border: 1px solid #bfdbfe; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <i class="fa-solid fa-users text-primary" style="font-size: 18px;"></i>
+          <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: #eff6ff; padding: 10px 14px; border-radius: 10px; border: 1px solid #bfdbfe; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-users text-primary" style="font-size: 16px;"></i>
               <div>
-                <strong style="color: #1e3a8a; font-size: 14px;">Enable RSVP Attendance Tracking</strong>
-                <div style="font-size: 12px; color: #3b82f6;">Members can tap 'I Am Attending' in mobile app</div>
+                <strong style="color: #1e3a8a; font-size: 13px;">Enable RSVP Attendance Tracking</strong>
+                <div style="font-size: 11px; color: #3b82f6;">Members can tap 'I Am Attending' in mobile app</div>
               </div>
             </div>
-            <input type="checkbox" id="eventRequiresRSVP" style="width: 20px; height: 20px; cursor: pointer; accent-color: #2563eb;">
+            <input type="checkbox" id="eventRequiresRSVP" style="width: 18px; height: 18px; cursor: pointer; accent-color: #2563eb;">
           </div>
 
           <!-- Description -->
           <div class="form-group" style="margin: 0;">
             <label style="font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Description & Details</label>
-            <textarea id="eventDesc" class="form-control" rows="3" placeholder="Enter special instructions, service outline, or invitation details..." autocomplete="off"></textarea>
+            <textarea id="eventDesc" class="form-control" rows="2" placeholder="Enter special instructions or event outline..." autocomplete="off"></textarea>
           </div>
         </div>
 
-        <div class="modal-footer" style="padding: 16px 24px; background: #f8fafc; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; display: flex; justify-content: flex-end; gap: 12px;">
-          <button type="button" class="btn btn-outline" style="border-radius: 10px; padding: 10px 20px;" onclick="app.closeModal('eventModal')">Cancel</button>
-          <button type="button" class="btn btn-primary" id="btnSubmitEvent" style="border-radius: 10px; padding: 10px 24px; font-weight: 600;" onclick="app.saveEventSubmit()">
+        <div class="modal-footer" style="padding: 14px 20px; background: #f8fafc; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
+          <button type="button" class="btn btn-outline" style="border-radius: 8px; padding: 8px 18px;" onclick="app.closeModal('eventModal')">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btnSubmitEvent" style="border-radius: 8px; padding: 8px 22px; font-weight: 600;" onclick="app.saveEventSubmit()">
             <i class="fa-solid fa-paper-plane"></i> Publish Event
           </button>
         </div>
