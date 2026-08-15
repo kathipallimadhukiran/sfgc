@@ -139,6 +139,8 @@ const decodeXmlEntities = (str: string): string => {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/\\u0026/g, '&')
+    .replace(/\\"/g, '"')
     .trim();
 };
 
@@ -204,8 +206,87 @@ const resolveChannelId = async (input: string): Promise<string | null> => {
   return null;
 };
 
+interface ExtractedVideo {
+  youtubeId: string;
+  title: string;
+}
+
+const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVideo[]> => {
+  const foundVideosMap = new Map<string, string>();
+
+  // Engine 1: YouTube Public RSS Feed with Cache Busting
+  try {
+    const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&nocache=${Date.now()}`;
+    const rssResp = await fetch(rssFeedUrl, {
+      headers: { 'Cache-Control': 'no-cache', 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (rssResp.ok) {
+      const xmlText = await rssResp.text();
+      const entryMatches = xmlText.split('<entry>');
+      for (let i = 1; i < entryMatches.length; i++) {
+        const entryStr = entryMatches[i];
+        const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+        const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
+        if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
+          const yId = videoIdMatch[1].trim();
+          const vTitle = decodeXmlEntities(titleMatch[1]);
+          if (yId.length === 11) {
+            foundVideosMap.set(yId, vTitle);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ Engine 1 RSS fetch warning:', err);
+  }
+
+  // Engine 2: Instant Channel HTML Scraper (/videos and /live tabs)
+  const tabs = [
+    `https://www.youtube.com/channel/${channelId}/videos`,
+    `https://www.youtube.com/channel/${channelId}/live`
+  ];
+
+  for (const pageUrl of tabs) {
+    try {
+      const pageResp = await fetch(pageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+        }
+      });
+      if (pageResp.ok) {
+        const html = await pageResp.text();
+        const videoBlocks = html.split('"videoRenderer":{');
+        for (let i = 1; i < videoBlocks.length; i++) {
+          const block = videoBlocks[i];
+          const idMatch = block.match(/"videoId":"([^"]{11})"/);
+          const titleMatch = block.match(/"title":\{"runs":\[\{"text":"([^"]+)"\}/);
+          if (idMatch && idMatch[1]) {
+            const yId = idMatch[1].trim();
+            const rawTitle = titleMatch && titleMatch[1] ? titleMatch[1] : 'Sanctuary Worship Video';
+            const vTitle = decodeXmlEntities(rawTitle);
+            if (!foundVideosMap.has(yId)) {
+              foundVideosMap.set(yId, vTitle);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Engine 2 HTML scrape warning:', err);
+    }
+  }
+
+  const results: ExtractedVideo[] = [];
+  foundVideosMap.forEach((title, youtubeId) => {
+    results.push({ youtubeId, title });
+  });
+
+  return results;
+};
+
 // @route   POST /api/stream/videos/sync-channel
-// @desc    100% Free Auto-Sync YouTube Channel videos directly via public RSS feed
+// @desc    100% Free Dual-Engine Auto-Sync YouTube Channel videos
 export const syncYouTubeChannelVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { channelId, channelUrl } = req.body;
@@ -221,81 +302,60 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
     if (!targetChannelId) {
       res.status(400).json({
         success: false,
-        message: `Could not resolve a valid YouTube Channel ID from "${rawInput}". Please enter your 24-character Channel ID starting with UC (found in YouTube Studio -> Customization -> Basic info).`
+        message: `Could not resolve a valid YouTube Channel ID from "${rawInput}". Please enter your 24-character Channel ID starting with UC.`
       });
       return;
     }
 
-    // Save resolved Channel ID permanently to LiveState so 24/7 background polling job checks automatically
+    // Save resolved Channel ID permanently to LiveState so 24/7 background job checks automatically
     await LiveState.findOneAndUpdate(
       { key: 'active_session' },
       { $set: { channelId: targetChannelId, autoSyncEnabled: true } },
       { upsert: true }
     );
 
-    const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${targetChannelId}`;
-    const rssResp = await fetch(rssFeedUrl);
-    
-    if (!rssResp.ok) {
-      res.status(400).json({
-        success: false,
-        message: `YouTube RSS feed unavailable for Channel ID: ${targetChannelId}. Please verify the Channel ID in YouTube Studio.`
-      });
-      return;
-    }
-
-    const xmlText = await rssResp.text();
-    const entryMatches = xmlText.split('<entry>');
+    const fetchedVideos = await fetchLatestChannelVideos(targetChannelId);
     let importedCount = 0;
 
-    for (let i = 1; i < entryMatches.length; i++) {
-      const entryStr = entryMatches[i];
-      const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
-      const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
+    for (const vItem of fetchedVideos) {
+      const exists = await LiveVideo.findOne({ youtubeId: vItem.youtubeId });
+      if (!exists) {
+        const newVideo = await LiveVideo.create({
+          youtubeId: vItem.youtubeId,
+          youtubeUrl: `https://www.youtube.com/watch?v=${vItem.youtubeId}`,
+          title: vItem.title,
+          categoryId: 'sunday',
+          thumbnail: `https://img.youtube.com/vi/${vItem.youtubeId}/hqdefault.jpg`,
+        });
+        importedCount++;
 
-      if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
-        const yId = videoIdMatch[1].trim();
-        const vTitle = decodeXmlEntities(titleMatch[1]);
-
-        const exists = await LiveVideo.findOne({ youtubeId: yId });
-        if (!exists) {
-          const newVideo = await LiveVideo.create({
-            youtubeId: yId,
-            youtubeUrl: `https://www.youtube.com/watch?v=${yId}`,
-            title: vTitle,
-            categoryId: 'sunday',
-            thumbnail: `https://img.youtube.com/vi/${yId}/hqdefault.jpg`,
+        // Create notice & broadcast socket push notification
+        try {
+          const notice = await Notice.create({
+            title: `🎬 ${vItem.title}`,
+            description: `New YouTube worship video published: "${vItem.title}". Tap to watch in YouTube Videos!`,
+            date: new Date().toISOString(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            location: 'YouTube Sanctuary Media',
+            isPinned: true,
           });
-          importedCount++;
 
-          // Create push notice record for each newly fetched video
-          try {
-            const notice = await Notice.create({
-              title: `🎬 ${vTitle}`,
-              description: `New YouTube worship video published: "${vTitle}". Tap to watch in YouTube Videos!`,
-              date: new Date().toISOString(),
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              location: 'YouTube Sanctuary Media',
-              isPinned: true,
+          const io = req.app.get('io');
+          if (io) {
+            io.emit('newNotice', notice);
+            io.emit('new_video_notification', {
+              notificationId: notice._id.toString(),
+              type: 'NEW_VIDEO',
+              title: '🎬 New Worship Video Added',
+              message: `New YouTube video: "${vItem.title}"`,
+              videoId: newVideo._id.toString(),
+              youtubeVideoId: vItem.youtubeId,
+              thumbnail: newVideo.thumbnail,
+              createdAt: new Date().toISOString(),
             });
-
-            const io = req.app.get('io');
-            if (io) {
-              io.emit('newNotice', notice);
-              io.emit('new_video_notification', {
-                notificationId: notice._id.toString(),
-                type: 'NEW_VIDEO',
-                title: '🎬 New Worship Video Added',
-                message: `New YouTube video: "${vTitle}"`,
-                videoId: newVideo._id.toString(),
-                youtubeVideoId: yId,
-                thumbnail: newVideo.thumbnail,
-                createdAt: new Date().toISOString(),
-              });
-            }
-          } catch (nErr) {
-            console.warn('Notice creation warning during YouTube channel sync:', nErr);
           }
+        } catch (nErr) {
+          console.warn('Notice creation warning during YouTube channel sync:', nErr);
         }
       }
     }
@@ -314,7 +374,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
   }
 };
 
-// 24/7 Background YouTube Channel Auto-Sync Job (polls RSS feed every 3 minutes)
+// 24/7 Background YouTube Channel Auto-Sync Job (polls every 30 seconds)
 export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
   try {
     const liveState = await LiveState.findOne({ key: 'active_session' });
@@ -323,60 +383,46 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
       return 0;
     }
 
-    const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${targetChannelId}`;
-    const rssResp = await fetch(rssFeedUrl);
-    if (!rssResp.ok) return 0;
-    const xmlText = await rssResp.text();
-
-    const entryMatches = xmlText.split('<entry>');
+    const fetchedVideos = await fetchLatestChannelVideos(targetChannelId);
     let importedCount = 0;
 
-    for (let i = 1; i < entryMatches.length; i++) {
-      const entryStr = entryMatches[i];
-      const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
-      const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
+    for (const vItem of fetchedVideos) {
+      const exists = await LiveVideo.findOne({ youtubeId: vItem.youtubeId });
+      if (!exists) {
+        const newVideo = await LiveVideo.create({
+          youtubeId: vItem.youtubeId,
+          youtubeUrl: `https://www.youtube.com/watch?v=${vItem.youtubeId}`,
+          title: vItem.title,
+          categoryId: 'sunday',
+          thumbnail: `https://img.youtube.com/vi/${vItem.youtubeId}/hqdefault.jpg`,
+        });
+        importedCount++;
 
-      if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
-        const yId = videoIdMatch[1].trim();
-        const vTitle = decodeXmlEntities(titleMatch[1]);
-
-        const exists = await LiveVideo.findOne({ youtubeId: yId });
-        if (!exists) {
-          const newVideo = await LiveVideo.create({
-            youtubeId: yId,
-            youtubeUrl: `https://www.youtube.com/watch?v=${yId}`,
-            title: vTitle,
-            categoryId: 'sunday',
-            thumbnail: `https://img.youtube.com/vi/${yId}/hqdefault.jpg`,
+        try {
+          const notice = await Notice.create({
+            title: `🎬 ${vItem.title}`,
+            description: `New YouTube worship video published: "${vItem.title}". Tap to watch in YouTube Videos!`,
+            date: new Date().toISOString(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            location: 'YouTube Sanctuary Media',
+            isPinned: true,
           });
-          importedCount++;
 
-          try {
-            const notice = await Notice.create({
-              title: `🎬 ${vTitle}`,
-              description: `New YouTube worship video published: "${vTitle}". Tap to watch in YouTube Videos!`,
-              date: new Date().toISOString(),
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              location: 'YouTube Sanctuary Media',
-              isPinned: true,
+          if (io) {
+            io.emit('newNotice', notice);
+            io.emit('new_video_notification', {
+              notificationId: notice._id.toString(),
+              type: 'NEW_VIDEO',
+              title: '🎬 New Worship Video Added',
+              message: `New YouTube video: "${vItem.title}"`,
+              videoId: newVideo._id.toString(),
+              youtubeVideoId: vItem.youtubeId,
+              thumbnail: newVideo.thumbnail,
+              createdAt: new Date().toISOString(),
             });
-
-            if (io) {
-              io.emit('newNotice', notice);
-              io.emit('new_video_notification', {
-                notificationId: notice._id.toString(),
-                type: 'NEW_VIDEO',
-                title: '🎬 New Worship Video Added',
-                message: `New YouTube video: "${vTitle}"`,
-                videoId: newVideo._id.toString(),
-                youtubeVideoId: yId,
-                thumbnail: newVideo.thumbnail,
-                createdAt: new Date().toISOString(),
-              });
-            }
-          } catch (nErr) {
-            console.warn('Notice creation warning during auto-sync job:', nErr);
           }
+        } catch (nErr) {
+          console.warn('Notice creation warning during auto-sync job:', nErr);
         }
       }
     }
