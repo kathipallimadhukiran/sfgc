@@ -56,7 +56,6 @@
           <i class="fa-solid fa-arrow-right"></i>
         </button>
 
-
         <div id="loginErrorMsg" class="login-error-msg" style="display: none;"></div>
       </form>
 
@@ -68,6 +67,9 @@
 
   <!-- MAIN ADMIN APP WORKSPACE LAYOUT -->
   <div class="app-layout" id="adminAppLayout" style="display: none;">
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="app.toggleMobileSidebar()"></div>
+
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="brand">
@@ -77,7 +79,6 @@
           <span>Satellite City Full Gospel Church</span>
         </div>
       </div>
-
 
       <nav class="nav-menu">
         <a href="#overview" class="nav-item active" data-tab="overview">
@@ -125,15 +126,17 @@
     <main class="main-content">
       <!-- Top Navbar -->
       <header class="top-nav">
-        <button class="mobile-nav-toggle" id="btnMobileNavToggle" onclick="app.toggleMobileSidebar()" title="Toggle Menu">
-          <i class="fa-solid fa-bars"></i>
-        </button>
-        <div class="page-title">
-          <h1 id="tabTitle">Overview & Insights</h1>
-          <p id="tabSubtitle">Real-time church metrics, administration, and live service control.</p>
+        <div class="top-nav-left">
+          <button class="mobile-nav-toggle" id="btnMobileNavToggle" onclick="app.toggleMobileSidebar()" title="Toggle Menu">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="page-title">
+            <h1 id="tabTitle">Overview & Insights</h1>
+            <p id="tabSubtitle">Real-time church metrics, administration, and live service control.</p>
+          </div>
         </div>
         <div class="top-actions">
-          <div class="notif-bell-wrapper" style="position: relative;">
+          <div class="notif-bell-wrapper">
             <button class="btn btn-outline btn-icon-notif" id="btnAdminNotifBell" onclick="app.toggleNotifDropdown()" title="Member & Department Alerts">
               <i class="fa-solid fa-bell"></i>
               <span class="notif-badge-pill" id="notifBadgeCount" style="display: none;">0</span>
@@ -149,10 +152,10 @@
             </div>
           </div>
           <button class="btn btn-outline" id="btnQuickRefresh" onclick="app.refreshAll()">
-            <i class="fa-solid fa-rotate"></i> Refresh
+            <i class="fa-solid fa-rotate"></i> <span class="hide-mobile">Refresh</span>
           </button>
           <button class="btn btn-primary" onclick="app.openSongModal()">
-            <i class="fa-solid fa-plus"></i> Add New Song
+            <i class="fa-solid fa-plus"></i> <span class="hide-mobile">Add New Song</span>
           </button>
           <div class="user-profile-badge" id="userProfileBadge">
             <div class="user-avatar"><i class="fa-solid fa-user-shield"></i></div>
@@ -161,7 +164,7 @@
               <small id="adminUserRole">Administrator</small>
             </div>
             <button class="btn btn-sm btn-logout" onclick="app.logout()" title="Logout Admin">
-              <i class="fa-solid fa-right-from-bracket"></i> Logout
+              <i class="fa-solid fa-right-from-bracket"></i> <span class="hide-mobile">Logout</span>
             </button>
           </div>
         </div>
@@ -208,7 +211,7 @@
         <!-- Two Column Content Grid -->
         <div class="content-grid-2">
           <!-- Today's God's Promise Quick Editor Card -->
-          <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05)); border: 1px solid rgba(245, 158, 11, 0.3); grid-column: 1 / -1;">
+          <div class="glass-card promise-card">
             <div class="card-header">
               <div>
                 <h3><i class="fa-solid fa-dove text-amber"></i> Today's God's Promise (దేవుని వాగ్దానము) Quick Editor</h3>
@@ -218,55 +221,55 @@
             </div>
 
             <!-- Smart Scripture Picker Controls -->
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; margin-bottom: 12px;">
+            <div class="promise-picker-grid">
               <div class="form-group mb-0">
-                <label style="font-size:11px; font-weight:700;">Bible Book (గ్రంథము)</label>
-                <select id="overviewPromiseBook" class="form-select" style="padding:8px 10px; font-size:13px;" onchange="app.onOverviewPromiseBookChange(this.value)">
+                <label>Bible Book (గ్రంథము)</label>
+                <select id="overviewPromiseBook" class="form-select" onchange="app.onOverviewPromiseBookChange(this.value)">
                   <!-- Populated dynamically -->
                 </select>
               </div>
               <div class="form-group mb-0">
-                <label style="font-size:11px; font-weight:700;">Chapter</label>
-                <select id="overviewPromiseChapter" class="form-select" style="padding:8px 10px; font-size:13px;" onchange="app.onOverviewPromiseChapterChange()"></select>
+                <label>Chapter</label>
+                <select id="overviewPromiseChapter" class="form-select" onchange="app.onOverviewPromiseChapterChange()"></select>
               </div>
               <div class="form-group mb-0">
-                <label style="font-size:11px; font-weight:700;">Verse</label>
-                <select id="overviewPromiseVerse" class="form-select" style="padding:8px 10px; font-size:13px;"></select>
+                <label>Verse</label>
+                <select id="overviewPromiseVerse" class="form-select"></select>
               </div>
-              <div class="form-group mb-0" style="display:flex; align-items:flex-end;">
-                <button type="button" class="btn btn-primary btn-block" style="padding:9px 12px; font-size:12px;" onclick="app.fetchScriptureVerseForPromise()">
+              <div class="form-group mb-0 flex-end-btn">
+                <button type="button" class="btn btn-primary btn-block" onclick="app.fetchScriptureVerseForPromise()">
                   <i class="fa-solid fa-wand-magic-sparkles"></i> Fetch Verse
                 </button>
               </div>
             </div>
 
             <!-- Display / Editable Text Boxes -->
-            <div style="background:rgba(15,23,42,0.6); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); margin-bottom:12px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <label style="font-size:12px; font-weight:700; color:#cbd5e1;">Telugu Promise Verse (తెలుగు వాగ్దానము)</label>
-                <button type="button" class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px;" onclick="app.toggleEditPromiseText()">
+            <div class="promise-editor-box">
+              <div class="promise-box-header">
+                <label>Telugu Promise Verse (తెలుగు వాగ్దానము)</label>
+                <button type="button" class="btn btn-sm btn-outline" onclick="app.toggleEditPromiseText()">
                   <i class="fa-solid fa-pen"></i> Edit Verse Text
                 </button>
               </div>
-              <textarea id="overviewPromiseVerseTel" class="form-control" rows="2" style="font-size:14px; color:#fef08a; font-weight:600; background:rgba(0,0,0,0.3);" placeholder="ఉదా: యెహోవా నా కాపరి; నాకు లేమి కలుగదు."></textarea>
+              <textarea id="overviewPromiseVerseTel" class="form-control promise-textarea" rows="2" placeholder="ఉదా: యెహోవా నా కాపరి; నాకు లేమి కలుగదు."></textarea>
 
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+              <div class="promise-refs-grid">
                 <div>
-                  <label style="font-size:11px; font-weight:700; color:#94a3b8;">Telugu Reference</label>
-                  <input type="text" id="overviewPromiseRefTel" class="form-control" style="font-size:13px;" placeholder="ఉదా: కీర్తనలు 23:1">
+                  <label>Telugu Reference</label>
+                  <input type="text" id="overviewPromiseRefTel" class="form-control" placeholder="ఉదా: కీర్తనలు 23:1">
                 </div>
                 <div>
-                  <label style="font-size:11px; font-weight:700; color:#94a3b8;">English Reference</label>
-                  <input type="text" id="overviewPromiseRefEng" class="form-control" style="font-size:13px;" placeholder="e.g. Psalms 23:1">
+                  <label>English Reference</label>
+                  <input type="text" id="overviewPromiseRefEng" class="form-control" placeholder="e.g. Psalms 23:1">
                 </div>
               </div>
             </div>
 
             <!-- Schedule & Publish Controls -->
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <label style="font-size:12px; margin:0;">Schedule Date (Optional):</label>
-                <input type="date" id="overviewPromiseScheduleDate" class="form-control" style="width:auto; padding:6px 10px; font-size:12px;">
+            <div class="promise-actions-row">
+              <div class="schedule-input-group">
+                <label>Schedule Date (Optional):</label>
+                <input type="date" id="overviewPromiseScheduleDate" class="form-control">
               </div>
               <button type="button" class="btn btn-emerald-action" id="btnPublishOverviewPromise" onclick="app.saveOverviewPromiseSubmit()">
                 <i class="fa-solid fa-cloud-arrow-up"></i> Publish Today's God's Promise
@@ -306,7 +309,7 @@
             <div class="section-title">
               <h3><i class="fa-solid fa-list-music"></i> Select Song to Project</h3>
             </div>
-            <div class="song-filter-pills" style="display:flex; gap:6px; margin-bottom:10px;">
+            <div class="song-filter-pills">
               <button type="button" class="btn btn-xs btn-primary proj-filter-btn active" data-lang="all" onclick="app.setSongFilterLang('all')">All Songs</button>
               <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="Telugu" onclick="app.setSongFilterLang('Telugu')">Telugu</button>
               <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="English" onclick="app.setSongFilterLang('English')">English</button>
@@ -321,27 +324,27 @@
 
             <!-- Projection Master Controls -->
             <div class="projection-master-actions">
-              <h4 style="margin-bottom:8px;"><i class="fa-solid fa-play"></i> Worship Session Controls</h4>
+              <h4><i class="fa-solid fa-play"></i> Worship Session Controls</h4>
               <div class="toggle-btn-row mb-2">
-                <button id="btnStartWorshipSession" class="btn btn-emerald-action" style="flex:1;" onclick="app.startLiveSession()">
+                <button id="btnStartWorshipSession" class="btn btn-emerald-action flex-1" onclick="app.startLiveSession()">
                   <i class="fa-solid fa-play"></i> Start Session
                 </button>
-                <button id="btnEndWorshipSession" class="btn btn-danger-action" style="flex:1;" onclick="app.endLiveSession()">
+                <button id="btnEndWorshipSession" class="btn btn-danger-action flex-1" onclick="app.endLiveSession()">
                   <i class="fa-solid fa-stop"></i> End Session
                 </button>
               </div>
 
-              <h4 style="margin-top:12px; margin-bottom:8px;"><i class="fa-solid fa-sliders"></i> Slide Navigation</h4>
+              <h4 class="mt-2"><i class="fa-solid fa-sliders"></i> Slide Navigation</h4>
               <div class="toggle-btn-row mb-2">
-                <button class="btn btn-outline" style="flex:1;" onclick="app.prevSlide()">
+                <button class="btn btn-outline flex-1" onclick="app.prevSlide()">
                   <i class="fa-solid fa-chevron-left"></i> Previous Slide
                 </button>
-                <button class="btn btn-primary" style="flex:1;" onclick="app.nextSlide()">
+                <button class="btn btn-primary flex-1" onclick="app.nextSlide()">
                   Next Slide <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
 
-              <h4 style="margin-top:12px; margin-bottom:8px;">Display Overrides</h4>
+              <h4 class="mt-2">Display Overrides</h4>
               <div class="toggle-btn-row">
                 <button id="btnBlackout" class="btn btn-dark-action" onclick="app.toggleBlackout()">
                   <i class="fa-solid fa-moon"></i> Blackout Screen
@@ -373,7 +376,7 @@
             <div class="slides-deck-card glass-card">
               <div class="deck-header">
                 <h3><i class="fa-solid fa-sliders"></i> Lyrics Slide Deck (Click to Display)</h3>
-                <div style="display:flex; gap:8px;">
+                <div class="flex-gap-8">
                   <button class="btn btn-sm btn-outline" onclick="app.prevSlide()"><i class="fa-solid fa-arrow-left"></i> Prev</button>
                   <button class="btn btn-sm btn-primary" onclick="app.nextSlide()">Next <i class="fa-solid fa-arrow-right"></i></button>
                 </div>
@@ -408,7 +411,7 @@
                 <option value="Security">Security</option>
               </select>
               <button class="btn btn-primary" onclick="app.openAddMemberModal()">
-                <i class="fa-solid fa-user-plus"></i> Add Member
+                <i class="fa-solid fa-user-plus"></i> <span class="hide-mobile">Add Member</span>
               </button>
             </div>
           </div>
@@ -471,29 +474,29 @@
       <!-- TAB 5: EVENTS -->
       <section id="tab-events" class="tab-pane">
         <!-- Event Statistics Cards -->
-        <div class="stats-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
-          <div class="stat-card stat-amber" style="background: #ffffff; border-radius: 14px; padding: 18px; border: 1px solid #fde68a; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08); display: flex; align-items: center; gap: 14px;">
-            <div class="stat-icon" style="width: 48px; height: 48px; border-radius: 12px; background: #fffbeb; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-calendar-star"></i></div>
+        <div class="stats-grid mb-4">
+          <div class="stat-card stat-amber">
+            <div class="stat-icon"><i class="fa-solid fa-calendar-star"></i></div>
             <div class="stat-data">
-              <span class="stat-label" style="font-size: 12px; font-weight: 600; color: #78350f; text-transform: uppercase; letter-spacing: 0.5px;">Total Created Events</span>
-              <h3 id="statTotalEventsCount" style="font-size: 24px; font-weight: 800; color: #92400e; margin: 2px 0 0 0;">0</h3>
-              <small class="stat-sub" style="color: #b45309; font-size: 11px;">Active worship services & gatherings</small>
+              <span class="stat-label">Total Created Events</span>
+              <h3 id="statTotalEventsCount">0</h3>
+              <small class="stat-sub">Active worship services & gatherings</small>
             </div>
           </div>
-          <div class="stat-card stat-emerald" style="background: #ffffff; border-radius: 14px; padding: 18px; border: 1px solid #a7f3d0; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08); display: flex; align-items: center; gap: 14px;">
-            <div class="stat-icon" style="width: 48px; height: 48px; border-radius: 12px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-users"></i></div>
+          <div class="stat-card stat-emerald">
+            <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
             <div class="stat-data">
-              <span class="stat-label" style="font-size: 12px; font-weight: 600; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Total RSVP Attendees</span>
-              <h3 id="statTotalEventRSVPs" style="font-size: 24px; font-weight: 800; color: #047857; margin: 2px 0 0 0;">0</h3>
-              <small class="stat-sub" style="color: #059669; font-size: 11px;">Confirmed members attending</small>
+              <span class="stat-label">Total RSVP Attendees</span>
+              <h3 id="statTotalEventRSVPs">0</h3>
+              <small class="stat-sub">Confirmed members attending</small>
             </div>
           </div>
-          <div class="stat-card stat-purple" style="background: #ffffff; border-radius: 14px; padding: 18px; border: 1px solid #cbd5e1; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08); display: flex; align-items: center; gap: 14px;">
-            <div class="stat-icon" style="width: 48px; height: 48px; border-radius: 12px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-clock"></i></div>
+          <div class="stat-card stat-blue">
+            <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
             <div class="stat-data">
-              <span class="stat-label" style="font-size: 12px; font-weight: 600; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">Upcoming Services</span>
-              <h3 id="statUpcomingEventsCount" style="font-size: 24px; font-weight: 800; color: #1d4ed8; margin: 2px 0 0 0;">0</h3>
-              <small class="stat-sub" style="color: #3b82f6; font-size: 11px;">Scheduled future gatherings</small>
+              <span class="stat-label">Upcoming Services</span>
+              <h3 id="statUpcomingEventsCount">0</h3>
+              <small class="stat-sub">Scheduled future gatherings</small>
             </div>
           </div>
         </div>
@@ -501,13 +504,13 @@
         <div class="glass-card">
           <div class="card-header">
             <div>
-              <h3 style="display: flex; align-items: center; gap: 10px;">
+              <h3>
                 <i class="fa-solid fa-calendar-days text-amber"></i> Worship Services & Church Events 
-                <span id="badgeEventsCount" style="background: #fef3c7; color: #d97706; border: 1px solid #fde68a; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 12px;">0 Events</span>
+                <span id="badgeEventsCount" class="count-badge">0 Events</span>
               </h3>
               <p class="subtitle-text">Schedule Sunday services, prayer meetings, and track member RSVPs in real time.</p>
             </div>
-            <button class="btn btn-primary" onclick="app.openEventModal()" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; font-weight: 700; padding: 10px 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+            <button class="btn btn-primary" onclick="app.openEventModal()">
               <i class="fa-solid fa-plus"></i> Create New Event
             </button>
           </div>
@@ -566,9 +569,8 @@
 
       <!-- TAB 7: YOUTUBE VIDEOS & MEDIA MANAGER -->
       <section id="tab-stream" class="tab-pane">
-        
-        <!-- YouTube Channel 24/7 Automatic Auto-Sync Config Card -->
-        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(220, 38, 38, 0.04)); border: 1px solid rgba(239, 68, 68, 0.35);">
+        <!-- YouTube Channel Auto-Sync Config Card -->
+        <div class="glass-card mb-4 yt-config-card">
           <div class="card-header">
             <div>
               <h3><i class="fa-brands fa-youtube text-danger"></i> 24/7 YouTube Channel Auto-Sync & Notification Manager</h3>
@@ -577,25 +579,23 @@
           </div>
           <div class="card-body">
             <form onsubmit="event.preventDefault(); app.syncYouTubeChannelSubmit();" autocomplete="off">
-              <div class="form-group" style="margin-bottom:12px;">
-                <label style="font-weight:700;">YouTube Channel ID / Channel Link *</label>
-                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                  <input type="text" id="ytChannelIdInput" class="form-control" style="flex:1; min-width:280px;" placeholder="e.g. UCxxxxxxxxx or https://www.youtube.com/channel/UC..." required />
+              <div class="form-group mb-2">
+                <label>YouTube Channel ID / Channel Link *</label>
+                <div class="yt-input-row">
+                  <input type="text" id="ytChannelIdInput" class="form-control flex-1 min-w-280" placeholder="e.g. UCxxxxxxxxx or https://www.youtube.com/channel/UC..." required />
                   <button type="submit" class="btn btn-danger-action" id="btnSyncYtChannel">
                     <i class="fa-brands fa-youtube"></i> Save & Auto-Sync Channel
                   </button>
                 </div>
-                <small class="hint-text" style="display:block; margin-top:6px; color:var(--text-muted);">
+                <small class="hint-text mt-1">
                   💡 Enter your Channel ID (begins with <strong>UC...</strong>) or full channel link. Once saved, new videos & live streams automatically send instant mobile notifications!
                 </small>
               </div>
             </form>
 
-            <div style="display:flex; align-items:center; gap:8px; padding:10px 14px; background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.3); border-radius:10px; margin-top:14px;">
-              <i class="fa-solid fa-circle-check text-success" style="font-size:16px;"></i>
-              <span style="font-size:12.5px; font-weight:600; color:#4ade80;">
-                24/7 Background Channel Auto-Sync ACTIVE — Checking every 3 minutes & auto-sending mobile push notifications!
-              </span>
+            <div class="yt-sync-active-banner">
+              <i class="fa-solid fa-circle-check text-success"></i>
+              <span>24/7 Background Channel Auto-Sync ACTIVE — Checking every 3 minutes & auto-sending mobile push notifications!</span>
             </div>
           </div>
         </div>
@@ -606,7 +606,7 @@
             <h3><i class="fa-solid fa-compact-disc text-primary"></i> Published YouTube Video Library</h3>
             <button class="btn btn-sm btn-outline" onclick="app.loadYouTubeMediaList()"><i class="fa-solid fa-rotate"></i> Refresh Library</button>
           </div>
-          <div id="youtubeMediaListGrid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:14px;">
+          <div id="youtubeMediaListGrid" class="media-grid">
             <p class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading video library...</p>
           </div>
         </div>
@@ -614,21 +614,20 @@
 
       <!-- TAB 8: BIBLE READING PLANS & MEMBER STATS -->
       <section id="tab-bibleplans" class="tab-pane">
-        
         <!-- Advanced Configuration Portal Bar -->
-        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(99, 102, 241, 0.35);">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div class="glass-card mb-4 portal-card">
+          <div class="portal-card-header">
             <div>
               <span class="badge badge-primary mb-1">Advanced Administration Portal</span>
-              <h3 style="font-size: 20px; margin-bottom: 4px;"><i class="fa-solid fa-gear text-primary"></i> SFGC Advanced Bible Configuration Portal</h3>
-              <p style="font-size: 13px; color: var(--text-muted);">Step-by-step plan generator, mathematical chapter distribution, custom book reordering, and schedule editor.</p>
+              <h3><i class="fa-solid fa-gear text-primary"></i> SFGC Advanced Bible Configuration Portal</h3>
+              <p class="subtitle-text">Step-by-step plan generator, mathematical chapter distribution, custom book reordering, and schedule editor.</p>
             </div>
-            <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+            <div class="flex-gap-10">
               <button type="button" class="btn btn-outline" onclick="app.copyPublicShareLink()">
-                <i class="fa-solid fa-link text-amber"></i> Copy Configuration Link
+                <i class="fa-solid fa-link text-amber"></i> Copy Link
               </button>
               <button type="button" class="btn btn-primary" onclick="app.openShareLinkPage()">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Launch Configuration Portal
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Launch Portal
               </button>
             </div>
           </div>
@@ -649,7 +648,7 @@
             <div class="stat-data">
               <span class="stat-label">Active Daily Streaks</span>
               <h3 id="statPlanStreaks">--</h3>
-              <small class="stat-sub">Members with daily streak > 0</small>
+              <small class="stat-sub">Members with daily streak &gt; 0</small>
             </div>
           </div>
           <div class="stat-card stat-emerald">
@@ -677,7 +676,7 @@
             <button class="btn btn-sm btn-outline" onclick="app.loadBiblePlanStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
           </div>
           <div class="table-responsive">
-            <table class="data-table">
+            <table class="modern-table">
               <thead>
                 <tr>
                   <th>Rank & Member</th>
@@ -693,19 +692,6 @@
             </table>
           </div>
         </div>
-      </section>
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Bible Configuration Site
-            </button>
-          </div>
-        </div>
-
-      </section>
-
-
-
-
-        <!-- Custom Daily Promise Editor (Telugu & English) -->
-        
       </section>
 
       <!-- TAB 9: API EXPLORER -->
@@ -758,7 +744,9 @@
     </main>
   </div>
 
-  <!-- Modal for Song Creation / Edit -->
+  <!-- ==================== MODALS (ALL AT ROOT LEVEL) ==================== -->
+
+  <!-- Modal 1: Song Creation / Edit -->
   <div id="songModal" class="modal-overlay">
     <div class="modal-box modal-lg">
       <div class="modal-header">
@@ -798,10 +786,10 @@
           <label style="display:block; margin-bottom:6px; font-weight:600;">
             <i class="fa-solid fa-align-left text-primary"></i> Song Lyrics (Wide Text Editor) *
           </label>
-          <div style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 12px; margin-bottom: 10px;">
-            <small style="color: #a5b4fc; display: block; font-size: 12px;">
+          <div class="lyrics-info-banner mb-2">
+            <small>
               <i class="fa-solid fa-circle-info"></i> <strong>Smart Auto-Slide Verse Converter Rules:</strong><br>
-              • <strong>Single Enter (Enter)</strong>: Keeps lines inside the <em>same verse/slide</em> (with gap).<br>
+              • <strong>Single Enter (Enter)</strong>: Keeps lines inside the <em>same verse/slide</em>.<br>
               • <strong>Double Enter (Blank Line)</strong>: Automatically divides lyrics into <em>separate verses/slides</em> for live projection!
             </small>
           </div>
@@ -809,8 +797,8 @@
         </div>
 
         <div class="form-group">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <label style="margin:0; font-size:13px; color:var(--text-muted);">
+          <div class="flex-between-center mb-1">
+            <label class="mb-0">
               <i class="fa-solid fa-layer-group"></i> Extracted Projection Slides Preview (<span id="parsedSlidesCount">0</span> Slides)
             </label>
             <button type="button" class="btn btn-sm btn-outline" onclick="app.toggleManualSlidesEditor()">
@@ -833,7 +821,7 @@
     </div>
   </div>
 
-  <!-- Modal for Duty Assignment -->
+  <!-- Modal 2: Duty Assignment -->
   <div id="assignmentModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-header">
@@ -867,115 +855,124 @@
           </div>
           <div class="form-group">
             <label>Date</label>
-  <!-- Modal for Event Creation & Editing in Songs Catalog Theme -->
-  <div id="eventModal" class="modal-overlay" style="padding: 16px;">
-    <div class="modal-box" style="max-width: 650px; max-height: 88vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; margin: auto; box-shadow: 0 20px 40px rgba(79, 70, 229, 0.2);">
-      <div class="modal-header" style="background: linear-gradient(135deg, #4f46e5, #3730a3); color: #fff; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 18px 24px; flex-shrink: 0;">
-        <h3 id="eventModalTitle" style="color: #fff; font-size: 18px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+            <input type="date" id="assignDate" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('assignmentModal')">Cancel</button>
+        <button class="btn btn-primary" id="btnSubmitAssignment" onclick="app.saveAssignmentSubmit()">Confirm Assignment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Event Creation & Editing -->
+  <div id="eventModal" class="modal-overlay">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3 id="eventModalTitle">
           <i class="fa-solid fa-calendar-plus text-amber"></i> Create Church Event / Service
         </h3>
-        <button type="button" class="modal-close" style="color: #fff; opacity: 0.8; font-size: 24px;" onclick="app.closeModal('eventModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('eventModal')">&times;</button>
       </div>
-      <form autocomplete="off" onsubmit="return false;" style="display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; margin: 0;">
-        <div class="modal-body form-body" style="padding: 24px; overflow-y: auto; flex: 1; max-height: calc(88vh - 130px);">
+      <form autocomplete="off" onsubmit="return false;">
+        <div class="modal-body form-body">
           <input type="hidden" id="eventId">
 
           <!-- Event Title -->
-          <div class="form-group" style="margin-bottom: 16px;">
-            <label style="font-weight: 600; color: #3730a3; margin-bottom: 6px; display: block;">Event / Service Title *</label>
-            <div style="position: relative;">
-              <input type="text" id="eventTitle" class="form-control" placeholder="e.g. Sunday Morning Miracle Worship Service" autocomplete="off" style="padding-left: 38px; border-color: #c7d2fe;">
-              <i class="fa-solid fa-heading" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1;"></i>
+          <div class="form-group">
+            <label>Event / Service Title *</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-heading field-icon"></i>
+              <input type="text" id="eventTitle" class="form-control with-icon" placeholder="e.g. Sunday Morning Miracle Worship Service">
             </div>
           </div>
 
           <!-- Speaker & Venue -->
-          <div class="form-row-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-            <div class="form-group" style="margin: 0;">
-              <label style="font-weight: 600; color: #3730a3; margin-bottom: 6px; display: block;">Preacher / Speaker</label>
-              <div style="position: relative;">
-                <input type="text" id="eventSpeaker" class="form-control" placeholder="e.g. Pastor John Doe" autocomplete="off" style="padding-left: 38px; border-color: #c7d2fe;">
-                <i class="fa-solid fa-user-tie" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1;"></i>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Preacher / Speaker</label>
+              <div class="input-icon-wrapper">
+                <i class="fa-solid fa-user-tie field-icon"></i>
+                <input type="text" id="eventSpeaker" class="form-control with-icon" placeholder="e.g. Pastor John Doe">
               </div>
             </div>
-            <div class="form-group" style="margin: 0;">
-              <label style="font-weight: 600; color: #3730a3; margin-bottom: 6px; display: block;">Venue / Location *</label>
-              <div style="position: relative;">
-                <input type="text" id="eventVenue" class="form-control" placeholder="e.g. Main Sanctuary" autocomplete="off" style="padding-left: 38px; border-color: #c7d2fe;">
-                <i class="fa-solid fa-location-dot" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1;"></i>
+            <div class="form-group">
+              <label>Venue / Location *</label>
+              <div class="input-icon-wrapper">
+                <i class="fa-solid fa-location-dot field-icon"></i>
+                <input type="text" id="eventVenue" class="form-control with-icon" placeholder="e.g. Main Sanctuary">
               </div>
             </div>
           </div>
 
           <!-- Date & Time -->
-          <div class="form-row-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-            <div class="form-group" style="margin: 0;">
-              <label style="font-weight: 600; color: #3730a3; margin-bottom: 6px; display: block;">Event Date *</label>
-              <div style="position: relative;">
-                <input type="date" id="eventDate" class="form-control" autocomplete="off" style="padding-left: 38px; border-color: #c7d2fe;">
-                <i class="fa-solid fa-calendar-day" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1;"></i>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Event Date *</label>
+              <div class="input-icon-wrapper">
+                <i class="fa-solid fa-calendar-day field-icon"></i>
+                <input type="date" id="eventDate" class="form-control with-icon">
               </div>
             </div>
-            <div class="form-group" style="margin: 0;">
-              <label style="font-weight: 600; color: #3730a3; margin-bottom: 6px; display: block;">Event Time</label>
-              <div style="position: relative;">
-                <input type="text" id="eventTime" class="form-control" placeholder="e.g. 09:30 AM - 11:30 AM" autocomplete="off" style="padding-left: 38px; border-color: #c7d2fe;">
-                <i class="fa-solid fa-clock" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1;"></i>
+            <div class="form-group">
+              <label>Event Time</label>
+              <div class="input-icon-wrapper">
+                <i class="fa-solid fa-clock field-icon"></i>
+                <input type="text" id="eventTime" class="form-control with-icon" placeholder="e.g. 09:30 AM - 11:30 AM">
               </div>
             </div>
           </div>
 
           <!-- Poster Image Upload Card -->
-          <div class="form-group" style="margin-bottom: 16px; background: #eef2ff; padding: 14px; border-radius: 12px; border: 1px dashed #c7d2fe;">
-            <label style="font-weight: 600; color: #3730a3; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-              <i class="fa-solid fa-image text-purple"></i> Event Poster / Banner Image
-            </label>
-            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
-              <input type="file" id="eventBannerFile" accept="image/*" class="form-control" onchange="app.handleBannerFileUpload(event)" style="flex: 1; background: #fff;">
+          <div class="form-group upload-banner-card">
+            <label><i class="fa-solid fa-image text-purple"></i> Event Poster / Banner Image</label>
+            <div class="mb-2">
+              <input type="file" id="eventBannerFile" accept="image/*" class="form-control" onchange="app.handleBannerFileUpload(event)">
             </div>
-            <div style="position: relative;">
-              <input type="text" id="eventBanner" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleBannerUrlInput(this.value)" autocomplete="off" style="background: #fff; padding-left: 38px; border-color: #c7d2fe;">
-              <i class="fa-solid fa-link" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1;"></i>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-link field-icon"></i>
+              <input type="text" id="eventBanner" class="form-control with-icon" placeholder="Or paste image URL (https://...)" oninput="app.handleBannerUrlInput(this.value)">
             </div>
-            <div id="eventBannerPreviewContainer" style="display: none; margin-top: 12px; text-align: center; position: relative;">
-              <img id="eventBannerPreview" src="" style="max-height: 130px; max-width: 100%; border-radius: 10px; border: 1px solid #c7d2fe; object-fit: cover; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);">
-              <button type="button" class="btn btn-sm btn-danger-action" style="position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 4px 8px;" onclick="document.getElementById('eventBanner').value=''; app.handleBannerUrlInput('');" title="Remove Banner">
+            <div id="eventBannerPreviewContainer" class="banner-preview-wrap" style="display: none;">
+              <img id="eventBannerPreview" src="" alt="Banner Preview" class="banner-img">
+              <button type="button" class="btn btn-sm btn-danger-action btn-remove-banner" onclick="document.getElementById('eventBanner').value=''; app.handleBannerUrlInput('');" title="Remove Banner">
                 <i class="fa-solid fa-trash"></i>
               </button>
             </div>
           </div>
 
           <!-- Maps Link -->
-          <div class="form-group" style="margin-bottom: 16px;">
-            <label style="font-weight: 600; color: #3730a3; margin-bottom: 6px; display: block;">Google Maps Location Link (Optional)</label>
-            <div style="position: relative;">
-              <input type="url" id="eventMapsLocation" class="form-control" placeholder="https://maps.google.com/?q=..." autocomplete="off" style="padding-left: 38px; border-color: #c7d2fe;">
-              <i class="fa-solid fa-map-location-dot" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1;"></i>
+          <div class="form-group">
+            <label>Google Maps Location Link (Optional)</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-map-location-dot field-icon"></i>
+              <input type="url" id="eventMapsLocation" class="form-control with-icon" placeholder="https://maps.google.com/?q=...">
             </div>
           </div>
 
           <!-- RSVP Toggle Card -->
-          <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: #eef2ff; padding: 12px 16px; border-radius: 12px; border: 1px solid #c7d2fe; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <i class="fa-solid fa-users text-purple" style="font-size: 18px;"></i>
+          <div class="form-group checkbox-toggle-card">
+            <div class="toggle-card-label">
+              <i class="fa-solid fa-users text-purple"></i>
               <div>
-                <strong style="color: #3730a3; font-size: 14px;">Enable RSVP Attendance Tracking</strong>
-                <div style="font-size: 12px; color: #4338ca;">Members can tap 'I Am Attending' in mobile app</div>
+                <strong>Enable RSVP Attendance Tracking</strong>
+                <small>Members can tap 'I Am Attending' in mobile app</small>
               </div>
             </div>
-            <input type="checkbox" id="eventRequiresRSVP" style="width: 20px; height: 20px; cursor: pointer; accent-color: #4f46e5;">
+            <input type="checkbox" id="eventRequiresRSVP" class="custom-checkbox">
           </div>
 
           <!-- Description -->
-          <div class="form-group" style="margin: 0;">
-            <label style="font-weight: 600; color: #3730a3; margin-bottom: 6px; display: block;">Description & Details</label>
-            <textarea id="eventDesc" class="form-control" rows="2" placeholder="Enter special instructions or event outline..." autocomplete="off" style="border-color: #c7d2fe;"></textarea>
+          <div class="form-group mb-0">
+            <label>Description & Details</label>
+            <textarea id="eventDesc" class="form-control" rows="3" placeholder="Enter special instructions or event outline..."></textarea>
           </div>
         </div>
 
-        <div class="modal-footer" style="padding: 16px 24px; background: #f8fafc; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0;">
-          <button type="button" class="btn btn-outline" style="border-radius: 10px; padding: 10px 20px;" onclick="app.closeModal('eventModal')">Cancel</button>
-          <button type="button" class="btn btn-primary" id="btnSubmitEvent" style="background: linear-gradient(135deg, #6366f1, #4f46e5); border: none; border-radius: 10px; padding: 10px 24px; font-weight: 700; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);" onclick="app.saveEventSubmit()">
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="app.closeModal('eventModal')">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btnSubmitEvent" onclick="app.saveEventSubmit()">
             <i class="fa-solid fa-paper-plane"></i> Publish Event
           </button>
         </div>
@@ -983,15 +980,15 @@
     </div>
   </div>
 
-  <!-- Modal for Admin Login -->
+  <!-- Modal 4: Admin Login Prompt -->
   <div id="loginModal" class="modal-overlay">
-    <div class="modal-box" style="max-width:420px;">
+    <div class="modal-box modal-sm">
       <div class="modal-header">
         <h3><i class="fa-solid fa-shield-halved"></i> Administrator Login</h3>
         <button class="modal-close" onclick="app.closeModal('loginModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
-        <p style="font-size:13px; color:#94a3b8; margin-bottom:14px;">Log in as Administrator to create and manage events, songs, and notices.</p>
+        <p class="modal-subtitle">Log in as Administrator to create and manage events, songs, and notices.</p>
         <div class="form-group">
           <label>Admin Email</label>
           <input type="email" id="modalLoginEmail" class="form-control" value="admin@SFGC.org">
@@ -1008,7 +1005,7 @@
     </div>
   </div>
 
-  <!-- Modal for Registering New Member directly -->
+  <!-- Modal 5: Registering New Member -->
   <div id="addMemberModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-header">
@@ -1059,7 +1056,7 @@
     </div>
   </div>
 
-  <!-- Modal for Editing Member Access & Department Volunteering -->
+  <!-- Modal 6: Edit Member Role & Departments -->
   <div id="editMemberModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-header">
@@ -1095,31 +1092,42 @@
         <div class="form-group">
           <label>Department Volunteering Interests (కార్యాలయాల స్వచ్ఛంద విభాగాలు)</label>
           <small class="hint-text mb-2">Check departments this member belongs to or is interested in joining:</small>
-          <div class="dept-checkbox-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
-            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Media Team" class="edit-dept-check"> 📹 Media Team & Sound</label>
-            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Worship Team" class="edit-dept-check"> 🎵 Worship Team</label>
-            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Choir" class="edit-dept-check"> 🎼 Choir Ministry</label>
-            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Children's Ministry" class="edit-dept-check"> 🧒 Children's Sunday School</label>
-            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Youth Ministry" class="edit-dept-check"> ⚡ Youth Ministry</label>
-            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Security & Ushering" class="edit-dept-check"> 🛡️ Security & Ushering</label>
-            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="Evangelism" class="edit-dept-check"> 📖 Evangelism & Outreach</label>
+          <div class="dept-checkbox-grid">
+            <label class="dept-check-label"><input type="checkbox" value="Media Team" class="edit-dept-check"> 📹 Media Team & Sound</label>
+            <label class="dept-check-label"><input type="checkbox" value="Worship Team" class="edit-dept-check"> 🎵 Worship Team</label>
+            <label class="dept-check-label"><input type="checkbox" value="Choir" class="edit-dept-check"> 🎼 Choir Ministry</label>
+            <label class="dept-check-label"><input type="checkbox" value="Children's Ministry" class="edit-dept-check"> 🧒 Children's Sunday School</label>
+            <label class="dept-check-label"><input type="checkbox" value="Youth Ministry" class="edit-dept-check"> ⚡ Youth Ministry</label>
+            <label class="dept-check-label"><input type="checkbox" value="Security & Ushering" class="edit-dept-check"> 🛡️ Security & Ushering</label>
+            <label class="dept-check-label"><input type="checkbox" value="Evangelism" class="edit-dept-check"> 📖 Evangelism & Outreach</label>
           </div>
         </div>
 
         <div class="form-group mt-2">
-          <label>Add New  <!-- Modal for Notice Creation -->
+          <label>Add Custom Department (Optional)</label>
+          <input type="text" id="editMemberCustomDept" class="form-control" placeholder="e.g. Hospitality / Technical Support">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('editMemberModal')">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveMemberAccess" onclick="app.saveMemberAccessSubmit()">Save Access Level</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 7: Notice Creation / Edit -->
   <div id="noticeModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>Post Church Notice / Alert</h3>
+        <h3><i class="fa-solid fa-bullhorn text-emerald"></i> Post Church Notice / Alert</h3>
         <button type="button" class="modal-close" onclick="app.closeModal('noticeModal')">&times;</button>
       </div>
       <form autocomplete="off" onsubmit="return false;">
         <div class="modal-body form-body">
           <input type="hidden" id="noticeId">
-          <div class="form-group" style="background:rgba(99, 102, 241, 0.08); padding:10px 12px; border-radius:8px; border:1px solid rgba(99, 102, 241, 0.2);">
-            <label style="font-weight:700; color:#6366f1; font-size:12.5px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Select Pre-Saved Announcement Template (Optional)</label>
-            <select id="noticeTemplateSelect" class="form-control" style="font-size:13px; margin-top:4px;" onchange="app.handleNoticeTemplateSelect(this.value)">
+          <div class="notice-template-card">
+            <label class="notice-template-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Select Pre-Saved Announcement Template (Optional)</label>
+            <select id="noticeTemplateSelect" class="form-control" onchange="app.handleNoticeTemplateSelect(this.value)">
               <option value="">-- Custom Announcement / Type Your Own --</option>
               <option value="sunday_service">📢 Sunday Miracle Worship & Holy Communion Service</option>
               <option value="cottage_prayer">🔥 Midweek Cottage & Intercessory Prayer Meeting</option>
@@ -1129,55 +1137,55 @@
               <option value="fasting_prayer">🙏 Combined Church Fasting & Prayer Service</option>
             </select>
           </div>
+
           <div class="form-group">
             <label>Notice Title *</label>
-            <input type="text" id="noticeTitle" class="form-control" placeholder="e.g. Annual General Meeting" autocomplete="off">
+            <input type="text" id="noticeTitle" class="form-control" placeholder="e.g. Annual General Meeting">
           </div>
+
           <div class="form-group">
             <label>Description *</label>
-            <textarea id="noticeDesc" class="form-control" rows="3" placeholder="Notice details..." autocomplete="off"></textarea>
+            <textarea id="noticeDesc" class="form-control" rows="3" placeholder="Notice details..."></textarea>
           </div>
+
           <div class="form-row-2">
             <div class="form-group">
               <label>Notice Date</label>
-              <input type="date" id="noticeDate" class="form-control" autocomplete="off">
+              <input type="date" id="noticeDate" class="form-control">
             </div>
             <div class="form-group">
               <label>Time</label>
-              <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 10:30 AM" autocomplete="off">
+              <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 10:30 AM">
             </div>
           </div>
+
           <div class="form-group">
             <label>Location / Wing</label>
-            <input type="text" id="noticeLoc" class="form-control" placeholder="e.g. Main Sanctuary" autocomplete="off">
+            <input type="text" id="noticeLoc" class="form-control" placeholder="e.g. Main Sanctuary">
           </div>
+
           <div class="form-group">
             <label>Notice Banner / Poster Image</label>
             <input type="file" id="noticeBannerFile" accept="image/*" class="form-control mb-2" onchange="app.handleNoticeFileUpload(event)">
-            <input type="text" id="noticeImage" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleNoticeUrlInput(this.value)" autocomplete="off">
-            <div id="noticeImagePreviewContainer" style="display:none; margin-top:8px; text-align:center;">
-              <img id="noticeImagePreview" src="" style="max-height:120px; max-width:100%; border-radius:8px; border:1px solid #ddd; object-fit:cover;">
+            <input type="text" id="noticeImage" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleNoticeUrlInput(this.value)">
+            <div id="noticeImagePreviewContainer" class="banner-preview-wrap" style="display:none;">
+              <img id="noticeImagePreview" src="" alt="Notice Preview" class="banner-img">
             </div>
           </div>
-          <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
-            <input type="checkbox" id="noticeIsPinned" style="width:18px; height:18px; cursor:pointer;">
-            <label for="noticeIsPinned" style="margin:0; cursor:pointer; font-weight:600; color:#cbd5e1;">📌 Pin Notice to Top of Announcement Feed</label>
+
+          <div class="form-group checkbox-toggle-card mt-2">
+            <label for="noticeIsPinned" class="flex-between-center width-100 cursor-pointer">
+              <span>📌 Pin Notice to Top of Announcement Feed</span>
+              <input type="checkbox" id="noticeIsPinned" class="custom-checkbox">
+            </label>
           </div>
         </div>
+
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" onclick="app.closeModal('noticeModal')">Cancel</button>
           <button type="button" class="btn btn-primary" id="btnSubmitNotice" onclick="app.saveNoticeSubmit()">Post Notice</button>
         </div>
       </form>
-    </div>
-  </div>px; height:18px; cursor:pointer;">
-          <label for="noticeIsPinned" style="margin:0; cursor:pointer; font-weight:600; color:#cbd5e1;">📌 Pin Notice to Top of Announcement Feed</label>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('noticeModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnSubmitNotice" onclick="app.saveNoticeSubmit()">Post Notice</button>
-      </div>
     </div>
   </div>
 

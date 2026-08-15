@@ -415,6 +415,14 @@ class ChurchApp {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
 
+    // Auto-close mobile sidebar if open
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebarOverlay') || document.querySelector('.sidebar-overlay');
+    if (sidebar && sidebar.classList.contains('mobile-active')) {
+      sidebar.classList.remove('mobile-active');
+      if (overlay) overlay.classList.remove('active');
+    }
+
     const targetNav = document.querySelector(`[data-tab="${tabId}"]`);
     const targetPane = document.getElementById(`tab-${tabId}`);
 
