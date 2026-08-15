@@ -27,41 +27,46 @@ class EventsService {
 
   // Get all events
   async getEvents(): Promise<{ success: boolean; events: EventItem[] }> {
-    // Keep events for today and future days (start of today in local time)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const minTimestamp = todayStart.getTime() - (24 * 60 * 60 * 1000); // Keep up to 24h past events
+    const parseEventTimestamp = (dateStr: any): number => {
+      if (!dateStr) return 0;
+      if (dateStr instanceof Date) return dateStr.getTime();
+
+      const str = String(dateStr).trim();
+      let parsed = Date.parse(str);
+      if (!isNaN(parsed)) return parsed;
+
+      const parts = str.split(/[\/\.-]/);
+      if (parts.length === 3 && parts[2].length === 4) {
+        parsed = Date.parse(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        if (!isNaN(parsed)) return parsed;
+      }
+      return 0;
+    };
 
     try {
-      // 1. Attempt backend fetch
-      try {
-        const res = await apiClient.get('/api/events');
-        if (res.success && Array.isArray(res.events)) {
-          const validEvents = res.events
-            .filter((e: any) => {
-              const eventTime = new Date(e.date).getTime();
-              return !isNaN(eventTime) ? eventTime >= minTimestamp : true;
-            })
-            .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          await mongoService.setLocalCollection(COLLECTION, validEvents);
-          return { success: true, events: validEvents };
-        }
-      } catch (networkErr) {
-        console.log('Backend events API unreachable, loading from local DB');
+      const res = await apiClient.get('/api/events');
+      const list = Array.isArray(res?.events) 
+        ? res.events 
+        : (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+      
+      if (Array.isArray(list)) {
+        const sortedEvents = [...list].sort((a: any, b: any) => {
+          const tA = parseEventTimestamp(a.date);
+          const tB = parseEventTimestamp(b.date);
+          return tA - tB;
+        });
+        await mongoService.setLocalCollection(COLLECTION, sortedEvents);
+        return { success: true, events: sortedEvents };
       }
+    } catch (networkErr) {
+      console.log('Backend events API unreachable, loading from local DB');
+    }
 
-      // 2. Local fallback
-     
-      const events = await mongoService.find(COLLECTION, {
-        sort: { date: 1 }
-      });
+    try {
+      const events = await mongoService.find(COLLECTION, { sort: { date: 1 } });
       const realEvents = events
         .filter((e: any) => !String(e._id || e.id || '').startsWith('seed_event_'))
-        .filter((e: any) => {
-          const eventTime = new Date(e.date).getTime();
-          return !isNaN(eventTime) ? eventTime >= minTimestamp : true;
-        })
-        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        .sort((a: any, b: any) => parseEventTimestamp(a.date) - parseEventTimestamp(b.date));
       return { success: true, events: realEvents };
     } catch (err) {
       console.error('Error getting events:', err);

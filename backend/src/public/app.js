@@ -1253,38 +1253,8 @@ class ChurchApp {
     document.getElementById('eventId').value = evt ? (evt._id || '') : '';
     document.getElementById('eventModalTitle').innerText = evt ? 'Edit Church Event / Service' : 'Create Church Event / Service';
     document.getElementById('eventTitle').value = evt ? (evt.title || '') : '';
-
-    // Handle Speaker Dropdown / Custom Input
-    const speakerVal = evt ? (evt.speaker || '') : '';
-    const speakerSelect = document.getElementById('eventSpeakerSelect');
-    const speakerCustom = document.getElementById('eventSpeakerCustom');
-    if (['Pastor John Doe', 'Pastor David', 'Evangelist Billy Graham'].includes(speakerVal)) {
-      speakerSelect.value = speakerVal;
-      speakerCustom.style.display = 'none';
-      speakerCustom.value = '';
-    } else if (speakerVal) {
-      speakerSelect.value = 'custom';
-      speakerCustom.style.display = 'block';
-      speakerCustom.value = speakerVal;
-    } else {
-      speakerSelect.value = 'Pastor John Doe';
-      speakerCustom.style.display = 'none';
-      speakerCustom.value = '';
-    }
-
-    // Handle Venue Dropdown / Custom Input
-    const venueVal = evt ? (evt.venue || '') : 'Main Sanctuary';
-    const venueSelect = document.getElementById('eventVenueSelect');
-    const venueCustom = document.getElementById('eventVenueCustom');
-    if (['Main Sanctuary', 'Youth Chapel', 'Branch Church 2'].includes(venueVal)) {
-      venueSelect.value = venueVal;
-      venueCustom.style.display = 'none';
-      venueCustom.value = '';
-    } else {
-      venueSelect.value = 'custom';
-      venueCustom.style.display = 'block';
-      venueCustom.value = venueVal;
-    }
+    document.getElementById('eventSpeaker').value = evt ? (evt.speaker || '') : '';
+    document.getElementById('eventVenue').value = evt ? (evt.venue || '') : 'Main Sanctuary';
 
     document.getElementById('eventDate').value = evt ? (evt.date || '').split('T')[0] : new Date().toISOString().split('T')[0];
     document.getElementById('eventTime').value = evt ? (evt.time || '') : '09:30 AM - 11:30 AM';
@@ -1305,16 +1275,6 @@ class ChurchApp {
     if (evt) {
       this.openEventModal(evt);
     }
-  }
-
-  handleSpeakerSelectChange(val) {
-    const customInput = document.getElementById('eventSpeakerCustom');
-    if (customInput) customInput.style.display = (val === 'custom') ? 'block' : 'none';
-  }
-
-  handleVenueSelectChange(val) {
-    const customInput = document.getElementById('eventVenueCustom');
-    if (customInput) customInput.style.display = (val === 'custom') ? 'block' : 'none';
   }
 
   handleBannerFileUpload(e) {
@@ -1371,14 +1331,8 @@ class ChurchApp {
   async saveEventSubmit() {
     const id = document.getElementById('eventId').value.trim();
     const title = document.getElementById('eventTitle').value.trim();
-
-    const speakerSelect = document.getElementById('eventSpeakerSelect').value;
-    const speakerCustom = document.getElementById('eventSpeakerCustom').value.trim();
-    const speaker = (speakerSelect === 'custom') ? speakerCustom : speakerSelect;
-
-    const venueSelect = document.getElementById('eventVenueSelect').value;
-    const venueCustom = document.getElementById('eventVenueCustom').value.trim();
-    const venue = (venueSelect === 'custom') ? venueCustom : venueSelect;
+    const speaker = document.getElementById('eventSpeaker').value.trim();
+    const venue = document.getElementById('eventVenue').value.trim();
 
     const dateInput = document.getElementById('eventDate').value.trim();
     const time = document.getElementById('eventTime').value.trim();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, ScrollView, View, RefreshControl, Platform, Alert, Share, TextInput, TouchableOpacity, Image, Switch } from 'react-native';
 import { Card, Title, Paragraph, Button, Text, Avatar, Chip, Badge, Divider, Portal, Modal, FAB, IconButton } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';
@@ -10,6 +10,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { Paths, File as FSFile } from 'expo-file-system';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function EventsScreen() {
   const { events, refreshData, loading, user, token, language } = useApp();
@@ -18,6 +19,13 @@ export default function EventsScreen() {
   const [rsvpedEvents, setRsvpedEvents] = useState<string[]>([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const theme = useTheme();
+
+  // Auto-refresh events whenever screen receives focus
+  useFocusEffect(
+    useCallback(() => {
+      refreshData();
+    }, [])
+  );
 
   // Tick timer every 30s for live countdown
   useEffect(() => {
