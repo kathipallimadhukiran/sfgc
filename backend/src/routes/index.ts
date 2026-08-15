@@ -8,6 +8,7 @@ import prayerRoutes from './prayerRoutes';
 import streamRoutes from './streamRoutes';
 import voiceRoutes from './voiceRoutes';
 import biblePlanRoutes from './biblePlanRoutes';
+import departmentRoutes from './departmentRoutes';
 
 const router = Router();
 
@@ -31,5 +32,6 @@ router.use('/prayers', prayerRoutes);
 router.use('/stream', streamRoutes);
 router.use('/voice', voiceRoutes);
 router.use('/bible-plans', biblePlanRoutes);
+router.use('/departments', departmentRoutes);
 
 export default router;

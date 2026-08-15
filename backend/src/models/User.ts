@@ -55,7 +55,7 @@ const DutyAssignmentSchema = new Schema<IDutyAssignment>({
 
 const UserSchema = new Schema<IUser>({
   name: { type: String, required: true, trim: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  email: { type: String, required: false, sparse: true, lowercase: true, trim: true },
   password: { type: String, required: true, select: false },
   role: { 
     type: String, 
@@ -64,7 +64,7 @@ const UserSchema = new Schema<IUser>({
   },
   familyName: { type: String, default: '' },
   location: { type: String, default: '' },
-  mobileNumber: { type: String, default: '' },
+  mobileNumber: { type: String, default: '', trim: true },
   familyHeadName: { type: String, default: '' },
   familyHeadMobileNumber: { type: String, default: '' },
   familyHeadEmail: { type: String, default: '' },

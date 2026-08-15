@@ -42,14 +42,20 @@ class AuthService {
   // Register a new user: Strictly saves into MongoDB via Backend API
   async register(userData: Partial<UserProfile>): Promise<{ success: boolean; token?: string; user?: any; message?: string }> {
     try {
-      const email = userData.email?.trim().toLowerCase();
-      if (!email || !userData.password) {
-        return { success: false, message: 'Email and password are required.' };
+      const email = userData.email?.trim() ? userData.email.trim().toLowerCase() : undefined;
+      const mobileNumber = userData.mobileNumber?.trim() || '';
+
+      if (!userData.password) {
+        return { success: false, message: 'Password is required.' };
+      }
+      if (!email && !mobileNumber) {
+        return { success: false, message: 'Please provide either an email address or mobile number.' };
       }
 
       const res = await apiClient.post('/api/auth/register', {
         ...userData,
-        email,
+        ...(email ? { email } : {}),
+        mobileNumber,
       });
 
       if (res.success && res.token && res.user) {
@@ -74,15 +80,15 @@ class AuthService {
     }
   }
 
-  // Login user: Authenticates directly against MongoDB via Backend API
-  async login(email: string, password: string): Promise<{ success: boolean; token?: string; user?: any; message?: string }> {
+  // Login user: Authenticates directly against MongoDB via Backend API with email or mobile number
+  async login(credential: string, password: string): Promise<{ success: boolean; token?: string; user?: any; message?: string }> {
     try {
-      const cleanEmail = email.trim().toLowerCase();
-      if (!cleanEmail || !password) {
-        return { success: false, message: 'Please enter both email and password.' };
+      const cleanCredential = credential.trim();
+      if (!cleanCredential || !password) {
+        return { success: false, message: 'Please enter your email or mobile number and password.' };
       }
 
-      const res = await apiClient.post('/api/auth/login', { email: cleanEmail, password });
+      const res = await apiClient.post('/api/auth/login', { credential: cleanCredential, email: cleanCredential, password });
 
       if (res.success && res.token && res.user) {
         // Permanently persist token & user session for 1-time sign in
@@ -98,7 +104,7 @@ class AuthService {
 
       return {
         success: false,
-        message: res.message || 'Invalid email or password.',
+        message: res.message || 'Invalid credentials or password.',
       };
     } catch (err: any) {
       console.error('Login API error:', err);

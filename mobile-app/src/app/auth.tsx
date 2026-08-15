@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, ScrollView, View, Platform, Alert, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
-import { Card, Title, Paragraph, Button, Text, TextInput, Avatar, HelperText, Checkbox, Divider, ActivityIndicator } from 'react-native-paper';
+import { Card, Title, Paragraph, Button, Text, TextInput, Avatar, HelperText, Checkbox, Divider, ActivityIndicator, Menu } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { authService } from '@/services/authService';
+import { departmentService, DepartmentItem } from '@/services/departmentService';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -21,8 +22,8 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
+  // Login form state (Supports email address or mobile number)
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
@@ -31,6 +32,10 @@ export default function AuthScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activeDatePickerField, setActiveDatePickerField] = useState<'birthday' | 'baptismDate' | null>(null);
   const [pickerDate, setPickerDate] = useState(new Date());
+
+  // Voluntary Departments State
+  const [departmentsList, setDepartmentsList] = useState<DepartmentItem[]>([]);
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
 
   // Registration form state
   const [regData, setRegData] = useState({
@@ -43,12 +48,28 @@ export default function AuthScreen() {
     birthday: '',
     baptismDate: '',
     ministry: '',
+    selectedDepartment: '',
     isFamilyHead: true,
     familyHeadName: '',
     familyHeadMobileNumber: '',
     familyHeadEmail: '',
     familyMembersCount: '1'
   });
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await departmentService.getDepartments();
+      if (res.success && res.departments) {
+        setDepartmentsList(res.departments);
+      }
+    } catch (err) {
+      console.log('Error fetching voluntary departments:', err);
+    }
+  };
 
   const handleOpenDatePicker = (field: 'birthday' | 'baptismDate') => {
     setActiveDatePickerField(field);
@@ -71,18 +92,18 @@ export default function AuthScreen() {
 
   const handleLogin = async () => {
     setError('');
-    if (!loginEmail.trim() || !loginPassword) {
-      setError(isTel ? 'దయచేసి ఇమెయిల్ మరియు పాస్‌వర్డ్ నమోదు చేయండి.' : 'Please enter your email and password.');
+    const cleanId = loginIdentifier.trim();
+    if (!cleanId || !loginPassword) {
+      setError(isTel ? 'దయచేసి మీ ఇమెయిల్ లేదా ఫోన్ నంబర్ మరియు పాస్‌వర్డ్ నమోదు చేయండి.' : 'Please enter your email address or mobile number and password.');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await authService.login(loginEmail.trim(), loginPassword);
+      const response = await authService.login(cleanId, loginPassword);
 
       if (response.success && response.token && response.user) {
         await login(response.token, response.user);
-        // Navigate directly to Home on successful login
         router.replace('/');
       } else {
         setError(response.message || (isTel ? 'లాగిన్ విఫలమైంది. దయచేసి వివరాలు సరిచూసుకోండి.' : 'Login failed. Please check credentials.'));
@@ -97,9 +118,20 @@ export default function AuthScreen() {
 
   const handleRegister = async () => {
     setError('');
-    const { name, email, password, confirmPassword } = regData;
-    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
-      setError(isTel ? 'పేరు, ఇమెయిల్, మరియు పాస్‌వర్డ్ తప్పనిసరి.' : 'Name, email, password, and confirm password are required.');
+    const { name, email, password, confirmPassword, mobileNumber, selectedDepartment } = regData;
+
+    if (!name.trim()) {
+      setError(isTel ? 'దయచేసి మీ పూర్తి పేరును నమోదు చేయండి.' : 'Please enter your full name.');
+      return;
+    }
+
+    if (!email.trim() && !mobileNumber.trim()) {
+      setError(isTel ? 'దయచేసి ఇమెయిల్ చిరునామా లేదా మొబైల్ నంబర్‌ నమోదు చేయండి.' : 'Please provide either an Email Address or Mobile Number.');
+      return;
+    }
+
+    if (!password || !confirmPassword) {
+      setError(isTel ? 'దయచేసి పాస్‌వర్డ్ నమోదు చేయండి.' : 'Password and confirm password are required.');
       return;
     }
 
@@ -110,9 +142,11 @@ export default function AuthScreen() {
 
     setLoading(true);
 
+    const departmentsArray = selectedDepartment ? [selectedDepartment] : [];
+
     const payload = {
       name: regData.name.trim(),
-      email: regData.email.trim(),
+      email: regData.email.trim() || undefined,
       password: regData.password,
       role: 'Member',
       mobileNumber: regData.mobileNumber.trim(),
@@ -120,6 +154,7 @@ export default function AuthScreen() {
       birthday: regData.birthday,
       baptismDate: regData.baptismDate,
       ministry: regData.ministry.trim(),
+      departments: departmentsArray,
       familyName: regData.isFamilyHead ? `${regData.name.trim()} Family` : `${regData.familyHeadName.trim() || regData.name.trim()} Family`,
       familyHeadName: regData.isFamilyHead ? regData.name.trim() : regData.familyHeadName.trim(),
       familyHeadMobileNumber: regData.isFamilyHead ? regData.mobileNumber.trim() : regData.familyHeadMobileNumber.trim(),
@@ -131,7 +166,6 @@ export default function AuthScreen() {
 
       if (response.success && response.token && response.user) {
         await login(response.token, response.user);
-        // Navigate directly to Home on successful registration
         router.replace('/');
       } else {
         setError(response.message || (isTel ? 'రిజిస్ట్రేషన్ విఫలమైంది.' : 'Registration failed.'));
@@ -144,12 +178,15 @@ export default function AuthScreen() {
     }
   };
 
+  const inputStyle = [styles.textInput, { color: theme.text, opacity: 1 }];
+
   return (
     <KeyboardAvoidingView 
       style={[styles.container, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      {/* Top Header — no back arrow since this is the root auth gate screen */}
+      {/* Top Header */}
       <View style={[styles.headerBar, { borderBottomColor: theme.cardBorder }]}>
         <View style={{ width: 36 }} />
         <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -160,7 +197,11 @@ export default function AuthScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 180 }]} 
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         
         {/* Church Branding Hero */}
         <View style={styles.heroSection}>
@@ -243,19 +284,20 @@ export default function AuthScreen() {
                 {isTel ? 'మీ ఖాతాలోనికి ప్రవేశించండి' : 'Welcome Back'}
               </Text>
               <Text style={[styles.formSubHeader, { color: theme.textSecondary }]}>
-                {isTel ? 'దయచేసి మీ రిజిస్టర్డ్ ఇమెయిల్ లేదా ఫోన్ నంబర్‌తో లాగిన్ అవ్వండి.' : 'Enter your church credentials to access your profile.'}
+                {isTel ? 'దయచేసి మీ రిజిస్టర్డ్ ఇమెయిల్ లేదా ఫోన్ నంబర్‌తో లాగిన్ అవ్వండి.' : 'Enter your email address or mobile number with password.'}
               </Text>
 
-              <Text style={[styles.inputLabel, { color: theme.text }]}>{isTel ? 'ఇమెయిల్ లేదా మొబైల్ నంబర్ *' : 'Email Address *'}</Text>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>{isTel ? 'ఇమెయిల్ లేదా మొబైల్ నంబర్ *' : 'Email Address or Mobile Number *'}</Text>
               <TextInput
                 mode="outlined"
-                value={loginEmail}
-                onChangeText={setLoginEmail}
-                placeholder="e.g. member@SFGC.org"
+                value={loginIdentifier}
+                onChangeText={setLoginIdentifier}
+                placeholder="e.g. member@sfgc.org or 9876543210"
                 autoCapitalize="none"
-                keyboardType="email-address"
-                left={<TextInput.Icon icon="email-outline" />}
-                style={styles.textInput}
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="account-key-outline" color={theme.textSecondary} />}
+                style={inputStyle}
                 outlineColor={theme.cardBorder}
                 activeOutlineColor={theme.primary}
               />
@@ -267,14 +309,17 @@ export default function AuthScreen() {
                 onChangeText={setLoginPassword}
                 placeholder="••••••••"
                 secureTextEntry={!showPassword}
-                left={<TextInput.Icon icon="lock-outline" />}
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="lock-outline" color={theme.textSecondary} />}
                 right={
                   <TextInput.Icon 
                     icon={showPassword ? "eye-off-outline" : "eye-outline"} 
+                    color={theme.textSecondary}
                     onPress={() => setShowPassword(!showPassword)}
                   />
                 }
-                style={styles.textInput}
+                style={inputStyle}
                 outlineColor={theme.cardBorder}
                 activeOutlineColor={theme.primary}
               />
@@ -322,22 +367,41 @@ export default function AuthScreen() {
                 value={regData.name}
                 onChangeText={val => setRegData(p => ({ ...p, name: val }))}
                 placeholder="e.g. John Wesley"
-                left={<TextInput.Icon icon="account-outline" />}
-                style={styles.textInput}
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="account-outline" color={theme.textSecondary} />}
+                style={inputStyle}
                 outlineColor={theme.cardBorder}
                 activeOutlineColor={theme.primary}
               />
 
-              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 12 }]}>{isTel ? 'ఇమెయిల్ చిరునామా *' : 'Email Address *'}</Text>
+              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 12 }]}>{isTel ? 'ఇమెయిల్ చిరునామా (ఐచ్ఛికం)' : 'Email Address (Optional)'}</Text>
               <TextInput
                 mode="outlined"
                 value={regData.email}
                 onChangeText={val => setRegData(p => ({ ...p, email: val }))}
-                placeholder="e.g. john@example.com"
+                placeholder="e.g. john@example.com (Optional)"
                 autoCapitalize="none"
                 keyboardType="email-address"
-                left={<TextInput.Icon icon="email-outline" />}
-                style={styles.textInput}
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="email-outline" color={theme.textSecondary} />}
+                style={inputStyle}
+                outlineColor={theme.cardBorder}
+                activeOutlineColor={theme.primary}
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 12 }]}>{isTel ? 'మొబైల్ నంబర్' : 'Mobile Phone Number'}</Text>
+              <TextInput
+                mode="outlined"
+                value={regData.mobileNumber}
+                onChangeText={val => setRegData(p => ({ ...p, mobileNumber: val }))}
+                placeholder="e.g. 9876543210"
+                keyboardType="phone-pad"
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="phone-outline" color={theme.textSecondary} />}
+                style={inputStyle}
                 outlineColor={theme.cardBorder}
                 activeOutlineColor={theme.primary}
               />
@@ -349,14 +413,17 @@ export default function AuthScreen() {
                 onChangeText={val => setRegData(p => ({ ...p, password: val }))}
                 placeholder="••••••••"
                 secureTextEntry={!showRegPassword}
-                left={<TextInput.Icon icon="lock-outline" />}
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="lock-outline" color={theme.textSecondary} />}
                 right={
                   <TextInput.Icon 
                     icon={showRegPassword ? "eye-off-outline" : "eye-outline"} 
+                    color={theme.textSecondary}
                     onPress={() => setShowRegPassword(!showRegPassword)}
                   />
                 }
-                style={styles.textInput}
+                style={inputStyle}
                 outlineColor={theme.cardBorder}
                 activeOutlineColor={theme.primary}
               />
@@ -368,21 +435,10 @@ export default function AuthScreen() {
                 onChangeText={val => setRegData(p => ({ ...p, confirmPassword: val }))}
                 placeholder="••••••••"
                 secureTextEntry={!showRegPassword}
-                left={<TextInput.Icon icon="lock-check-outline" />}
-                style={styles.textInput}
-                outlineColor={theme.cardBorder}
-                activeOutlineColor={theme.primary}
-              />
-
-              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 12 }]}>{isTel ? 'మొబైల్ నంబర్' : 'Mobile Phone Number'}</Text>
-              <TextInput
-                mode="outlined"
-                value={regData.mobileNumber}
-                onChangeText={val => setRegData(p => ({ ...p, mobileNumber: val }))}
-                placeholder="e.g. +91 9876543210"
-                keyboardType="phone-pad"
-                left={<TextInput.Icon icon="phone-outline" />}
-                style={styles.textInput}
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="lock-check-outline" color={theme.textSecondary} />}
+                style={inputStyle}
                 outlineColor={theme.cardBorder}
                 activeOutlineColor={theme.primary}
               />
@@ -393,11 +449,64 @@ export default function AuthScreen() {
                 value={regData.location}
                 onChangeText={val => setRegData(p => ({ ...p, location: val }))}
                 placeholder="e.g. Main Sanctuary, Sector 4"
-                left={<TextInput.Icon icon="map-marker-outline" />}
-                style={styles.textInput}
+                textColor={theme.text}
+                placeholderTextColor={theme.textSecondary}
+                left={<TextInput.Icon icon="map-marker-outline" color={theme.textSecondary} />}
+                style={inputStyle}
                 outlineColor={theme.cardBorder}
                 activeOutlineColor={theme.primary}
               />
+
+              {/* Voluntary Department Dropdown */}
+              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 12 }]}>
+                {isTel ? 'స్వచ్ఛంద విభాగం (Voluntary Department)' : 'Voluntary Department Selection'}
+              </Text>
+              <View style={{ marginBottom: 4 }}>
+                <Menu
+                  visible={showDeptDropdown}
+                  onDismiss={() => setShowDeptDropdown(false)}
+                  anchor={
+                    <TouchableOpacity 
+                      onPress={() => setShowDeptDropdown(true)}
+                      activeOpacity={0.8}
+                    >
+                      <View pointerEvents="none">
+                        <TextInput
+                          mode="outlined"
+                          value={regData.selectedDepartment || (isTel ? '-- ఎంచుకోండి --' : '-- Select Department --')}
+                          editable={false}
+                          textColor={theme.text}
+                          left={<TextInput.Icon icon="hand-heart-outline" color={theme.primary} />}
+                          right={<TextInput.Icon icon="chevron-down" color={theme.textSecondary} />}
+                          style={inputStyle}
+                          outlineColor={theme.cardBorder}
+                          activeOutlineColor={theme.primary}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  }
+                  contentStyle={{ backgroundColor: theme.backgroundElement, borderRadius: 12 }}
+                >
+                  <Menu.Item 
+                    onPress={() => {
+                      setRegData(p => ({ ...p, selectedDepartment: '' }));
+                      setShowDeptDropdown(false);
+                    }}
+                    title={isTel ? '-- దేనినీ ఎంచుకోవద్దు --' : '-- None / Select Later --'}
+                  />
+                  <Divider />
+                  {departmentsList.map((dept) => (
+                    <Menu.Item
+                      key={dept._id || dept.name}
+                      onPress={() => {
+                        setRegData(p => ({ ...p, selectedDepartment: dept.name }));
+                        setShowDeptDropdown(false);
+                      }}
+                      title={dept.name}
+                    />
+                  ))}
+                </Menu>
+              </View>
 
               {/* Birthday & Baptism Dates */}
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
@@ -410,8 +519,10 @@ export default function AuthScreen() {
                         value={regData.birthday}
                         placeholder="YYYY-MM-DD"
                         editable={false}
-                        left={<TextInput.Icon icon="cake-variant-outline" />}
-                        style={styles.textInput}
+                        textColor={theme.text}
+                        placeholderTextColor={theme.textSecondary}
+                        left={<TextInput.Icon icon="cake-variant-outline" color={theme.textSecondary} />}
+                        style={inputStyle}
                         outlineColor={theme.cardBorder}
                       />
                     </View>
@@ -427,8 +538,10 @@ export default function AuthScreen() {
                         value={regData.baptismDate}
                         placeholder="YYYY-MM-DD"
                         editable={false}
-                        left={<TextInput.Icon icon="water-outline" />}
-                        style={styles.textInput}
+                        textColor={theme.text}
+                        placeholderTextColor={theme.textSecondary}
+                        left={<TextInput.Icon icon="water-outline" color={theme.textSecondary} />}
+                        style={inputStyle}
                         outlineColor={theme.cardBorder}
                       />
                     </View>
@@ -436,18 +549,7 @@ export default function AuthScreen() {
                 </View>
               </View>
 
-              {/* Ministry Interest */}
-              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 12 }]}>{isTel ? 'ఆసక్తిగల మంత్రిత్వ విభాగం' : 'Ministry / Ministry Interest'}</Text>
-              <TextInput
-                mode="outlined"
-                value={regData.ministry}
-                onChangeText={val => setRegData(p => ({ ...p, ministry: val }))}
-                placeholder="e.g. Choir, Media Team, Sunday School"
-                left={<TextInput.Icon icon="hands-pray" />}
-                style={styles.textInput}
-                outlineColor={theme.cardBorder}
-                activeOutlineColor={theme.primary}
-              />
+           
 
               <Button
                 mode="contained"
@@ -477,7 +579,7 @@ export default function AuthScreen() {
           </Card>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
 
       {/* Date Picker Modal for Mobile */}

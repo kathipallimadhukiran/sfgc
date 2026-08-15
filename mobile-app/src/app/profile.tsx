@@ -6,8 +6,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { authService } from '@/services/authService';
+import { departmentService, DepartmentItem } from '@/services/departmentService';
 
-const DEPARTMENTS = ['Worship Team', 'Choir', 'Media Team', 'Children\'s Ministry', 'Security'];
+const DEFAULT_DEPARTMENTS = ['Worship Team', 'Choir', 'Media Team', 'Children\'s Ministry', 'Security', 'Prayer Team', 'Ushering'];
 
 const inputTheme = {
   colors: {
@@ -31,8 +32,78 @@ export default function ProfileScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activeDatePickerField, setActiveDatePickerField] = useState<'birthday' | 'baptismDate' | null>(null);
   const [pickerDate, setPickerDate] = useState(new Date());
+
+  // Voluntary Departments State
+  const [departmentsList, setDepartmentsList] = useState<DepartmentItem[]>([]);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [showAddDeptForm, setShowAddDeptForm] = useState(false);
   
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await departmentService.getDepartments();
+      if (res.success && res.departments && res.departments.length > 0) {
+        setDepartmentsList(res.departments);
+      } else {
+        setDepartmentsList(DEFAULT_DEPARTMENTS.map((name, i) => ({ _id: `def_${i}`, name })));
+      }
+    } catch (err) {
+      console.log('Error fetching departments:', err);
+      setDepartmentsList(DEFAULT_DEPARTMENTS.map((name, i) => ({ _id: `def_${i}`, name })));
+    }
+  };
+
+  const handleAddDepartment = async () => {
+    if (!newDeptName.trim()) {
+      alert('Please enter department name.');
+      return;
+    }
+    try {
+      const res = await departmentService.createDepartment(newDeptName.trim());
+      if (res.success) {
+        setNewDeptName('');
+        setShowAddDeptForm(false);
+        fetchDepartments();
+        alert('🎉 Department added successfully!');
+      } else {
+        alert(res.message || 'Failed to add department');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error adding department');
+    }
+  };
+
+  const handleDeleteDepartment = async (id: string, name: string) => {
+    Alert.alert(
+      "Confirm Deletion",
+      `Delete department "${name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await departmentService.deleteDepartment(id);
+              if (res.success) {
+                fetchDepartments();
+                alert(`Department "${name}" deleted.`);
+              } else {
+                alert(res.message || 'Failed to delete department');
+              }
+            } catch (err: any) {
+              alert(err.message || 'Error deleting department');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleOpenDatePicker = (field: 'birthday' | 'baptismDate') => {
     setActiveDatePickerField(field);
@@ -933,40 +1004,97 @@ export default function ProfileScreen() {
         <Portal>
           <Modal 
             visible={activeModal === 'volunteer'} 
-            onDismiss={() => setActiveModal(null)} 
+            onDismiss={() => { setActiveModal(null); setShowAddDeptForm(false); }} 
             contentContainerStyle={styles.modalContainer}
           >
-            <Card style={{ borderRadius: 20, width: '90%', backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, borderWidth: 1 }}>
+            <Card style={{ borderRadius: 20, width: '92%', backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, borderWidth: 1 }}>
               <Card.Content style={{ paddingVertical: 18 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <Title style={{ fontSize: 16, fontWeight: 'bold', color: theme.text }}>
                     {isTel ? 'స్వచ్ఛంద రిజిస్ట్రేషన్లు' : 'Volunteer Opportunities'}
                   </Title>
-                  <IconButton icon="close" iconColor={theme.text} size={22} onPress={() => setActiveModal(null)} style={{ margin: 0 }} />
+                  <IconButton icon="close" iconColor={theme.text} size={22} onPress={() => { setActiveModal(null); setShowAddDeptForm(false); }} style={{ margin: 0 }} />
                 </View>
                 <Divider style={{ marginVertical: 6, backgroundColor: theme.cardBorder }} />
-                <Paragraph style={{ color: theme.textSecondary, marginBottom: 12, fontSize: 13, lineHeight: 18, fontWeight: '500' }}>
-                  {isTel ? 'మీరు సేవ చేయాలనుకుంటున్న విభాగాలను ఎంచుకోండి:' : 'Choose departments you wish to serve in:'}
+                <Paragraph style={{ color: theme.textSecondary, marginBottom: 10, fontSize: 13, lineHeight: 18, fontWeight: '500' }}>
+                  {isTel ? 'మీరు సేవ చేయాలనుకుంటున్న విభాగాలను ఎంచుకోండి (Voluntary Departments):' : 'Select departments added by admin to volunteer & serve:'}
                 </Paragraph>
-                
-                <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-                  {DEPARTMENTS.map(dep => {
-                    const translatedDep = isTel ? (
-                      dep === 'Worship Team' ? 'ఆరాధన బృందం' :
-                      dep === 'Choir' ? 'గాయక బృందం' :
-                      dep === 'Media Team' ? 'మీడియా బృందం' :
-                      dep === 'Children\'s Ministry' ? 'బాలల పరిచర్య' :
-                      dep === 'Security' ? 'భద్రతా విభాగం' : dep
-                    ) : dep;
-                    return (
-                      <View key={dep} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 6, paddingHorizontal: 6 }}>
-                        <Checkbox
-                          status={checkedDeps.includes(dep) ? 'checked' : 'unchecked'}
-                          onPress={() => handleVolunteerToggle(dep)}
-                          color="#c62828"
-                          uncheckedColor={theme.textSecondary}
+
+                {isAdmin && (
+                  <View style={{ marginBottom: 10 }}>
+                    {!showAddDeptForm ? (
+                      <Button
+                        mode="outlined"
+                        textColor={theme.primary}
+                        style={{ borderColor: theme.primary, borderRadius: 10 }}
+                        compact
+                        icon="plus"
+                        onPress={() => setShowAddDeptForm(true)}
+                      >
+                        {isTel ? 'కొత్త విభాగం జోడించు (Admin)' : 'Add Voluntary Department (Admin)'}
+                      </Button>
+                    ) : (
+                      <View style={{ backgroundColor: theme.backgroundSelected, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: theme.cardBorder }}>
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.text, marginBottom: 6 }}>
+                          {isTel ? 'కొత్త స్వచ్ఛంద విభాగం:' : 'New Voluntary Department:'}
+                        </Text>
+                        <TextInput
+                          placeholder="e.g. Youth Ministry"
+                          value={newDeptName}
+                          onChangeText={setNewDeptName}
+                          mode="outlined"
+                          textColor={theme.text}
+                          placeholderTextColor={theme.textSecondary}
+                          style={{ backgroundColor: theme.backgroundElement, marginBottom: 8, height: 40 }}
                         />
-                        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text, marginLeft: 6 }}>{translatedDep}</Text>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <Button mode="outlined" compact style={{ flex: 1 }} onPress={() => setShowAddDeptForm(false)}>
+                            Cancel
+                          </Button>
+                          <Button mode="contained" compact buttonColor={theme.primary} style={{ flex: 1 }} onPress={handleAddDepartment}>
+                            Save
+                          </Button>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+                
+                <ScrollView style={{ maxHeight: 280 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                  {departmentsList.map(dept => {
+                    const depName = dept.name;
+                    const translatedDep = isTel ? (
+                      depName === 'Worship Team' ? 'ఆరాధన బృందం' :
+                      depName === 'Choir' ? 'గాయక బృందం' :
+                      depName === 'Media Team' ? 'మీడియా బృందం' :
+                      depName === 'Children\'s Ministry' ? 'బాలల పరిచర్య' :
+                      depName === 'Security' ? 'భద్రతా విభాగం' : depName
+                    ) : depName;
+                    const isChecked = checkedDeps.includes(depName);
+                    return (
+                      <View key={dept._id || depName} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 4, paddingHorizontal: 4 }}>
+                        <TouchableOpacity 
+                          style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }} 
+                          onPress={() => handleVolunteerToggle(depName)}
+                          activeOpacity={0.7}
+                        >
+                          <Checkbox
+                            status={isChecked ? 'checked' : 'unchecked'}
+                            onPress={() => handleVolunteerToggle(depName)}
+                            color={theme.primary}
+                            uncheckedColor={theme.textSecondary}
+                          />
+                          <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text, marginLeft: 6, flex: 1 }}>{translatedDep}</Text>
+                        </TouchableOpacity>
+                        {isAdmin && dept._id && !dept._id.startsWith('def_') && (
+                          <IconButton
+                            icon="trash-can-outline"
+                            iconColor="#ef4444"
+                            size={18}
+                            onPress={() => handleDeleteDepartment(dept._id, dept.name)}
+                            style={{ margin: 0 }}
+                          />
+                        )}
                       </View>
                     );
                   })}

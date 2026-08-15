@@ -35,16 +35,33 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       departments
     } = req.body;
 
-    if (!email || !password) {
-      res.status(400).json({ success: false, message: 'Please provide both email and password.' });
+    if (!password || (!name && !email && !mobileNumber)) {
+      res.status(400).json({ success: false, message: 'Please provide required registration fields and password.' });
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const existingUser = await User.findOne({ email: cleanEmail });
-    if (existingUser) {
-      res.status(400).json({ success: false, message: 'An account with this email already exists.' });
+    const cleanEmail = email && email.trim() ? email.trim().toLowerCase() : undefined;
+    const cleanMobile = mobileNumber && mobileNumber.trim() ? mobileNumber.trim() : '';
+
+    if (!cleanEmail && !cleanMobile) {
+      res.status(400).json({ success: false, message: 'Please provide either an email address or a mobile phone number.' });
       return;
+    }
+
+    if (cleanEmail) {
+      const existingEmail = await User.findOne({ email: cleanEmail });
+      if (existingEmail) {
+        res.status(400).json({ success: false, message: 'An account with this email address already exists.' });
+        return;
+      }
+    }
+
+    if (cleanMobile) {
+      const existingMobile = await User.findOne({ mobileNumber: cleanMobile });
+      if (existingMobile) {
+        res.status(400).json({ success: false, message: 'An account with this mobile number already exists.' });
+        return;
+      }
     }
 
     // Auto-assign Admin if this is the very first user in the database
@@ -53,12 +70,12 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 
     const newUser = await User.create({
       name: name?.trim() || 'Church Member',
-      email: cleanEmail,
+      ...(cleanEmail ? { email: cleanEmail } : {}),
       password,
       role: assignedRole,
       familyName: familyName || `${name || 'Member'} Family`,
       location: location || '',
-      mobileNumber: mobileNumber || '',
+      mobileNumber: cleanMobile,
       familyHeadName: familyHeadName || '',
       familyHeadMobileNumber: familyHeadMobileNumber || '',
       familyHeadEmail: familyHeadEmail || '',
@@ -104,18 +121,27 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 };
 
 // @route   POST /api/auth/login
-// @desc    Login user with email & password
+// @desc    Login user with email/mobile number & password
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, mobileNumber, credential, password } = req.body;
 
-    if (!email || !password) {
-      res.status(400).json({ success: false, message: 'Please provide email and password.' });
+    const identifier = (email || mobileNumber || credential || '').trim();
+
+    if (!identifier || !password) {
+      res.status(400).json({ success: false, message: 'Please provide your email address or mobile number and password.' });
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: cleanEmail }).select('+password');
+    const cleanLower = identifier.toLowerCase();
+
+    // Query by either email or mobile number
+    const user = await User.findOne({
+      $or: [
+        { email: cleanLower },
+        { mobileNumber: identifier }
+      ]
+    }).select('+password');
 
     if (!user) {
       res.status(401).json({ success: false, message: 'Invalid credentials. User not found.' });
