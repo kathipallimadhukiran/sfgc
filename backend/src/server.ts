@@ -65,6 +65,8 @@ app.use(errorHandler);
 // Setup Socket.IO real-time handlers
 setupLiveLyricsSocket(io);
 
+import { autoSyncChannelVideosJob } from './controllers/liveVideoController';
+
 // Start Server & Connect Database
 const startServer = async () => {
   await connectDB();
@@ -80,6 +82,20 @@ const startServer = async () => {
     console.log(`⚡ Environment:          ${config.nodeEnv}`);
     console.log(`======================================================\n`);
   });
+
+  // 24/7 Background YouTube Channel Auto-Sync (polls RSS feed every 3 mins for new videos)
+  setInterval(async () => {
+    try {
+      await autoSyncChannelVideosJob(io);
+    } catch (syncErr) {
+      console.error('Background YouTube Channel Auto-Sync Error:', syncErr);
+    }
+  }, 3 * 60 * 1000);
+
+  // Initial sync check 10 seconds after startup
+  setTimeout(() => {
+    autoSyncChannelVideosJob(io).catch(console.error);
+  }, 10000);
 };
 
 startServer().catch((err) => {

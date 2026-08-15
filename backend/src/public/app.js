@@ -2355,6 +2355,11 @@ class ChurchApp {
     try {
       const res = await fetch('/api/stream/videos');
       const json = await res.json();
+
+      if (json.channelId && document.getElementById('ytChannelIdInput')) {
+        document.getElementById('ytChannelIdInput').value = json.channelId;
+      }
+
       if (json.success && Array.isArray(json.videos)) {
         const videos = json.videos;
         if (videos.length === 0) {

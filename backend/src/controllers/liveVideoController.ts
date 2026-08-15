@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { LiveVideo } from '../models/LiveVideo';
 import { Notice } from '../models/Notice';
+import { LiveState } from '../models/LiveState';
 
 const extractYoutubeId = (url: string): string | null => {
   if (!url) return null;
@@ -19,7 +20,13 @@ const extractYoutubeId = (url: string): string | null => {
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const videos = await LiveVideo.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, videos });
+    const liveState = await LiveState.findOne({ key: 'active_session' });
+    res.status(200).json({ 
+      success: true, 
+      videos, 
+      channelId: liveState?.channelId || '',
+      autoSyncEnabled: liveState?.autoSyncEnabled ?? true,
+    });
   } catch (error) {
     next(error);
   }
@@ -142,13 +149,19 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
       return;
     }
 
+    // Save Channel ID permanently to LiveState so background polling job checks automatically
+    await LiveState.findOneAndUpdate(
+      { key: 'active_session' },
+      { $set: { channelId: targetChannelId, autoSyncEnabled: true } },
+      { upsert: true }
+    );
+
     const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${targetChannelId}`;
     const rssResp = await fetch(rssFeedUrl);
     const xmlText = await rssResp.text();
 
     const entryMatches = xmlText.split('<entry>');
     let importedCount = 0;
-    const newlyImportedVideos = [];
 
     for (let i = 1; i < entryMatches.length; i++) {
       const entryStr = entryMatches[i];
@@ -169,7 +182,6 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
             thumbnail: `https://img.youtube.com/vi/${yId}/hqdefault.jpg`,
           });
           importedCount++;
-          newlyImportedVideos.push(newVideo);
 
           // Create push notice record for each newly fetched video
           try {
@@ -207,7 +219,8 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 
     res.status(200).json({
       success: true,
-      message: `🎉 Successfully synced ${importedCount} new videos from YouTube channel & sent notifications!`,
+      message: `🎉 Saved YouTube Channel ID (${targetChannelId}) & synced ${importedCount} new videos! Automatic 24/7 background checking is active.`,
+      channelId: targetChannelId,
       importedCount,
       videos,
     });
@@ -216,3 +229,79 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
   }
 };
 
+// 24/7 Background YouTube Channel Auto-Sync Job (polls RSS feed every 3 minutes)
+export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
+  try {
+    const liveState = await LiveState.findOne({ key: 'active_session' });
+    const targetChannelId = liveState?.channelId;
+    if (!targetChannelId || liveState?.autoSyncEnabled === false) {
+      return 0;
+    }
+
+    const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${targetChannelId}`;
+    const rssResp = await fetch(rssFeedUrl);
+    if (!rssResp.ok) return 0;
+    const xmlText = await rssResp.text();
+
+    const entryMatches = xmlText.split('<entry>');
+    let importedCount = 0;
+
+    for (let i = 1; i < entryMatches.length; i++) {
+      const entryStr = entryMatches[i];
+      const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+      const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
+
+      if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
+        const yId = videoIdMatch[1].trim();
+        const vTitle = titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+
+        const exists = await LiveVideo.findOne({ youtubeId: yId });
+        if (!exists) {
+          const newVideo = await LiveVideo.create({
+            youtubeId: yId,
+            youtubeUrl: `https://www.youtube.com/watch?v=${yId}`,
+            title: vTitle,
+            categoryId: 'sunday',
+            thumbnail: `https://img.youtube.com/vi/${yId}/hqdefault.jpg`,
+          });
+          importedCount++;
+
+          try {
+            const notice = await Notice.create({
+              title: `🎬 ${vTitle}`,
+              description: `New YouTube worship video published: "${vTitle}". Tap to watch in YouTube Videos!`,
+              date: new Date().toISOString(),
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              location: 'YouTube Sanctuary Media',
+              isPinned: true,
+            });
+
+            if (io) {
+              io.emit('newNotice', notice);
+              io.emit('new_video_notification', {
+                notificationId: notice._id.toString(),
+                type: 'NEW_VIDEO',
+                title: '🎬 New Worship Video Added',
+                message: `New YouTube video: "${vTitle}"`,
+                videoId: newVideo._id.toString(),
+                youtubeVideoId: yId,
+                thumbnail: newVideo.thumbnail,
+                createdAt: new Date().toISOString(),
+              });
+            }
+          } catch (nErr) {
+            console.warn('Notice creation warning during auto-sync job:', nErr);
+          }
+        }
+      }
+    }
+
+    if (importedCount > 0) {
+      console.log(`🎉 [AUTO_SYNC_JOB] Imported ${importedCount} new videos from YouTube channel ${targetChannelId}!`);
+    }
+    return importedCount;
+  } catch (err: any) {
+    console.error('❌ [AUTO_SYNC_JOB] Channel polling error:', err?.message || err);
+    return 0;
+  }
+};

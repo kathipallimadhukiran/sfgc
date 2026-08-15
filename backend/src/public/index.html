@@ -535,67 +535,36 @@
 
       <!-- TAB 7: YOUTUBE VIDEOS & MEDIA MANAGER -->
       <section id="tab-stream" class="tab-pane">
-        <div class="glass-card mb-4">
+        
+        <!-- YouTube Channel 24/7 Automatic Auto-Sync Config Card -->
+        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(220, 38, 38, 0.04)); border: 1px solid rgba(239, 68, 68, 0.35);">
           <div class="card-header">
             <div>
-              <h3><i class="fa-brands fa-youtube text-danger"></i> YouTube Videos & Sermon Media Manager</h3>
-              <p class="subtitle-text">Add YouTube video links to publish live sermons, worship sessions, and service recordings to the mobile app.</p>
-            </div>
-          </div>
-          <div class="card-body form-body">
-            <form id="youtubeMediaForm" onsubmit="event.preventDefault(); app.saveYouTubeMediaSubmit();" autocomplete="off">
-              <div class="form-row-2">
-                <div class="form-group">
-                  <label>Video Title *</label>
-                  <input type="text" id="ytVideoTitle" class="form-control" placeholder="e.g. Sunday Morning Live Worship & Sermon" required>
-                </div>
-                <div class="form-group">
-                  <label>Media Category *</label>
-                  <select id="ytVideoCategory" class="form-select">
-                    <option value="sunday">🔴 Live Sunday Service</option>
-                    <option value="sermon">📖 Sermon / Message</option>
-                    <option value="fasting">🙏 Fasting & Prayer</option>
-                    <option value="youth">⚡ Youth Service</option>
-                    <option value="special">⭐ Special Service</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>YouTube Video URL / Link *</label>
-                <input type="text" id="ytVideoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/... or https://www.youtube.com/live/..." oninput="app.updateStreamPreview(this.value)" required>
-                <small class="hint-text">Paste standard YouTube video or live URL. The app will extract the video ID and sync playback to all mobile devices.</small>
-              </div>
-
-              <!-- YouTube Video Preview Monitor -->
-              <div id="streamPreviewContainer" style="margin-top:12px; margin-bottom:16px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:#64748b; margin-bottom:6px;">🎥 VIDEO PREVIEW MONITOR</label>
-                <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:14px; background:#000; border:1px solid rgba(255,255,255,0.12);">
-                  <iframe id="streamPreviewIframe" src="" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                </div>
-              </div>
-
-              <button type="submit" class="btn btn-danger-action w-full" id="btnSaveStream">
-                <i class="fa-brands fa-youtube"></i> Publish YouTube Video to Mobile App
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <!-- YouTube Channel Auto-Sync Card (100% Free) -->
-        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(220, 38, 38, 0.03)); border: 1px solid rgba(239, 68, 68, 0.25);">
-          <div class="card-header">
-            <div>
-              <h3><i class="fa-brands fa-youtube text-danger"></i> Auto-Sync YouTube Channel Videos (100% Free)</h3>
-              <p class="subtitle-text">Enter your YouTube Channel ID (e.g. UC...) or Channel URL to automatically pull all recent live streams & videos into the mobile app.</p>
+              <h3><i class="fa-brands fa-youtube text-danger"></i> 24/7 YouTube Channel Auto-Sync & Notification Manager</h3>
+              <p class="subtitle-text">Save your church YouTube Channel ID below. The backend server continuously checks your channel 24/7 every 3 minutes, automatically publishing new videos and sending push notifications to mobile app users!</p>
             </div>
           </div>
           <div class="card-body">
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-              <input type="text" id="ytChannelIdInput" class="form-control" style="flex:1; min-width:260px;" placeholder="e.g. UCxxxxxxxxx or https://www.youtube.com/channel/UC..." />
-              <button type="button" class="btn btn-danger-action" id="btnSyncYtChannel" onclick="app.syncYouTubeChannelSubmit()">
-                <i class="fa-brands fa-youtube"></i> Sync Channel Videos (Free)
-              </button>
+            <form onsubmit="event.preventDefault(); app.syncYouTubeChannelSubmit();" autocomplete="off">
+              <div class="form-group" style="margin-bottom:12px;">
+                <label style="font-weight:700;">YouTube Channel ID / Channel Link *</label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                  <input type="text" id="ytChannelIdInput" class="form-control" style="flex:1; min-width:280px;" placeholder="e.g. UCxxxxxxxxx or https://www.youtube.com/channel/UC..." required />
+                  <button type="submit" class="btn btn-danger-action" id="btnSyncYtChannel">
+                    <i class="fa-brands fa-youtube"></i> Save & Auto-Sync Channel
+                  </button>
+                </div>
+                <small class="hint-text" style="display:block; margin-top:6px; color:var(--text-muted);">
+                  💡 Enter your Channel ID (begins with <strong>UC...</strong>) or full channel link. Once saved, new videos & live streams automatically send instant mobile notifications!
+                </small>
+              </div>
+            </form>
+
+            <div style="display:flex; align-items:center; gap:8px; padding:10px 14px; background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.3); border-radius:10px; margin-top:14px;">
+              <i class="fa-solid fa-circle-check text-success" style="font-size:16px;"></i>
+              <span style="font-size:12.5px; font-weight:600; color:#4ade80;">
+                24/7 Background Channel Auto-Sync ACTIVE — Checking every 3 minutes & auto-sending mobile push notifications!
+              </span>
             </div>
           </div>
         </div>

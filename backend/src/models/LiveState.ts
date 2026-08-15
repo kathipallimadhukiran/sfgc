@@ -9,6 +9,8 @@ export interface ILiveState extends Document {
   blankScreen: boolean;
   activeYoutubeLink: string;
   isStreamingLive: boolean;
+  channelId?: string;
+  autoSyncEnabled?: boolean;
   startedAt?: Date;
   updatedAt: Date;
 }
@@ -22,6 +24,8 @@ const LiveStateSchema = new Schema<ILiveState>({
   blankScreen: { type: Boolean, default: false },
   activeYoutubeLink: { type: String, default: '' },
   isStreamingLive: { type: Boolean, default: false },
+  channelId: { type: String, default: '' },
+  autoSyncEnabled: { type: Boolean, default: true },
   startedAt: { type: Date },
 }, {
   timestamps: true,
