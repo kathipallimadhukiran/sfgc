@@ -748,10 +748,10 @@
 
   <!-- Modal 1: Song Creation / Edit -->
   <div id="songModal" class="modal-overlay">
-    <div class="modal-box modal-lg">
+    <form class="modal-box modal-lg" onsubmit="event.preventDefault(); app.saveSongSubmit();">
       <div class="modal-header">
         <h3 id="songModalTitle">Add New Worship Song</h3>
-        <button class="modal-close" onclick="app.closeModal('songModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('songModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
         <input type="hidden" id="songIdInput">
@@ -815,18 +815,18 @@
 
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('songModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnSubmitSong" onclick="app.saveSongSubmit()">Save Song</button>
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('songModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitSong">Save Song</button>
       </div>
-    </div>
+    </form>
   </div>
 
   <!-- Modal 2: Duty Assignment -->
   <div id="assignmentModal" class="modal-overlay">
-    <div class="modal-box">
+    <form class="modal-box" onsubmit="event.preventDefault(); app.saveAssignmentSubmit();">
       <div class="modal-header">
         <h3>Assign Duty / Service Role</h3>
-        <button class="modal-close" onclick="app.closeModal('assignmentModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('assignmentModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
         <input type="hidden" id="assignMemberId">
@@ -860,132 +860,130 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('assignmentModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnSubmitAssignment" onclick="app.saveAssignmentSubmit()">Confirm Assignment</button>
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('assignmentModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitAssignment">Confirm Assignment</button>
       </div>
-    </div>
+    </form>
   </div>
 
   <!-- Modal 3: Event Creation & Editing -->
   <div id="eventModal" class="modal-overlay">
-    <div class="modal-box modal-lg">
+    <form class="modal-box modal-lg" autocomplete="off" onsubmit="event.preventDefault(); app.saveEventSubmit();">
       <div class="modal-header">
         <h3 id="eventModalTitle">
           <i class="fa-solid fa-calendar-plus text-amber"></i> Create Church Event / Service
         </h3>
         <button type="button" class="modal-close" onclick="app.closeModal('eventModal')">&times;</button>
       </div>
-      <form autocomplete="off" onsubmit="return false;">
-        <div class="modal-body form-body">
-          <input type="hidden" id="eventId">
+      <div class="modal-body form-body">
+        <input type="hidden" id="eventId">
 
-          <!-- Event Title -->
-          <div class="form-group">
-            <label>Event / Service Title *</label>
-            <div class="input-icon-wrapper">
-              <i class="fa-solid fa-heading field-icon"></i>
-              <input type="text" id="eventTitle" class="form-control with-icon" placeholder="e.g. Sunday Morning Miracle Worship Service">
-            </div>
-          </div>
-
-          <!-- Speaker & Venue -->
-          <div class="form-row-2">
-            <div class="form-group">
-              <label>Preacher / Speaker</label>
-              <div class="input-icon-wrapper">
-                <i class="fa-solid fa-user-tie field-icon"></i>
-                <input type="text" id="eventSpeaker" class="form-control with-icon" placeholder="e.g. Pastor John Doe">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Venue / Location *</label>
-              <div class="input-icon-wrapper">
-                <i class="fa-solid fa-location-dot field-icon"></i>
-                <input type="text" id="eventVenue" class="form-control with-icon" placeholder="e.g. Main Sanctuary">
-              </div>
-            </div>
-          </div>
-
-          <!-- Date & Time -->
-          <div class="form-row-2">
-            <div class="form-group">
-              <label>Event Date *</label>
-              <div class="input-icon-wrapper">
-                <i class="fa-solid fa-calendar-day field-icon"></i>
-                <input type="date" id="eventDate" class="form-control with-icon">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Event Time</label>
-              <div class="input-icon-wrapper">
-                <i class="fa-solid fa-clock field-icon"></i>
-                <input type="text" id="eventTime" class="form-control with-icon" placeholder="e.g. 09:30 AM - 11:30 AM">
-              </div>
-            </div>
-          </div>
-
-          <!-- Poster Image Upload Card -->
-          <div class="form-group upload-banner-card">
-            <label><i class="fa-solid fa-image text-purple"></i> Event Poster / Banner Image</label>
-            <div class="mb-2">
-              <input type="file" id="eventBannerFile" accept="image/*" class="form-control" onchange="app.handleBannerFileUpload(event)">
-            </div>
-            <div class="input-icon-wrapper">
-              <i class="fa-solid fa-link field-icon"></i>
-              <input type="text" id="eventBanner" class="form-control with-icon" placeholder="Or paste image URL (https://...)" oninput="app.handleBannerUrlInput(this.value)">
-            </div>
-            <div id="eventBannerPreviewContainer" class="banner-preview-wrap" style="display: none;">
-              <img id="eventBannerPreview" src="" alt="Banner Preview" class="banner-img">
-              <button type="button" class="btn btn-sm btn-danger-action btn-remove-banner" onclick="document.getElementById('eventBanner').value=''; app.handleBannerUrlInput('');" title="Remove Banner">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Maps Link -->
-          <div class="form-group">
-            <label>Google Maps Location Link (Optional)</label>
-            <div class="input-icon-wrapper">
-              <i class="fa-solid fa-map-location-dot field-icon"></i>
-              <input type="url" id="eventMapsLocation" class="form-control with-icon" placeholder="https://maps.google.com/?q=...">
-            </div>
-          </div>
-
-          <!-- RSVP Toggle Card -->
-          <div class="form-group checkbox-toggle-card">
-            <div class="toggle-card-label">
-              <i class="fa-solid fa-users text-purple"></i>
-              <div>
-                <strong>Enable RSVP Attendance Tracking</strong>
-                <small>Members can tap 'I Am Attending' in mobile app</small>
-              </div>
-            </div>
-            <input type="checkbox" id="eventRequiresRSVP" class="custom-checkbox">
-          </div>
-
-          <!-- Description -->
-          <div class="form-group mb-0">
-            <label>Description & Details</label>
-            <textarea id="eventDesc" class="form-control" rows="3" placeholder="Enter special instructions or event outline..."></textarea>
+        <!-- Event Title -->
+        <div class="form-group">
+          <label>Event / Service Title *</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-heading field-icon"></i>
+            <input type="text" id="eventTitle" class="form-control with-icon" placeholder="e.g. Sunday Morning Miracle Worship Service">
           </div>
         </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline" onclick="app.closeModal('eventModal')">Cancel</button>
-          <button type="button" class="btn btn-primary" id="btnSubmitEvent" onclick="app.saveEventSubmit()">
-            <i class="fa-solid fa-paper-plane"></i> Publish Event
-          </button>
+        <!-- Speaker & Venue -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Preacher / Speaker</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-user-tie field-icon"></i>
+              <input type="text" id="eventSpeaker" class="form-control with-icon" placeholder="e.g. Pastor John Doe">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Venue / Location *</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-location-dot field-icon"></i>
+              <input type="text" id="eventVenue" class="form-control with-icon" placeholder="e.g. Main Sanctuary">
+            </div>
+          </div>
         </div>
-      </form>
-    </div>
+
+        <!-- Date & Time -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Event Date *</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-calendar-day field-icon"></i>
+              <input type="date" id="eventDate" class="form-control with-icon">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Event Time</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-clock field-icon"></i>
+              <input type="text" id="eventTime" class="form-control with-icon" placeholder="e.g. 09:30 AM - 11:30 AM">
+            </div>
+          </div>
+        </div>
+
+        <!-- Poster Image Upload Card -->
+        <div class="form-group upload-banner-card">
+          <label><i class="fa-solid fa-image text-purple"></i> Event Poster / Banner Image</label>
+          <div class="mb-2">
+            <input type="file" id="eventBannerFile" accept="image/*" class="form-control" onchange="app.handleBannerFileUpload(event)">
+          </div>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-link field-icon"></i>
+            <input type="text" id="eventBanner" class="form-control with-icon" placeholder="Or paste image URL (https://...)" oninput="app.handleBannerUrlInput(this.value)">
+          </div>
+          <div id="eventBannerPreviewContainer" class="banner-preview-wrap" style="display: none;">
+            <img id="eventBannerPreview" src="" alt="Banner Preview" class="banner-img">
+            <button type="button" class="btn btn-sm btn-danger-action btn-remove-banner" onclick="document.getElementById('eventBanner').value=''; app.handleBannerUrlInput('');" title="Remove Banner">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Maps Link -->
+        <div class="form-group">
+          <label>Google Maps Location Link (Optional)</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-map-location-dot field-icon"></i>
+            <input type="url" id="eventMapsLocation" class="form-control with-icon" placeholder="https://maps.google.com/?q=...">
+          </div>
+        </div>
+
+        <!-- RSVP Toggle Card -->
+        <div class="form-group checkbox-toggle-card">
+          <div class="toggle-card-label">
+            <i class="fa-solid fa-users text-purple"></i>
+            <div>
+              <strong>Enable RSVP Attendance Tracking</strong>
+              <small>Members can tap 'I Am Attending' in mobile app</small>
+            </div>
+          </div>
+          <input type="checkbox" id="eventRequiresRSVP" class="custom-checkbox">
+        </div>
+
+        <!-- Description -->
+        <div class="form-group mb-0">
+          <label>Description & Details</label>
+          <textarea id="eventDesc" class="form-control" rows="3" placeholder="Enter special instructions or event outline..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('eventModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitEvent">
+          <i class="fa-solid fa-paper-plane"></i> Publish Event
+        </button>
+      </div>
+    </form>
   </div>
 
   <!-- Modal 4: Admin Login Prompt -->
   <div id="loginModal" class="modal-overlay">
-    <div class="modal-box modal-sm">
+    <form class="modal-box modal-sm" onsubmit="event.preventDefault(); app.performModalLogin();">
       <div class="modal-header">
         <h3><i class="fa-solid fa-shield-halved"></i> Administrator Login</h3>
-        <button class="modal-close" onclick="app.closeModal('loginModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('loginModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
         <p class="modal-subtitle">Log in as Administrator to create and manage events, songs, and notices.</p>
@@ -999,18 +997,18 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('loginModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnModalLoginSubmit" onclick="app.performModalLogin()">Sign In as Admin</button>
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('loginModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnModalLoginSubmit">Sign In as Admin</button>
       </div>
-    </div>
+    </form>
   </div>
 
   <!-- Modal 5: Registering New Member -->
   <div id="addMemberModal" class="modal-overlay">
-    <div class="modal-box">
+    <form class="modal-box" onsubmit="event.preventDefault(); app.saveAddMemberSubmit();">
       <div class="modal-header">
         <h3><i class="fa-solid fa-user-plus text-primary"></i> Register New Church Member Profile</h3>
-        <button class="modal-close" onclick="app.closeModal('addMemberModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('addMemberModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
         <div class="form-row-2">
@@ -1050,18 +1048,18 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('addMemberModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnSubmitAddMember" onclick="app.saveAddMemberSubmit()">Save Member Profile</button>
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('addMemberModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitAddMember">Save Member Profile</button>
       </div>
-    </div>
+    </form>
   </div>
 
   <!-- Modal 6: Edit Member Role & Departments -->
   <div id="editMemberModal" class="modal-overlay">
-    <div class="modal-box">
+    <form class="modal-box" onsubmit="event.preventDefault(); app.saveMemberAccessSubmit();">
       <div class="modal-header">
         <h3><i class="fa-solid fa-user-gear text-primary"></i> Edit Member Role Access & Department Interests</h3>
-        <button class="modal-close" onclick="app.closeModal('editMemberModal')">&times;</button>
+        <button type="button" class="modal-close" onclick="app.closeModal('editMemberModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
         <input type="hidden" id="editMemberId">
@@ -1109,84 +1107,82 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline" onclick="app.closeModal('editMemberModal')">Cancel</button>
-        <button class="btn btn-primary" id="btnSaveMemberAccess" onclick="app.saveMemberAccessSubmit()">Save Access Level</button>
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('editMemberModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSaveMemberAccess">Save Access Level</button>
       </div>
-    </div>
+    </form>
   </div>
 
   <!-- Modal 7: Notice Creation / Edit -->
   <div id="noticeModal" class="modal-overlay">
-    <div class="modal-box">
+    <form class="modal-box" autocomplete="off" onsubmit="event.preventDefault(); app.saveNoticeSubmit();">
       <div class="modal-header">
         <h3><i class="fa-solid fa-bullhorn text-emerald"></i> Post Church Notice / Alert</h3>
         <button type="button" class="modal-close" onclick="app.closeModal('noticeModal')">&times;</button>
       </div>
-      <form autocomplete="off" onsubmit="return false;">
-        <div class="modal-body form-body">
-          <input type="hidden" id="noticeId">
-          <div class="notice-template-card">
-            <label class="notice-template-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Select Pre-Saved Announcement Template (Optional)</label>
-            <select id="noticeTemplateSelect" class="form-control" onchange="app.handleNoticeTemplateSelect(this.value)">
-              <option value="">-- Custom Announcement / Type Your Own --</option>
-              <option value="sunday_service">📢 Sunday Miracle Worship & Holy Communion Service</option>
-              <option value="cottage_prayer">🔥 Midweek Cottage & Intercessory Prayer Meeting</option>
-              <option value="fellowship_meal">☕ Coffee & Christian Fellowship Gathering</option>
-              <option value="special_speaker">🎙️ Special Guest Evangelist Revival Service</option>
-              <option value="youth_fellowship">🎸 Youth & Young Adults Worship Gathering</option>
-              <option value="fasting_prayer">🙏 Combined Church Fasting & Prayer Service</option>
-            </select>
-          </div>
+      <div class="modal-body form-body">
+        <input type="hidden" id="noticeId">
+        <div class="notice-template-card">
+          <label class="notice-template-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Select Pre-Saved Announcement Template (Optional)</label>
+          <select id="noticeTemplateSelect" class="form-control" onchange="app.handleNoticeTemplateSelect(this.value)">
+            <option value="">-- Custom Announcement / Type Your Own --</option>
+            <option value="sunday_service">📢 Sunday Miracle Worship & Holy Communion Service</option>
+            <option value="cottage_prayer">🔥 Midweek Cottage & Intercessory Prayer Meeting</option>
+            <option value="fellowship_meal">☕ Coffee & Christian Fellowship Gathering</option>
+            <option value="special_speaker">🎙️ Special Guest Evangelist Revival Service</option>
+            <option value="youth_fellowship">🎸 Youth & Young Adults Worship Gathering</option>
+            <option value="fasting_prayer">🙏 Combined Church Fasting & Prayer Service</option>
+          </select>
+        </div>
 
+        <div class="form-group">
+          <label>Notice Title *</label>
+          <input type="text" id="noticeTitle" class="form-control" placeholder="e.g. Annual General Meeting">
+        </div>
+
+        <div class="form-group">
+          <label>Description *</label>
+          <textarea id="noticeDesc" class="form-control" rows="3" placeholder="Notice details..."></textarea>
+        </div>
+
+        <div class="form-row-2">
           <div class="form-group">
-            <label>Notice Title *</label>
-            <input type="text" id="noticeTitle" class="form-control" placeholder="e.g. Annual General Meeting">
+            <label>Notice Date</label>
+            <input type="date" id="noticeDate" class="form-control">
           </div>
-
           <div class="form-group">
-            <label>Description *</label>
-            <textarea id="noticeDesc" class="form-control" rows="3" placeholder="Notice details..."></textarea>
-          </div>
-
-          <div class="form-row-2">
-            <div class="form-group">
-              <label>Notice Date</label>
-              <input type="date" id="noticeDate" class="form-control">
-            </div>
-            <div class="form-group">
-              <label>Time</label>
-              <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 10:30 AM">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Location / Wing</label>
-            <input type="text" id="noticeLoc" class="form-control" placeholder="e.g. Main Sanctuary">
-          </div>
-
-          <div class="form-group">
-            <label>Notice Banner / Poster Image</label>
-            <input type="file" id="noticeBannerFile" accept="image/*" class="form-control mb-2" onchange="app.handleNoticeFileUpload(event)">
-            <input type="text" id="noticeImage" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleNoticeUrlInput(this.value)">
-            <div id="noticeImagePreviewContainer" class="banner-preview-wrap" style="display:none;">
-              <img id="noticeImagePreview" src="" alt="Notice Preview" class="banner-img">
-            </div>
-          </div>
-
-          <div class="form-group checkbox-toggle-card mt-2">
-            <label for="noticeIsPinned" class="flex-between-center width-100 cursor-pointer">
-              <span>📌 Pin Notice to Top of Announcement Feed</span>
-              <input type="checkbox" id="noticeIsPinned" class="custom-checkbox">
-            </label>
+            <label>Time</label>
+            <input type="text" id="noticeTime" class="form-control" placeholder="e.g. 10:30 AM">
           </div>
         </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline" onclick="app.closeModal('noticeModal')">Cancel</button>
-          <button type="button" class="btn btn-primary" id="btnSubmitNotice" onclick="app.saveNoticeSubmit()">Post Notice</button>
+        <div class="form-group">
+          <label>Location / Wing</label>
+          <input type="text" id="noticeLoc" class="form-control" placeholder="e.g. Main Sanctuary">
         </div>
-      </form>
-    </div>
+
+        <div class="form-group">
+          <label>Notice Banner / Poster Image</label>
+          <input type="file" id="noticeBannerFile" accept="image/*" class="form-control mb-2" onchange="app.handleNoticeFileUpload(event)">
+          <input type="text" id="noticeImage" class="form-control" placeholder="Or paste image URL (https://...)" oninput="app.handleNoticeUrlInput(this.value)">
+          <div id="noticeImagePreviewContainer" class="banner-preview-wrap" style="display:none;">
+            <img id="noticeImagePreview" src="" alt="Notice Preview" class="banner-img">
+          </div>
+        </div>
+
+        <div class="form-group checkbox-toggle-card mt-2">
+          <label for="noticeIsPinned" class="flex-between-center width-100 cursor-pointer">
+            <span>📌 Pin Notice to Top of Announcement Feed</span>
+            <input type="checkbox" id="noticeIsPinned" class="custom-checkbox">
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('noticeModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitNotice">Post Notice</button>
+      </div>
+    </form>
   </div>
 
   <!-- Floating Toast Notification Box -->
