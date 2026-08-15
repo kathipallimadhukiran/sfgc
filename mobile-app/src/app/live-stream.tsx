@@ -396,29 +396,29 @@ export default function LiveStreamScreen() {
             </View>
           </View>
 
-          {/* ── Live Banner (shown when a live session is active) ─────────────── */}
+          {/* ── Top Featured Live Stream / Video Card ────────────────────── */}
           {liveVideoId && (
             <TouchableOpacity
               activeOpacity={0.92}
               onPress={() => openInYouTube(liveVideoId)}
-              style={styles.liveBannerWrapper}
+              style={[styles.liveBannerWrapper, { marginHorizontal: 16, marginTop: 12, marginBottom: 16 }]}
             >
               <Image
                 source={{ uri: `https://img.youtube.com/vi/${liveVideoId}/hqdefault.jpg` }}
                 style={styles.liveBannerThumb}
                 resizeMode="cover"
               />
-              <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.liveBannerGradient}>
-                <View style={styles.livePill}>
+              <LinearGradient colors={['transparent', 'rgba(0,0,0,0.88)']} style={styles.liveBannerGradient}>
+                <View style={[styles.livePill, { backgroundColor: '#dc2626' }]}>
                   <View style={styles.liveDot} />
-                  <Text style={styles.livePillText}>LIVE NOW</Text>
+                  <Text style={styles.livePillText}>{isTel ? '🔴 సజీవ ప్రసారం (LIVE NOW)' : '🔴 LIVE STREAMING NOW'}</Text>
                 </View>
                 <Text style={styles.liveBannerTitle} numberOfLines={2}>
-                  {liveSession?.song?.title || (isTel ? 'ఆరాధన ప్రసారం నడుస్తోంది' : 'Live Worship Service')}
+                  {liveSession?.song?.title || (videos[0] ? (isTel ? videos[0].titleTel : videos[0].titleEng) : (isTel ? 'చర్చి సజీవ ఆరాధన ప్రసారం' : 'Sanctuary Live Worship Service'))}
                 </Text>
                 <View style={styles.watchNowBtn}>
-                  <MaterialCommunityIcons name="youtube" size={16} color="#fff" />
-                  <Text style={styles.watchNowText}>{isTel ? 'యూట్యూబ్‌లో చూడండి' : 'Watch on YouTube'}</Text>
+                  <MaterialCommunityIcons name="youtube" size={18} color="#fff" />
+                  <Text style={styles.watchNowText}>{isTel ? 'యూట్యూబ్‌లో ప్రత్యక్షంగా చూడండి' : 'Watch Live on YouTube'}</Text>
                 </View>
               </LinearGradient>
             </TouchableOpacity>

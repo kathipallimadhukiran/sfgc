@@ -552,18 +552,19 @@
                 <div class="form-group">
                   <label>Media Category *</label>
                   <select id="ytVideoCategory" class="form-select">
-                    <option value="Live Service">🔴 Live Sunday Service</option>
-                    <option value="Sermon">📖 Sermon / Message</option>
-                    <option value="Worship">🎵 Worship Session</option>
-                    <option value="Youth Gathering">⚡ Youth Service</option>
+                    <option value="sunday">🔴 Live Sunday Service</option>
+                    <option value="sermon">📖 Sermon / Message</option>
+                    <option value="fasting">🙏 Fasting & Prayer</option>
+                    <option value="youth">⚡ Youth Service</option>
+                    <option value="special">⭐ Special Service</option>
                   </select>
                 </div>
               </div>
 
               <div class="form-group">
                 <label>YouTube Video URL / Link *</label>
-                <input type="text" id="ytVideoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..." oninput="app.updateStreamPreview(this.value)" required>
-                <small class="hint-text">Paste standard YouTube URL. The app will extract the video ID and sync playback to all mobile devices.</small>
+                <input type="text" id="ytVideoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/... or https://www.youtube.com/live/..." oninput="app.updateStreamPreview(this.value)" required>
+                <small class="hint-text">Paste standard YouTube video or live URL. The app will extract the video ID and sync playback to all mobile devices.</small>
               </div>
 
               <!-- YouTube Video Preview Monitor -->
@@ -578,6 +579,24 @@
                 <i class="fa-brands fa-youtube"></i> Publish YouTube Video to Mobile App
               </button>
             </form>
+          </div>
+        </div>
+
+        <!-- YouTube Channel Auto-Sync Card (100% Free) -->
+        <div class="glass-card mb-4" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(220, 38, 38, 0.03)); border: 1px solid rgba(239, 68, 68, 0.25);">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-brands fa-youtube text-danger"></i> Auto-Sync YouTube Channel Videos (100% Free)</h3>
+              <p class="subtitle-text">Enter your YouTube Channel ID (e.g. UC...) or Channel URL to automatically pull all recent live streams & videos into the mobile app.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <input type="text" id="ytChannelIdInput" class="form-control" style="flex:1; min-width:260px;" placeholder="e.g. UCxxxxxxxxx or https://www.youtube.com/channel/UC..." />
+              <button type="button" class="btn btn-danger-action" id="btnSyncYtChannel" onclick="app.syncYouTubeChannelSubmit()">
+                <i class="fa-brands fa-youtube"></i> Sync Channel Videos (Free)
+              </button>
+            </div>
           </div>
         </div>
 

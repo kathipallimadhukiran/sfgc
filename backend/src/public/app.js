@@ -2316,10 +2316,10 @@ class ChurchApp {
   // YouTube Media Catalog Manager Methods
   async saveYouTubeMediaSubmit() {
     const title = document.getElementById('ytVideoTitle')?.value.trim();
-    const category = document.getElementById('ytVideoCategory')?.value || 'Live Service';
-    const streamUrl = document.getElementById('ytVideoUrl')?.value.trim();
+    const categoryId = document.getElementById('ytVideoCategory')?.value || 'sunday';
+    const youtubeUrl = document.getElementById('ytVideoUrl')?.value.trim();
 
-    if (!title || !streamUrl) {
+    if (!title || !youtubeUrl) {
       this.showToast('Title and YouTube Video URL are required.', 'error');
       return;
     }
@@ -2328,18 +2328,18 @@ class ChurchApp {
     this.setButtonLoading(btn, true, 'Publishing Video...');
 
     try {
-      const res = await this.authFetch('/api/stream', {
+      const res = await this.authFetch('/api/stream/videos', {
         method: 'POST',
-        body: JSON.stringify({ title, category, streamUrl })
+        body: JSON.stringify({ title, youtubeUrl, categoryId })
       });
       const json = await res.json();
       if (json.success) {
-        this.showToast('🎉 YouTube video published to mobile app catalog!', 'success');
-        document.getElementById('ytVideoTitle').value = '';
-        document.getElementById('ytVideoUrl').value = '';
+        this.showToast('🎉 YouTube video published to mobile app!', 'success');
+        if (document.getElementById('ytVideoTitle')) document.getElementById('ytVideoTitle').value = '';
+        if (document.getElementById('ytVideoUrl')) document.getElementById('ytVideoUrl').value = '';
         await this.loadYouTubeMediaList();
       } else {
-        this.showToast('Failed to publish video: ' + json.message, 'error');
+        this.showToast('Failed to publish video: ' + (json.message || 'Error'), 'error');
       }
     } catch (e) {
       this.showToast('Error publishing video: ' + e.message, 'error');
@@ -2353,36 +2353,101 @@ class ChurchApp {
     if (!container) return;
 
     try {
-      const res = await fetch('/api/stream');
+      const res = await fetch('/api/stream/videos');
       const json = await res.json();
-      if (json.success && json.data) {
-        const d = json.data;
-        const videoUrl = d.streamUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-        let embedUrl = videoUrl;
-        if (videoUrl.includes('youtube.com/watch?v=')) {
-          const id = videoUrl.split('v=')[1].split('&')[0];
-          embedUrl = `https://www.youtube.com/embed/${id}`;
-        } else if (videoUrl.includes('youtu.be/')) {
-          const id = videoUrl.split('youtu.be/')[1].split('?')[0];
-          embedUrl = `https://www.youtube.com/embed/${id}`;
+      if (json.success && Array.isArray(json.videos)) {
+        const videos = json.videos;
+        if (videos.length === 0) {
+          container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding:32px 16px; background: rgba(15, 23, 42, 0.5); border:1px dashed var(--border-card); border-radius:14px;">
+              <i class="fa-brands fa-youtube" style="font-size:38px; margin-bottom:10px; color:#ef4444;"></i>
+              <h4 style="font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:4px;">No YouTube Videos Published Yet</h4>
+              <p style="font-size:12px; color:var(--text-muted);">Paste a video link above or enter your YouTube Channel ID to auto-sync videos!</p>
+            </div>
+          `;
+          return;
         }
 
-        container.innerHTML = `
-          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-card); border-radius:14px; padding:14px;">
-            <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; margin-bottom:10px; background:#000;">
-              <iframe src="${embedUrl}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allowfullscreen></iframe>
+        const categoryLabels = {
+          sunday: '🔴 Sunday Worship',
+          fasting: '🙏 Fasting & Prayer',
+          youth: '⚡ Youth Service',
+          sermon: '📖 Sermon',
+          special: '⭐ Special Service'
+        };
+
+        container.innerHTML = videos.map(v => {
+          const thumb = v.thumbnail || `https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg`;
+          const dateStr = v.createdAt ? new Date(v.createdAt).toLocaleDateString() : '';
+          const catName = categoryLabels[v.categoryId] || v.categoryId || 'Video';
+          const titleEsc = (v.title || '').replace(/"/g, '&quot;');
+
+          return `
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-card); border-radius:14px; padding:14px; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.2s ease;">
+              <div style="position:relative; width:100%; height:130px; border-radius:10px; overflow:hidden; margin-bottom:10px; background:#000;">
+                <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg'" />
+                <span class="badge badge-primary" style="position:absolute; top:6px; right:6px; font-size:10px; backdrop-filter:blur(4px);">${catName}</span>
+              </div>
+              <h4 style="font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:6px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${titleEsc}</h4>
+              <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">📅 Published: ${dateStr}</p>
+              <div style="display:flex; gap:8px; margin-top:auto;">
+                <button class="btn btn-sm btn-outline-danger" style="width:100%; font-size:11px; padding:6px 10px;" onclick="app.deleteYouTubeVideo('${v._id}')">
+                  <i class="fa-solid fa-trash"></i> Delete Video
+                </button>
+              </div>
             </div>
-            <h4 style="font-size:14px; margin-bottom:4px;">${d.title || 'Sanctuary Live Stream'}</h4>
-            <span class="badge badge-primary" style="margin-bottom:8px;">${d.category || 'Live Service'}</span>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">URL: ${videoUrl}</p>
-            <button class="btn btn-sm btn-danger-action" style="width:100%;" onclick="app.showToast('Active stream updated to mobile app!', 'info')">
-              <i class="fa-brands fa-youtube"></i> Active Mobile Stream
-            </button>
-          </div>
-        `;
+          `;
+        }).join('');
       }
     } catch (e) {
       console.log('Error loading video list:', e);
+      container.innerHTML = `<p style="color:#ef4444; text-align:center; padding:16px;">Failed to load video library.</p>`;
+    }
+  }
+
+  async deleteYouTubeVideo(id) {
+    if (!confirm('Are you sure you want to delete this YouTube video from the mobile app?')) return;
+    try {
+      const res = await this.authFetch(`/api/stream/videos/${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        this.showToast('Video deleted successfully from mobile app.', 'success');
+        await this.loadYouTubeMediaList();
+      } else {
+        this.showToast(json.message || 'Failed to delete video.', 'error');
+      }
+    } catch (e) {
+      this.showToast('Delete error: ' + e.message, 'error');
+    }
+  }
+
+  async syncYouTubeChannelSubmit() {
+    const channelId = document.getElementById('ytChannelIdInput')?.value.trim();
+    if (!channelId) {
+      this.showToast('Please enter your YouTube Channel ID or Channel URL.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnSyncYtChannel');
+    this.setButtonLoading(btn, true, 'Syncing Channel...');
+
+    try {
+      const res = await fetch('/api/stream/videos/sync-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelId })
+      });
+      const json = await res.json();
+      if (json.success) {
+        this.showToast(json.message || 'Channel synced successfully!', 'success');
+        await this.loadYouTubeMediaList();
+      } else {
+        this.showToast(json.message || 'Sync failed.', 'error');
+      }
+    } catch (e) {
+      this.showToast('Sync error: ' + e.message, 'error');
+    } finally {
+      this.setButtonLoading(btn, false, '', '<i class="fa-brands fa-youtube"></i> Sync Channel Videos (Free)');
     }
   }
 

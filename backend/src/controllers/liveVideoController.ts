@@ -148,6 +148,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 
     const entryMatches = xmlText.split('<entry>');
     let importedCount = 0;
+    const newlyImportedVideos = [];
 
     for (let i = 1; i < entryMatches.length; i++) {
       const entryStr = entryMatches[i];
@@ -160,7 +161,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 
         const exists = await LiveVideo.findOne({ youtubeId: yId });
         if (!exists) {
-          await LiveVideo.create({
+          const newVideo = await LiveVideo.create({
             youtubeId: yId,
             youtubeUrl: `https://www.youtube.com/watch?v=${yId}`,
             title: vTitle,
@@ -168,6 +169,36 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
             thumbnail: `https://img.youtube.com/vi/${yId}/hqdefault.jpg`,
           });
           importedCount++;
+          newlyImportedVideos.push(newVideo);
+
+          // Create push notice record for each newly fetched video
+          try {
+            const notice = await Notice.create({
+              title: `🎬 ${vTitle}`,
+              description: `New YouTube worship video published: "${vTitle}". Tap to watch in YouTube Videos!`,
+              date: new Date().toISOString(),
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              location: 'YouTube Sanctuary Media',
+              isPinned: true,
+            });
+
+            const io = req.app.get('io');
+            if (io) {
+              io.emit('newNotice', notice);
+              io.emit('new_video_notification', {
+                notificationId: notice._id.toString(),
+                type: 'NEW_VIDEO',
+                title: '🎬 New Worship Video Added',
+                message: `New YouTube video: "${vTitle}"`,
+                videoId: newVideo._id.toString(),
+                youtubeVideoId: yId,
+                thumbnail: newVideo.thumbnail,
+                createdAt: new Date().toISOString(),
+              });
+            }
+          } catch (nErr) {
+            console.warn('Notice creation warning during YouTube channel sync:', nErr);
+          }
         }
       }
     }
@@ -176,7 +207,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 
     res.status(200).json({
       success: true,
-      message: `🎉 Successfully synced ${importedCount} new videos from YouTube channel!`,
+      message: `🎉 Successfully synced ${importedCount} new videos from YouTube channel & sent notifications!`,
       importedCount,
       videos,
     });
