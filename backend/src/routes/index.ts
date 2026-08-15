@@ -30,6 +30,7 @@ router.use('/events', eventRoutes);
 router.use('/notices', noticeRoutes);
 router.use('/prayers', prayerRoutes);
 router.use('/stream', streamRoutes);
+router.use('/youtube', streamRoutes);
 router.use('/voice', voiceRoutes);
 router.use('/bible-plans', biblePlanRoutes);
 router.use('/departments', departmentRoutes);

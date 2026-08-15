@@ -19,11 +19,26 @@ const extractYoutubeId = (url: string): string | null => {
 
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const videos = await LiveVideo.find().sort({ createdAt: -1 });
+    const rawVideos = await LiveVideo.find().sort({ createdAt: -1 });
     const liveState = await LiveState.findOne({ key: 'active_session' });
+
+    const formattedVideos = rawVideos.map(v => ({
+      _id: v._id,
+      videoId: v.youtubeId,
+      youtubeId: v.youtubeId,
+      title: v.title,
+      description: v.description || v.title,
+      thumbnail: v.thumbnail || `https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg`,
+      publishedAt: v.publishedAt || v.createdAt,
+      youtubeUrl: v.youtubeUrl || `https://www.youtube.com/watch?v=${v.youtubeId}`,
+      isLive: v.isLive || false,
+      categoryId: v.categoryId || 'sunday',
+      createdAt: v.createdAt,
+    }));
+
     res.status(200).json({ 
       success: true, 
-      videos, 
+      videos: formattedVideos, 
       channelId: liveState?.channelId || '',
       autoSyncEnabled: liveState?.autoSyncEnabled ?? true,
     });

@@ -2,21 +2,25 @@ import { apiClient } from './apiClient';
 
 export interface LiveVideoItem {
   _id: string;
+  videoId: string;
   youtubeId: string;
   youtubeUrl: string;
   title: string;
+  description?: string;
   categoryId: string;
   thumbnail: string;
+  isLive?: boolean;
+  publishedAt?: string;
   createdAt: string;
 }
 
 class LiveVideosService {
   async getVideos(): Promise<{ success: boolean; videos: LiveVideoItem[] }> {
     try {
-      const response = await apiClient.get('/api/stream/videos');
+      const response = await apiClient.get('/api/youtube/videos');
       return { success: Boolean(response.success), videos: Array.isArray(response.videos) ? response.videos : [] };
     } catch (error) {
-      console.log('Unable to load live videos:', error);
+      console.log('Unable to load youtube videos:', error);
       return { success: false, videos: [] };
     }
   }
