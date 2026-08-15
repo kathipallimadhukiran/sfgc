@@ -205,3 +205,37 @@ export const deleteAssignment = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
+
+// @route   POST /api/users/push-token
+// @desc    Register or update Expo Push Token for mobile push notifications
+export const savePushToken = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const pushToken = req.body.pushToken || req.body.token || req.body.expoPushToken;
+    const userId = req.user?._id?.toString() || req.body.userId;
+
+    if (!pushToken) {
+      res.status(400).json({ success: false, message: 'Push token is required.' });
+      return;
+    }
+
+    if (userId) {
+      await User.findByIdAndUpdate(userId, { pushToken });
+    } else {
+      // Unauthenticated or guest device
+      await User.findOneAndUpdate(
+        { pushToken },
+        { pushToken },
+        { upsert: false }
+      );
+    }
+
+    console.log(`📱 Push token registered: ${pushToken}`);
+    res.status(200).json({
+      success: true,
+      message: 'Mobile push token registered successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

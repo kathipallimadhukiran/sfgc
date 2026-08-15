@@ -6,11 +6,15 @@ import {
   deleteMember, 
   addAssignment, 
   updateAssignment, 
-  deleteAssignment 
+  deleteAssignment,
+  savePushToken
 } from '../controllers/userController';
 import { authenticate, requireRole } from '../middleware/auth';
 
 const router = Router();
+
+// Register Mobile Push Token (Public or Authenticated)
+router.post('/push-token', savePushToken);
 
 // Members list (Accessible to logged in users or admins)
 router.get('/', getMembers);

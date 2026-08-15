@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { LiveVideo } from '../models/LiveVideo';
 import { Notice } from '../models/Notice';
+import { sendPushNotificationToAll } from '../services/pushNotificationService';
 import { LiveState } from '../models/LiveState';
 
 const extractYoutubeId = (url: string): string | null => {
@@ -393,6 +394,12 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
               createdAt: new Date().toISOString(),
             });
           }
+
+          sendPushNotificationToAll(
+            `🎬 New Video: ${vItem.title}`,
+            `Tap to watch latest YouTube worship video!`,
+            { type: 'video', youtubeId: vItem.youtubeId }
+          );
         } catch (nErr) {
           console.warn('Notice creation warning during YouTube channel sync:', nErr);
         }
@@ -460,6 +467,12 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
               createdAt: new Date().toISOString(),
             });
           }
+
+          sendPushNotificationToAll(
+            `🎬 New Video: ${vItem.title}`,
+            `Tap to watch latest YouTube worship video!`,
+            { type: 'video', youtubeId: vItem.youtubeId }
+          );
         } catch (nErr) {
           console.warn('Notice creation warning during auto-sync job:', nErr);
         }

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Notice } from '../models/Notice';
+import { sendPushNotificationToAll } from '../services/pushNotificationService';
 
 // @route   GET /api/notices
 // @desc    Get all notices
@@ -58,6 +59,13 @@ export const createNotice = async (req: Request, res: Response, next: NextFuncti
     if (io) {
       io.emit('newNotice', newNotice);
     }
+
+    // Trigger Mobile System Push Notification to all devices
+    sendPushNotificationToAll(
+      `📢 ${newNotice.title}`,
+      newNotice.description,
+      { type: 'notice', id: newNotice._id }
+    );
 
     res.status(201).json({
       success: true,

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Event } from '../models/Event';
 import { Notice } from '../models/Notice';
 import { AuthRequest } from '../middleware/auth';
+import { sendPushNotificationToAll } from '../services/pushNotificationService';
 
 // @route   GET /api/events
 // @desc    Get all events ordered by date
@@ -80,6 +81,13 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
         io.emit('newEvent', newEvent);
         io.emit('newNotice', newNotice);
       }
+
+      // Trigger System Mobile Push Notification
+      sendPushNotificationToAll(
+        `🗓️ New Event: ${newEvent.title}`,
+        `📍 ${newEvent.venue} | 📅 ${eventDateStr} ${time ? `at ${time}` : ''}`,
+        { type: 'event', id: newEvent._id }
+      );
     } catch (noticeErr) {
       console.log('Notice creation for event ignored:', noticeErr);
     }

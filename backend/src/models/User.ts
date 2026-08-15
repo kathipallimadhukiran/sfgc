@@ -33,6 +33,7 @@ export interface IUser extends Document {
   departments: string[];
   assignments: IDutyAssignment[];
   favorites: string[];
+  pushToken?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -78,6 +79,7 @@ const UserSchema = new Schema<IUser>({
   departments: { type: [String], default: [] },
   assignments: { type: [DutyAssignmentSchema], default: [] },
   favorites: { type: [String], default: [] },
+  pushToken: { type: String, default: '' },
 }, {
   timestamps: true,
   toJSON: {

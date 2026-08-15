@@ -296,6 +296,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
+        // Initialize Mobile Push Notifications & Sync Push Token
+        notificationService.init(savedToken).catch(() => {});
+
         // --------------------------------------------------
         // Fetch application data
         // --------------------------------------------------
@@ -415,6 +418,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       'userData',
       JSON.stringify(userData)
     );
+
+    notificationService.init(userToken).catch(() => {});
 
     await refreshData();
   };
