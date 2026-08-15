@@ -72,9 +72,9 @@ export const updateStreamState = async (req: Request, res: Response, next: NextF
     if (
       activeYoutubeLink !== undefined &&
       activeYoutubeLink !== '' &&
-      !/^.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]{11})(?:[?#&].*)?$/i.test(activeYoutubeLink)
+      !/^.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|live\/|watch\?v=|&v=)([^#&?]{11})(?:[?#&].*)?$/i.test(activeYoutubeLink)
     ) {
-      res.status(400).json({ success: false, message: 'Please provide a valid YouTube video URL.' });
+      res.status(400).json({ success: false, message: 'Please provide a valid YouTube video or live URL.' });
       return;
     }
 

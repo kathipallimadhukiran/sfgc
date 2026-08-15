@@ -12,5 +12,6 @@ router.delete('/videos/:id', authenticate, requireRole(['Admin', 'Super Admin'])
 router.get('/cast-info', getCastInfo);
 router.get('/', getStreamState);
 router.put('/', authenticate, requireRole(['Admin', 'Super Admin', 'Media Team', 'Worship Leader']), updateStreamState);
+router.post('/', authenticate, requireRole(['Admin', 'Super Admin', 'Media Team', 'Worship Leader']), updateStreamState);
 
 export default router;

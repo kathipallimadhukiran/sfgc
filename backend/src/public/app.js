@@ -494,7 +494,7 @@ class ChurchApp {
       this.renderNoticesTable();
       await this.loadBiblePlanStats();
       await this.loadUserProgress();
-      await this.loadTodayPromise();
+      await this.loadOverviewPromise();
     } catch (err) {
       console.error('Error refreshing backend data:', err);
     }
@@ -1673,15 +1673,33 @@ class ChurchApp {
       return;
     }
 
+    const trimmed = url.trim();
     let videoId = '';
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.trim().match(regExp);
 
-    if (match && match[2].length === 11) {
-      videoId = match[2];
+    if (trimmed.includes('youtube.com/embed/')) {
+      iframe.src = trimmed;
+      return;
+    }
+
+    if (trimmed.includes('youtube.com/live/')) {
+      const parts = trimmed.split('youtube.com/live/');
+      if (parts[1]) videoId = parts[1].split('?')[0].split('&')[0];
+    } else if (trimmed.includes('watch?v=')) {
+      const parts = trimmed.split('watch?v=');
+      if (parts[1]) videoId = parts[1].split('&')[0].split('#')[0];
+    } else if (trimmed.includes('youtu.be/')) {
+      const parts = trimmed.split('youtu.be/');
+      if (parts[1]) videoId = parts[1].split('?')[0].split('&')[0];
+    } else {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|live\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = trimmed.match(regExp);
+      if (match && match[2].length === 11) videoId = match[2];
+    }
+
+    if (videoId) {
       iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
     } else {
-      iframe.src = url.trim();
+      iframe.src = trimmed;
     }
   }
 
