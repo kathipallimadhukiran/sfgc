@@ -1156,6 +1156,7 @@ export default function BibleScreen() {
         visible={voiceSearchActive}
         onDismiss={() => setVoiceSearchActive(false)}
         onSearch={(query) => handleSearchEntireBible(query)}
+        onTranscriptChange={(query) => setCurrentSearchTerm(query)}
         recentSearches={recentSearches}
         onClearRecentSearches={clearRecentSearches}
         appLanguage={language}

@@ -826,6 +826,7 @@ export default function SongsScreen() {
           visible={voiceSearchActive}
           onDismiss={() => setVoiceSearchActive(false)}
           onSearch={(query) => handleExecuteVoiceSearch(query)}
+          onTranscriptChange={(query) => setSearchQuery(query)}
           recentSearches={recentSearches}
           onClearRecentSearches={clearRecentSearches}
           appLanguage={language}

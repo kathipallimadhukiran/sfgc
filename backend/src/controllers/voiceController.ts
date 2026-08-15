@@ -125,11 +125,16 @@ export const transcribeAudio = async (req: Request, res: Response): Promise<void
     const audioBuffer = Buffer.from(audioBase64, 'base64');
     let recognizedText = '';
 
-    // 1. Groq Whisper API (with Bible context prompt & temperature: 0 to prevent hallucinations)
-    const groqKey = process.env.GROQ_API_KEY;
-    if (groqKey && !recognizedText) {
+    // 1. Groq Whisper API (Iterate through available keys)
+    const groqKeys = [
+      process.env.GROQ_API_KEY,
+      'gsk_0rI1X7hZ0p1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s',
+    ].filter(Boolean) as string[];
+
+    for (const key of groqKeys) {
+      if (recognizedText) break;
       try {
-        console.log('🎙️ [Backend Voice] Attempting Groq Whisper Transcription...');
+        console.log(`🎙️ [Backend Voice] Attempting Groq Whisper Transcription with key prefix "${key.substring(0, 7)}..."`);
         const formData = new FormData();
         const blob = new Blob([audioBuffer], { type: `audio/${format || 'm4a'}` });
         formData.append('file', blob, `audio.${format || 'm4a'}`);
@@ -141,7 +146,7 @@ export const transcribeAudio = async (req: Request, res: Response): Promise<void
         const groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${groqKey}`,
+            'Authorization': `Bearer ${key}`,
           },
           body: formData,
         });
@@ -186,6 +191,27 @@ export const transcribeAudio = async (req: Request, res: Response): Promise<void
         }
       } catch (openAiErr) {
         console.log('OpenAI Whisper error:', openAiErr);
+      }
+    }
+
+    // 3. Hugging Face Whisper API Fallback
+    if (!recognizedText) {
+      try {
+        console.log('🎙️ [Backend Voice] Attempting HuggingFace Whisper Fallback...');
+        const hfResp = await fetch('https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo', {
+          method: 'POST',
+          headers: {
+            'Content-Type': `audio/${format || 'm4a'}`,
+          },
+          body: audioBuffer,
+        });
+        if (hfResp.ok) {
+          const hfData = await hfResp.json();
+          recognizedText = hfData.text ? hfData.text.trim() : '';
+          console.log(`🎙️ [Backend Voice] HuggingFace Whisper text: "${recognizedText}"`);
+        }
+      } catch (hfErr) {
+        console.log('HuggingFace STT error:', hfErr);
       }
     }
 

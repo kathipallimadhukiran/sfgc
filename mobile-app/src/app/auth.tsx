@@ -473,7 +473,7 @@ export default function AuthScreen() {
                 mode="outlined"
                 value={loginIdentifier}
                 onChangeText={setLoginIdentifier}
-                placeholder="e.g. member@sfgc.org or 9876543210"
+                placeholder="e.g. name@gmail.com or 9876543210"
                 autoCapitalize="none"
                 textColor={theme.text}
                 placeholderTextColor={theme.textSecondary}
@@ -611,7 +611,7 @@ export default function AuthScreen() {
                 onChangeText={(val) =>
                   setRegData((p) => ({ ...p, email: val }))
                 }
-                placeholder="e.g. john@example.com (Optional)"
+                placeholder="e.g. john@gmail.com (Optional)"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 textColor={theme.text}
@@ -736,7 +736,7 @@ export default function AuthScreen() {
                 onChangeText={(val) =>
                   setRegData((p) => ({ ...p, location: val }))
                 }
-                placeholder="e.g. Main Sanctuary, Sector 4"
+                placeholder="e.g. Satellite city Branch"
                 textColor={theme.text}
                 placeholderTextColor={theme.textSecondary}
                 left={

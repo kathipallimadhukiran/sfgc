@@ -154,6 +154,7 @@ export default function ProfileScreen() {
   const [assignmentRole, setAssignmentRole] = useState('');
   const [assignmentDept, setAssignmentDept] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showAssignDeptDropdown, setShowAssignDeptDropdown] = useState(false);
 
   const handleSaveAssignment = async () => {
     if (!selectedMemberForAssignment || !assignmentTitle.trim() || !assignmentRole.trim()) {
@@ -1489,10 +1490,10 @@ export default function ProfileScreen() {
                 </Text>
                 <View style={{ marginBottom: 16 }}>
                   <Menu
-                    visible={showDeptDropdown}
-                    onDismiss={() => setShowDeptDropdown(false)}
+                    visible={showAssignDeptDropdown}
+                    onDismiss={() => setShowAssignDeptDropdown(false)}
                     anchor={
-                      <TouchableOpacity onPress={() => setShowDeptDropdown(true)} activeOpacity={0.8}>
+                      <TouchableOpacity onPress={() => setShowAssignDeptDropdown(true)} activeOpacity={0.8}>
                         <View pointerEvents="none">
                           <TextInput
                             mode="outlined"
@@ -1509,7 +1510,7 @@ export default function ProfileScreen() {
                     contentStyle={{ backgroundColor: theme.backgroundElement, borderRadius: 12 }}
                   >
                     {departmentsList.map((d) => (
-                      <Menu.Item key={d._id || d.name} onPress={() => { setAssignmentDept(d.name); setShowDeptDropdown(false); }} title={d.name} />
+                      <Menu.Item key={d._id || d.name} onPress={() => { setAssignmentDept(d.name); setShowAssignDeptDropdown(false); }} title={d.name} />
                     ))}
                   </Menu>
                 </View>
