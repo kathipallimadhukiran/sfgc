@@ -543,9 +543,14 @@
               <h3><i class="fa-solid fa-bullhorn text-emerald"></i> Church Notices & Bulletin Alerts</h3>
               <p class="subtitle-text">Broadcast important notifications to member mobile devices.</p>
             </div>
-            <button class="btn btn-primary" onclick="app.openNoticeModal()">
-              <i class="fa-solid fa-plus"></i> Post Notice
-            </button>
+            <div class="flex-gap-8">
+              <button class="btn btn-outline" onclick="app.sendTestPushNotification()" title="Send instant test alert to all mobile phones">
+                <i class="fa-solid fa-paper-plane text-amber"></i> Test Mobile Push
+              </button>
+              <button class="btn btn-primary" onclick="app.openNoticeModal()">
+                <i class="fa-solid fa-plus"></i> Post Notice
+              </button>
+            </div>
           </div>
 
           <div class="table-responsive">

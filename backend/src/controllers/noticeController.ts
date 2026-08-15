@@ -120,3 +120,19 @@ export const deleteNotice = async (req: Request, res: Response, next: NextFuncti
     next(error);
   }
 };
+
+// @route   POST /api/notices/test-push
+// @desc    Send instant test push notification to all mobile devices
+export const sendTestPush = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { title, body } = req.body;
+    const alertTitle = title || '🔔 SFGC Sanctuary Push Notification Test';
+    const alertBody = body || 'Praise God! Your mobile push notifications are working perfectly on SFGC App!';
+
+    const result = await sendPushNotificationToAll(alertTitle, alertBody, { type: 'test' });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
