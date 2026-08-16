@@ -68,18 +68,29 @@ class SongsService {
     }
   }
 
-  // Get song by ID
+  // Get song by ID (Instant local-first fetch for offline & fast rendering)
   async getSongById(id: string): Promise<{ success: boolean; song?: SongItem }> {
     try {
+      // 1. Check local cache first for INSTANT zero-delay loading
+      const localSong = await mongoService.findOne(COLLECTION, { _id: id });
+      if (localSong && localSong.title) {
+        // Trigger background sync with server without blocking UI
+        apiClient.get(`/api/songs/${id}`).then(async res => {
+          if (res.success && res.song) {
+            await mongoService.updateOne(COLLECTION, { _id: id }, res.song);
+          }
+        }).catch(() => {});
+        return { success: true, song: localSong };
+      }
+
+      // 2. Fetch from backend if not available locally
       try {
         const res = await apiClient.get(`/api/songs/${id}`);
         if (res.success && res.song) {
+          await mongoService.insertOne(COLLECTION, res.song);
           return res;
         }
       } catch (e) {}
-
-      const song = await mongoService.findOne(COLLECTION, { _id: id });
-      if (song) return { success: true, song };
 
       const seed = INITIAL_SEED_SONGS.find(s => s._id === id || s.id === id);
       if (seed) return { success: true, song: seed };

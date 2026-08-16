@@ -460,7 +460,6 @@ export default function EventsScreen() {
       }
 
       if (response.success) {
-        alert(editingId ? '🎉 Event updated successfully!' : '🎉 Event added successfully!');
         setNewTitle('');
         setNewSpeaker('');
         setNewVenue('');
@@ -864,8 +863,8 @@ export default function EventsScreen() {
                 value={newSpeaker}
                 onChangeText={setNewSpeaker}
                 placeholder="Type preacher/speaker name..."
-                placeholderTextColor="#888"
-                style={styles.textInput}
+                placeholderTextColor={theme.textSecondary}
+                style={[styles.textInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
               />
             )}
 
@@ -876,8 +875,8 @@ export default function EventsScreen() {
                   value={tempNewPreacher}
                   onChangeText={setTempNewPreacher}
                   placeholder="Enter name to add..."
-                  placeholderTextColor="#888"
-                  style={[styles.textInput, { flex: 1, marginTop: 0 }]}
+                  placeholderTextColor={theme.textSecondary}
+                  style={[styles.textInput, { flex: 1, marginTop: 0, backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
                 />
                 <Button mode="contained" buttonColor={theme.primary} onPress={handleAddNewPreacher}>
                   Add
@@ -885,10 +884,10 @@ export default function EventsScreen() {
               </View>
             )}
 
-            <Text style={styles.inputLabel}>Venue / Location *</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Venue / Location *</Text>
             <TouchableOpacity 
               activeOpacity={0.8}
-              style={[styles.dropdownPicker, { borderColor: theme.cardBorder }]}
+              style={[styles.dropdownPicker, { backgroundColor: theme.background, borderColor: theme.cardBorder }]}
               onPress={() => setVenuePickerExpanded(!venuePickerExpanded)}
             >
               <Text style={[styles.dropdownPickerValue, { color: theme.text }]}>
@@ -951,8 +950,8 @@ export default function EventsScreen() {
                 value={newVenue}
                 onChangeText={setNewVenue}
                 placeholder="Type branch/location venue details..."
-                placeholderTextColor="#888"
-                style={styles.textInput}
+                placeholderTextColor={theme.textSecondary}
+                style={[styles.textInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
               />
             )}
 
@@ -963,8 +962,8 @@ export default function EventsScreen() {
                   value={tempNewVenue}
                   onChangeText={setTempNewVenue}
                   placeholder="Enter branch name to add..."
-                  placeholderTextColor="#888"
-                  style={[styles.textInput, { flex: 1, marginTop: 0 }]}
+                  placeholderTextColor={theme.textSecondary}
+                  style={[styles.textInput, { flex: 1, marginTop: 0, backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
                 />
                 <Button mode="contained" buttonColor={theme.primary} onPress={handleAddNewVenue}>
                   Add
@@ -1052,12 +1051,13 @@ export default function EventsScreen() {
               <Button 
                 mode="contained" 
                 buttonColor={theme.primary} 
-                style={{ flex: 1 }} 
+                style={{ flex: 1, borderRadius: 8 }} 
                 onPress={handleAddEventSubmit}
                 loading={submitting}
                 disabled={submitting}
+                labelStyle={{ fontSize: 14, fontWeight: 'bold' }}
               >
-                Save
+                {submitting ? (isTel ? 'సేవ్ చేస్తోంది...' : 'Saving...') : (editingId ? (isTel ? 'సేవ్ చేయి' : 'Save Changes') : (isTel ? 'ఈవెంట్ సృష్టించు' : 'Create Event'))}
               </Button>
             </View>
           </ScrollView>
@@ -1148,11 +1148,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 135,
+    height: 165,
   },
   eventCardImage: {
     width: '100%',
-    height: 135,
+    height: 165,
   },
   cardBody: {
     flexDirection: 'row',

@@ -14,7 +14,17 @@ export default function AppTabs() {
   const isDark = themeMode === 'dark';
   const inactiveColor = isDark ? '#71717a' : '#94a3b8';
   
-  const noticeCount = notices ? notices.length : 0;
+  const todayNoticeCount = (notices || []).filter((notice) => {
+    const dStr = notice.date || notice.createdAt;
+    if (!dStr) return true;
+    const d = new Date(dStr);
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  }).length;
 
   const profileAvatarHeaderLeft = () => (
     <TouchableOpacity
@@ -56,7 +66,7 @@ export default function AppTabs() {
             size={24}
             color={isDark ? '#ffffff' : '#475569'}
           />
-          {noticeCount > 0 && (
+          {todayNoticeCount > 0 && (
             <Badge
               size={16}
               style={{
@@ -69,7 +79,7 @@ export default function AppTabs() {
                 fontWeight: 'bold',
               }}
             >
-              {noticeCount}
+              {todayNoticeCount}
             </Badge>
           )}
         </View>

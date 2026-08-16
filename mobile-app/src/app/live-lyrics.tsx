@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SongItem } from '@/services/songsService';
 import { apiClient } from '@/services/apiClient';
+import { API_URL } from '@/constants/config';
 
 const OPERATOR_ROLES = ['Admin', 'Super Admin', 'Worship Leader', 'Choir Leader', 'Media Team'];
 
@@ -299,7 +300,7 @@ export default function LiveLyricsScreen() {
       } catch (e) {}
     }
     if (!url) {
-      url = 'http://localhost:5000/tv.html';
+      url = `${API_URL}/tv.html`;
     }
     try {
       await Share.share({

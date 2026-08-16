@@ -20,7 +20,7 @@ const extractYoutubeId = (url: string): string | null => {
 
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const rawVideos = await LiveVideo.find().sort({ createdAt: -1 });
+    const rawVideos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1 });
     const liveState = await LiveState.findOne({ key: 'active_session' });
 
     const formattedVideos = rawVideos.map(v => ({

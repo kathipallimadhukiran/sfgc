@@ -115,3 +115,52 @@ export const sendPushNotificationToAll = async (
     return { success: false, sentCount: 0, message: err?.message || 'Error sending push notification.' };
   }
 };
+
+/**
+ * Send Priority Push Notification ONLY to Admin users
+ */
+export const sendPushNotificationToAdmins = async (
+  title: string,
+  body: string,
+  data: Record<string, any> = {}
+): Promise<{ success: boolean; sentCount: number; message: string }> => {
+  try {
+    const adminUsers = await User.find({
+      role: { $in: ['Admin', 'Super Admin'] },
+      pushToken: { $exists: true, $ne: '' }
+    }).distinct('pushToken');
+
+    const tokens = adminUsers.filter(t => t && t.startsWith('ExponentPushToken[') && !t.includes('[dev_'));
+    if (tokens.length === 0) {
+      console.log('ℹ️ No registered admin Expo push tokens in database for admin alert.');
+      return { success: true, sentCount: 0, message: 'No registered admin push tokens.' };
+    }
+
+    const messages: PushMessagePayload[] = tokens.map(token => ({
+      to: token,
+      sound: 'default',
+      title,
+      body,
+      data: { ...data, timestamp: new Date().toISOString() },
+      badge: 1,
+      priority: 'high',
+      channelId: 'default',
+    }));
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(messages),
+    });
+
+    console.log(`🚨 Priority Admin push notification sent to ${tokens.length} admin device(s): "${title}"`);
+    return { success: true, sentCount: tokens.length, message: `Admin notification sent to ${tokens.length} device(s).` };
+  } catch (err: any) {
+    console.error('⚠️ Error sending admin push notification:', err?.message || err);
+    return { success: false, sentCount: 0, message: err?.message || 'Error sending admin push notification.' };
+  }
+};

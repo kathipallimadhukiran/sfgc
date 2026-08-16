@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar, Image } from 'react-native';
 import { Card, Title, Paragraph, Button, Text, Avatar, IconButton, Portal, Modal, FAB } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
@@ -11,6 +11,20 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const theme = useTheme();
+
+  const todayNotices = useMemo(() => {
+    return (notices || []).filter((notice) => {
+      const dStr = notice.date || notice.createdAt;
+      if (!dStr) return true;
+      const d = new Date(dStr);
+      const now = new Date();
+      return (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      );
+    });
+  }, [notices]);
 
   const handleBroadcastNotice = (noticeTitle: string, noticeDesc: string) => {
     const noteSongObj = {
@@ -157,33 +171,25 @@ export default function NotificationsScreen() {
           </Text>
         </View>
 
-        {(() => {
-          const todayNotices = (notices || []).filter((notice) => {
-            const dStr = notice.date || notice.createdAt;
-            if (!dStr) return true;
-            const d = new Date(dStr);
-            const now = new Date();
-            return (
-              d.getFullYear() === now.getFullYear() &&
-              d.getMonth() === now.getMonth() &&
-              d.getDate() === now.getDate()
-            );
-          });
-
-          return todayNotices && todayNotices.length > 0 ? (
-            todayNotices.map((notice) => {
-              const isVideoNotif = notice.title.includes('🎬') || notice.title.toLowerCase().includes('video');
-              const noticeImage = notice.image || notice.attachment || '';
-              const noticeId = notice._id || notice.id || '';
+        {todayNotices && todayNotices.length > 0 ? (
+          todayNotices.map((notice) => {
+            const rawUrlMatch = notice.description?.match(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/i);
+            const extractedYoutubeUrl = notice.youtubeUrl || (Array.isArray(rawUrlMatch) ? rawUrlMatch[0] : '');
 
             return (
               <Card
                 style={[
                   styles.card,
-                  isVideoNotif && { borderColor: '#ef444450', borderWidth: 1 }
+                  (isVideoNotif || extractedYoutubeUrl) && { borderColor: '#ef444450', borderWidth: 1 }
                 ]}
                 key={noticeId || notice.title}
-                onPress={() => isVideoNotif && router.push('/live-stream')}
+                onPress={() => {
+                  if (extractedYoutubeUrl) {
+                    Linking.openURL(extractedYoutubeUrl).catch(() => router.push('/live-stream'));
+                  } else if (isVideoNotif) {
+                    router.push('/live-stream');
+                  }
+                }}
               >
                 {Boolean(noticeImage) && (
                   <View style={{ width: '100%', height: 130, overflow: 'hidden', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
@@ -288,8 +294,7 @@ export default function NotificationsScreen() {
               నేటి ప్రకటనలు ఏవీ లేవు (No notifications today)
             </Text>
           </View>
-        );
-      })()}
+        )}
 
         <View style={{ height: 60 }} />
       </ScrollView>

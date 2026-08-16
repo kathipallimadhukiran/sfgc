@@ -155,13 +155,23 @@ export default function SongsScreen() {
     setVoiceSearchActive(true);
   };
 
+  // Alphabetical Index & Favorites filter state
+  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  const TELUGU_LETTERS = ['అ','ఆ','ఇ','ఈ','ఉ','ఊ','ఎ','ఏ','ఐ','ఒ','ఓ','ఔ','క','ఖ','గ','ఘ','చ','ఛ','జ','త','థ','ద','ధ','న','ప','ఫ','బ','భ','మ','య','ర','ల','వ','శ','ష','స','హ'];
+  const ALPHABET_INDEX = TELUGU_LETTERS;
+
   const filteredSongs = songs.filter(song => {
+    const songKey = song._id || song.id || '';
     const matchesSearch = song.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (song.tags && song.tags.some((t: string) => t.toLowerCase().includes(searchQuery.toLowerCase())));
     const matchesLang = !selectedLanguage || song.language === selectedLanguage;
     const matchesCat = !selectedCategory || song.category === selectedCategory;
+    const matchesFav = !showFavoritesOnly || favorites.includes(songKey);
+    const matchesLetter = !selectedLetter || (song.title || '').trim().charAt(0).toUpperCase() === selectedLetter.toUpperCase();
 
-    return matchesSearch && matchesLang && matchesCat;
+    return matchesSearch && matchesLang && matchesCat && matchesFav && matchesLetter;
   });
 
   const activeSlide = liveSession?.song?.lyrics?.[liveSession?.currentSlideIndex];
@@ -276,7 +286,6 @@ export default function SongsScreen() {
       }
 
       if (response.success) {
-        alert(editingId ? '🎉 Song lyrics updated successfully!' : '🎉 Song lyrics added successfully!');
         setNewTitle('');
         setNewYoutube('');
         setNewChords('');
@@ -374,33 +383,29 @@ export default function SongsScreen() {
             )}
           </View>
         )}
-        {/* Live Worship Banner / Preview card */}
-        <Card 
-          style={[styles.liveWidgetCard, liveSession && styles.liveWidgetCardActive]}
-          onPress={() => router.push('/live-lyrics')}
-        >
-          <Card.Content style={styles.liveWidgetContent}>
-            <View style={styles.liveWidgetHeader}>
-              <View style={styles.liveHeaderLeft}>
-                <View style={[styles.glowingDot, { backgroundColor: liveSession ? '#4caf50' : '#ffeb3b' }]} />
-                <Text style={styles.liveWidgetTitle}>
-                  {liveSession 
-                    ? (isTel ? 'లైవ్ ఆరాధన ప్రదర్శన (యాక్టివ్)' : 'LIVE WORSHIP DISPLAY (ACTIVE)') 
-                    : (isTel ? 'లైవ్ ఆరాధన ప్రదర్శన (స్టాండ్‌బై)' : 'LIVE WORSHIP DISPLAY (STANDBY)')}
-                </Text>
-              </View>
-              {liveSession && (
+        {/* Live Worship Banner / Preview card - Render ONLY when liveSession is active */}
+        {Boolean(liveSession) && (
+          <Card 
+            style={[styles.liveWidgetCard, styles.liveWidgetCardActive]}
+            onPress={() => router.push('/live-lyrics')}
+          >
+            <Card.Content style={styles.liveWidgetContent}>
+              <View style={styles.liveWidgetHeader}>
+                <View style={styles.liveHeaderLeft}>
+                  <View style={[styles.glowingDot, { backgroundColor: '#4caf50' }]} />
+                  <Text style={styles.liveWidgetTitle}>
+                    {isTel ? 'లైవ్ ఆరాధన ప్రదర్శన (యాక్టివ్)' : 'LIVE WORSHIP DISPLAY (ACTIVE)'}
+                  </Text>
+                </View>
                 <IconButton 
                   icon="fullscreen" 
                   iconColor="#ffffff" 
                   size={20} 
                   style={{ margin: 0, padding: 0 }} 
                 />
-              )}
-            </View>
+              </View>
 
-            {liveSession ? (
-              liveSession.blackScreen ? (
+              {liveSession.blackScreen ? (
                 <View style={styles.widgetLyricsBoxBlack}>
                   <Text style={styles.blackoutText}>
                     {isTel ? 'డిస్ప్లే నిలిపివేయబడింది (బ్లాక్అవుట్)' : 'DISPLAY BLACKED OUT'}
@@ -437,20 +442,10 @@ export default function SongsScreen() {
                     </Text>
                   )}
                 </View>
-              )
-            ) : (
-              <View style={styles.widgetStandbyBox}>
-                <MaterialCommunityIcons name="television-play" size={32} color="rgba(255,255,255,0.7)" style={{ marginBottom: 6 }} />
-                <Text style={styles.standbyTitle}>
-                  {isTel ? 'యాక్టివ్ లైవ్ ఆరాధన ఏదీ లేదు' : 'No Active Live Worship Stream'}
-                </Text>
-                <Text style={styles.standbySubtitle}>
-                  {isTel ? 'కనెక్ట్ చేయడానికి & పూర్తి ప్రొజెక్షన్ స్క్రీన్‌ను తెరవడానికి ఇక్కడ నొక్కండి.' : 'Tap here to connect & open full screen projection display.'}
-                </Text>
-              </View>
-            )}
-          </Card.Content>
-        </Card>
+              )}
+            </Card.Content>
+          </Card>
+        )}
 
         {/* Search Section */}
         <View style={styles.searchSection}>
@@ -475,55 +470,68 @@ export default function SongsScreen() {
           </View>
         </View>
 
-        {/* Language Quick Filters */}
+        {/* Language & Favorites Quick Filters */}
         <View style={styles.filterRow}>
           <Chip
-            selected={selectedLanguage === null}
-            onPress={() => setSelectedLanguage(null)}
-            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === null && styles.activeChip]}
-            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === null && styles.activeChipText]}
+            selected={selectedLanguage === null && !showFavoritesOnly}
+            onPress={() => { setSelectedLanguage(null); setShowFavoritesOnly(false); }}
+            style={[styles.chip, { backgroundColor: theme.backgroundElement }, (selectedLanguage === null && !showFavoritesOnly) && styles.activeChip]}
+            textStyle={[styles.chipText, { color: theme.text }, (selectedLanguage === null && !showFavoritesOnly) && styles.activeChipText]}
             showSelectedOverlay={false}
           >
-            {isTel ? 'అన్ని భాషలు' : 'All Languages'}
+            {isTel ? 'అన్ని పాటలు' : 'All Songs'}
           </Chip>
           <Chip
-            selected={selectedLanguage === 'English'}
-            onPress={() => setSelectedLanguage('English')}
-            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === 'English' && styles.activeChip]}
-            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === 'English' && styles.activeChipText]}
+            selected={showFavoritesOnly}
+            onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            style={[styles.chip, { backgroundColor: theme.backgroundElement }, showFavoritesOnly && { backgroundColor: '#e91e63' }]}
+            textStyle={[styles.chipText, { color: theme.text }, showFavoritesOnly && { color: '#ffffff', fontWeight: 'bold' }]}
             showSelectedOverlay={false}
           >
-            {isTel ? 'ఇంగ్లీష్' : 'English'}
+            {isTel ? '❤️ ఇష్టమైనవి' : '❤️ Favorites'}
           </Chip>
           <Chip
             selected={selectedLanguage === 'Telugu'}
-            onPress={() => setSelectedLanguage('Telugu')}
+            onPress={() => { setSelectedLanguage(selectedLanguage === 'Telugu' ? null : 'Telugu'); }}
             style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === 'Telugu' && styles.activeChip]}
             textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === 'Telugu' && styles.activeChipText]}
             showSelectedOverlay={false}
           >
             {isTel ? 'తెలుగు' : 'Telugu'}
           </Chip>
+          <Chip
+            selected={selectedLanguage === 'English'}
+            onPress={() => { setSelectedLanguage(selectedLanguage === 'English' ? null : 'English'); }}
+            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === 'English' && styles.activeChip]}
+            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === 'English' && styles.activeChipText]}
+            showSelectedOverlay={false}
+          >
+            {isTel ? 'ఇంగ్లీష్' : 'English'}
+          </Chip>
         </View>
 
-        {/* Scrollable Categories List */}
-        <View style={styles.categoryContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-            {CATEGORIES.map(cat => {
-              const isSelected = selectedCategory === cat;
-              return (
-                <Chip
-                  key={cat}
-                  selected={isSelected}
-                  onPress={() => setSelectedCategory(isSelected ? null : cat)}
-                  style={[styles.categoryChip, { backgroundColor: theme.backgroundElement }, isSelected && styles.activeCategoryChip]}
-                  textStyle={[styles.categoryChipText, { color: theme.text }, isSelected && styles.activeCategoryChipText]}
-                  showSelectedOverlay={false}
-                >
-                  {getTranslatedCategory(cat)}
-                </Chip>
-              );
-            })}
+        {/* Alphabetical First-Letter Index Bar (Telugu / English A-Z) */}
+        <View style={{ marginVertical: 6 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 4 }}>
+            <TouchableOpacity
+              onPress={() => setSelectedLetter(null)}
+              style={[{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: theme.cardBorder, backgroundColor: theme.backgroundElement }, selectedLetter === null && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+            >
+              <Text style={[{ fontSize: 12, fontWeight: 'bold', color: theme.text }, selectedLetter === null && { color: '#ffffff' }]}>
+                {isTel ? 'అన్నీ' : 'ALL'}
+              </Text>
+            </TouchableOpacity>
+            {ALPHABET_INDEX.map((letter) => (
+              <TouchableOpacity
+                key={letter}
+                onPress={() => setSelectedLetter(selectedLetter === letter ? null : letter)}
+                style={[{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: theme.cardBorder, backgroundColor: theme.backgroundElement }, selectedLetter === letter && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+              >
+                <Text style={[{ fontSize: 12, fontWeight: 'bold', color: theme.text }, selectedLetter === letter && { color: '#ffffff' }]}>
+                  {letter}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
         </View>
 
@@ -671,7 +679,7 @@ export default function SongsScreen() {
                   style={{ borderRadius: 8 }}
                   labelStyle={{ fontSize: 13, fontWeight: 'bold' }}
                 >
-                  {isTel ? 'సేవ్ చేయి' : 'Save'}
+                  {submitting ? (isTel ? 'సేవ్ చేస్తోంది...' : 'Saving...') : (isTel ? 'సేవ్ చేయి' : 'Save')}
                 </Button>
               </View>
 

@@ -67,6 +67,7 @@ setupLiveLyricsSocket(io);
 
 import { autoSyncChannelVideosJob } from './controllers/liveVideoController';
 import { checkUpcomingEventReminders } from './services/eventNotificationScheduler';
+import { checkDailyPromiseJob } from './services/dailyPromiseScheduler';
 
 // Start Server & Connect Database
 const startServer = async () => {
@@ -102,10 +103,20 @@ const startServer = async () => {
     }
   }, 60 * 1000);
 
+  // 5:00 AM Daily Promise Auto-Publisher & Admin Alert Job (polls every 60 seconds)
+  setInterval(async () => {
+    try {
+      await checkDailyPromiseJob(io);
+    } catch (promiseErr) {
+      console.error('5:00 AM Daily Promise Scheduler Error:', promiseErr);
+    }
+  }, 60 * 1000);
+
   // Initial sync check 10 seconds after startup
   setTimeout(() => {
     autoSyncChannelVideosJob(io).catch(console.error);
     checkUpcomingEventReminders(io).catch(console.error);
+    checkDailyPromiseJob(io).catch(console.error);
   }, 10000);
 };
 

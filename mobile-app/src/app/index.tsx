@@ -148,6 +148,46 @@ export default function HomeScreen() {
   const [scheduledPromisesList, setScheduledPromisesList] = useState<any[]>([]);
   const [savingPromise, setSavingPromise] = useState(false);
 
+  const BIBLE_BOOKS_QUICK = [
+    { nameTel: 'కీర్తనలు', nameEng: 'Psalms' },
+    { nameTel: 'యెషయా', nameEng: 'Isaiah' },
+    { nameTel: 'ఆదికాండము', nameEng: 'Genesis' },
+    { nameTel: 'మత్తయి', nameEng: 'Matthew' },
+    { nameTel: 'యోహాను', nameEng: 'John' },
+    { nameTel: 'రోమీయులకు', nameEng: 'Romans' },
+    { nameTel: 'ఫిలిప్పీయులకు', nameEng: 'Philippians' },
+    { nameTel: 'సామెతలు', nameEng: 'Proverbs' },
+    { nameTel: 'జెకర్యా', nameEng: 'Zechariah' },
+    { nameTel: 'ప్రకటన', nameEng: 'Revelation' },
+  ];
+
+  const [selectedBook, setSelectedBook] = useState<any>(null);
+  const [selectedChapter, setSelectedChapter] = useState('');
+  const [selectedVerseRange, setSelectedVerseRange] = useState('');
+
+  const setQuickDate = (offsetDays: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    setPromiseDate(d.toISOString().split('T')[0]);
+  };
+
+  const applyBookChapterReference = (bookObj: any, chStr?: string, vStr?: string) => {
+    setSelectedBook(bookObj);
+    const ch = chStr !== undefined ? chStr : (selectedChapter.trim() || '1');
+    const vVal = vStr !== undefined ? vStr : selectedVerseRange.trim();
+    const v = vVal ? `:${vVal}` : ':1';
+    setRefTel(`${bookObj.nameTel} ${ch}${v}`);
+    setRefEng(`${bookObj.nameEng} ${ch}${v}`);
+  };
+
+  const handleEditScheduledPromise = (item: any) => {
+    setPromiseDate(item.date);
+    setPromiseTel(item.verseTelugu || '');
+    setPromiseEng(item.verseEnglish || '');
+    setRefTel(item.referenceTelugu || '');
+    setRefEng(item.referenceEnglish || '');
+  };
+
   const openPromiseManager = async () => {
     setPromiseTel(dailyPromise?.verseTelugu || '');
     setPromiseEng(dailyPromise?.verseEnglish || '');
@@ -1004,18 +1044,112 @@ export default function HomeScreen() {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Calendar Date Selection */}
             <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 4 }}>
-              Schedule Date (YYYY-MM-DD)
+              📅 Schedule Calendar Date (YYYY-MM-DD) *
             </Text>
-            <TextInput
-              value={promiseDate}
-              onChangeText={setPromiseDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#757575"
-              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
-            />
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
+                value={promiseDate}
+                onChange={(e) => setPromiseDate(e.target.value)}
+                style={{
+                  padding: 8,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: theme.cardBorder,
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  fontSize: 14,
+                  width: '100%',
+                  marginTop: 4,
+                  outlineStyle: 'none',
+                } as any}
+              />
+            ) : (
+              <TextInput
+                value={promiseDate}
+                onChangeText={setPromiseDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#757575"
+                style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+              />
+            )}
 
-            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
+            {/* Quick Date Chips */}
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+              <TouchableOpacity onPress={() => setQuickDate(0)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: promiseDate === new Date().toISOString().split('T')[0] ? theme.primary : theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
+                <Text style={{ fontSize: 11, fontWeight: 'bold', color: promiseDate === new Date().toISOString().split('T')[0] ? '#fff' : theme.text }}>
+                  Today
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setQuickDate(1)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
+                <Text style={{ fontSize: 11, color: theme.text }}>Tomorrow</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setQuickDate(2)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
+                <Text style={{ fontSize: 11, color: theme.text }}>+2 Days</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setQuickDate(3)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
+                <Text style={{ fontSize: 11, color: theme.text }}>+3 Days</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setQuickDate(7)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
+                <Text style={{ fontSize: 11, color: theme.text }}>+7 Days</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Book & Chapter Reference Helper */}
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 12 }}>
+              📖 Select Book & Chapter (గ్రంథం & అధ్యాయం)
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {BIBLE_BOOKS_QUICK.map((b) => (
+                  <TouchableOpacity
+                    key={b.nameEng}
+                    onPress={() => applyBookChapterReference(b)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: selectedBook?.nameEng === b.nameEng ? theme.primary : theme.cardBorder,
+                      backgroundColor: selectedBook?.nameEng === b.nameEng ? theme.primary + '20' : theme.background,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: selectedBook?.nameEng === b.nameEng ? theme.primary : theme.text }}>
+                      {b.nameTel} ({b.nameEng})
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {/* Chapter & Verse Inputs */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Chapter No (అధ్యాయం)</Text>
+                <TextInput
+                  value={selectedChapter}
+                  onChangeText={(val) => { setSelectedChapter(val); if (selectedBook) applyBookChapterReference(selectedBook, val); }}
+                  placeholder="e.g. 23"
+                  keyboardType="numeric"
+                  placeholderTextColor="#757575"
+                  style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Verse Range (వచనములు)</Text>
+                <TextInput
+                  value={selectedVerseRange}
+                  onChangeText={(val) => { setSelectedVerseRange(val); if (selectedBook) applyBookChapterReference(selectedBook, undefined, val); }}
+                  placeholder="e.g. 1-2"
+                  placeholderTextColor="#757575"
+                  style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+                />
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 12 }}>
               Telugu Verse (తెలుగు వాగ్దానం) *
             </Text>
             <TextInput
@@ -1075,7 +1209,7 @@ export default function HomeScreen() {
 
             {/* Scheduled Promises List (Next 7 Days) */}
             <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text, marginTop: 20, marginBottom: 8 }}>
-              🗓️ Scheduled Promises (Next 7 Days)
+              🗓️ Scheduled Promises Calendar (Next 7 Days)
             </Text>
 
             {scheduledPromisesList && scheduledPromisesList.length > 0 ? (
@@ -1089,9 +1223,14 @@ export default function HomeScreen() {
                       "{item.verseTelugu}" - {item.referenceTelugu}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={() => handleDeleteScheduledPromise(item.date)}>
-                    <MaterialCommunityIcons name="delete-outline" size={20} color="#ef4444" />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TouchableOpacity onPress={() => handleEditScheduledPromise(item)} style={{ padding: 4 }}>
+                      <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteScheduledPromise(item.date)} style={{ padding: 4 }}>
+                      <MaterialCommunityIcons name="delete-outline" size={20} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             ) : (

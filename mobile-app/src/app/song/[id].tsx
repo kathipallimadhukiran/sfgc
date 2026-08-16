@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, ScrollView, View, Platform, Share, Dimensions, TouchableOpacity } from 'react-native';
-import { Appbar, Card, Title, Paragraph, Button, Text, ToggleButton, IconButton, Divider, Snackbar } from 'react-native-paper';
+import { Appbar, Card, Title, Paragraph, Button, Text, ToggleButton, IconButton, Divider, Snackbar, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '@/context/AppContext';
+import { useTheme } from '@/hooks/use-theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { songsService } from '@/services/songsService';
 
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams();
   const { favorites, toggleFavorite, songs, user, addToSetlist, language } = useApp();
+  const theme = useTheme();
   const router = useRouter();
   const [song, setSong] = useState<any>(null);
   const [viewMode, setViewMode] = useState('lyrics'); // 'lyrics' or 'chords'
@@ -88,13 +90,6 @@ export default function SongDetailScreen() {
     router.push({ pathname: '/live-operator', params: { songId: song._id || song.id } });
   };
 
-  const handleCopy = () => {
-    if (!song) return;
-    // Simple clipboard trigger or alert for demonstration
-    const lyricsText = song.lyrics?.map((s: any) => `[${s.type}]\n${s.text}`).join('\n\n');
-    alert('Lyrics copied to clipboard!');
-  };
-
   const handleScrollStateToggle = () => {
     setAutoScrollActive(!autoScrollActive);
     if (!autoScrollActive) {
@@ -104,24 +99,27 @@ export default function SongDetailScreen() {
 
   if (!song) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading song lyrics...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={{ color: theme.text, marginTop: 12 }}>
+          {isTel ? 'పాట సాహిత్యం లోడ్ అవుతోంది...' : 'Loading song lyrics...'}
+        </Text>
       </View>
     );
   }
 
-  const isFavorite = favorites.includes(song._id);
+  const isFavorite = favorites.includes(song._id || song.id);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header bar */}
-      <Appbar.Header style={{ backgroundColor: '#c62828' }}>
-        <Appbar.BackAction color="#fff" onPress={() => router.back()} />
+      <Appbar.Header style={{ backgroundColor: theme.primary }}>
+        <Appbar.BackAction color="#fff" onPress={() => router.push('/songs')} />
         <Appbar.Content title={song.title} color="#fff" titleStyle={{ fontWeight: 'bold' }} />
         <Appbar.Action
           color="#fff"
           icon={isFavorite ? 'heart' : 'heart-outline'}
-          onPress={() => toggleFavorite(song._id)}
+          onPress={() => toggleFavorite(song._id || song.id)}
         />
         {canOperate && (
           <Appbar.Action color="#ffd54f" icon="playlist-plus" onPress={handleAddToSetlist} />
@@ -130,25 +128,18 @@ export default function SongDetailScreen() {
       </Appbar.Header>
 
       {/* Control bar */}
-      <View style={styles.controlBar}>
+      <View style={[styles.controlBar, { backgroundColor: theme.backgroundElement, borderBottomColor: theme.cardBorder }]}>
         <View style={styles.fontSizeControls}>
-          <IconButton icon="format-size" size={20} />
-          <IconButton icon="minus" size={16} onPress={() => setFontSize(Math.max(12, fontSize - 2))} />
-          <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{fontSize}</Text>
-          <IconButton icon="plus" size={16} onPress={() => setFontSize(Math.min(30, fontSize + 2))} />
+          <IconButton icon="format-size" size={20} iconColor={theme.textSecondary} />
+          <IconButton icon="minus" size={16} iconColor={theme.text} onPress={() => setFontSize(Math.max(12, fontSize - 2))} />
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.text }}>{fontSize}</Text>
+          <IconButton icon="plus" size={16} iconColor={theme.text} onPress={() => setFontSize(Math.min(30, fontSize + 2))} />
         </View>
 
         <ToggleButton.Row onValueChange={value => value && setViewMode(value)} value={viewMode}>
-          <ToggleButton icon="text" value="lyrics" />
-          <ToggleButton icon="music-clef-treble" value="chords" />
+          <ToggleButton icon="text" value="lyrics" iconColor={viewMode === 'lyrics' ? theme.primary : theme.textSecondary} />
+          <ToggleButton icon="music-clef-treble" value="chords" iconColor={viewMode === 'chords' ? theme.primary : theme.textSecondary} />
         </ToggleButton.Row>
-
-        <IconButton 
-          icon={autoScrollActive ? 'pause-circle' : 'play-circle'} 
-          iconColor="#c62828" 
-          size={30} 
-          onPress={handleScrollStateToggle} 
-        />
       </View>
 
       {/* Main Lyrics & Chords Scroll Body */}
@@ -158,21 +149,21 @@ export default function SongDetailScreen() {
         onScroll={(e) => { currentScrollY.current = e.nativeEvent.contentOffset.y; }}
         scrollEventThrottle={16}
       >
-        <Card style={styles.lyricCard}>
+        <Card style={[styles.lyricCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder }]}>
           <Card.Content>
             {viewMode === 'lyrics' ? (
               song.lyrics?.map((slide: any, idx: number) => (
                 <View key={idx} style={styles.slideContainer}>
-                  <Text style={styles.slideType}>{slide.type}</Text>
-                  <Text style={[styles.lyricsText, { fontSize }]}>
+                  <Text style={[styles.slideType, { color: theme.primary }]}>{slide.type}</Text>
+                  <Text style={[styles.lyricsText, { fontSize, color: theme.text }]}>
                     {slide.text}
                   </Text>
-                  {idx < song.lyrics.length - 1 && <Divider style={{ marginVertical: 15 }} />}
+                  {idx < song.lyrics.length - 1 && <Divider style={{ marginVertical: 15, backgroundColor: theme.cardBorder }} />}
                 </View>
               ))
             ) : (
               <ScrollView horizontal>
-                <Text style={[styles.chordsText, { fontSize }]}>
+                <Text style={[styles.chordsText, { fontSize, color: theme.text }]}>
                   {song.chords || 'No guitar chords configured for this song.'}
                 </Text>
               </ScrollView>
