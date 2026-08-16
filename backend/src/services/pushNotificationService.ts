@@ -19,7 +19,7 @@ export const sendPushNotificationToAll = async (
   title: string,
   body: string,
   data: Record<string, any> = {}
-): Promise<{ success: boolean; sentCount: number; message: string }> => {
+): Promise<{ success: boolean; sentCount: number; message: string; expoResponse?: any }> => {
   try {
     // 1. Gather tokens from logged in Users
     const userTokens = await User.find({ pushToken: { $exists: true, $ne: '' } }).distinct('pushToken');
@@ -32,7 +32,7 @@ export const sendPushNotificationToAll = async (
 
     if (tokens.length === 0) {
       console.log('ℹ️ No registered mobile Expo push tokens found in database.');
-      return { success: false, sentCount: 0, message: 'No registered mobile devices found.' };
+      return { success: false, sentCount: 0, message: 'No registered mobile devices found in database.' };
     }
 
     const messages: PushMessagePayload[] = tokens.map(token => ({
@@ -46,11 +46,13 @@ export const sendPushNotificationToAll = async (
       channelId: 'default',
     }));
 
+    let lastExpoResponse: any = null;
+
     // Chunk into batches of 100 as per Expo Push API guidelines
     const chunkSize = 100;
     for (let i = 0; i < messages.length; i += chunkSize) {
       const chunk = messages.slice(i, i + chunkSize);
-      await fetch('https://exp.host/--/api/v2/push/send', {
+      const res = await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -59,10 +61,18 @@ export const sendPushNotificationToAll = async (
         },
         body: JSON.stringify(chunk),
       });
+
+      lastExpoResponse = await res.json();
+      console.log('📱 [EXPO_PUSH_RESPONSE]', JSON.stringify(lastExpoResponse));
     }
 
     console.log(`✅ Expo push notification dispatched to ${tokens.length} device(s): "${title}"`);
-    return { success: true, sentCount: tokens.length, message: `Push notification sent to ${tokens.length} mobile device(s).` };
+    return {
+      success: true,
+      sentCount: tokens.length,
+      message: `Push notification sent to ${tokens.length} mobile device(s).`,
+      expoResponse: lastExpoResponse,
+    };
   } catch (err: any) {
     console.error('⚠️ Error sending Expo push notification:', err?.message || err);
     return { success: false, sentCount: 0, message: err?.message || 'Error sending push notification.' };

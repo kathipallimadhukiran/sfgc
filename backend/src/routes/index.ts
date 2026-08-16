@@ -9,6 +9,7 @@ import streamRoutes from './streamRoutes';
 import voiceRoutes from './voiceRoutes';
 import biblePlanRoutes from './biblePlanRoutes';
 import departmentRoutes from './departmentRoutes';
+import configRoutes from './configRoutes';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/youtube', streamRoutes);
 router.use('/voice', voiceRoutes);
 router.use('/bible-plans', biblePlanRoutes);
 router.use('/departments', departmentRoutes);
+router.use('/config', configRoutes);
 
 export default router;

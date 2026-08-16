@@ -605,6 +605,56 @@
           </div>
         </div>
 
+        <!-- Mobile App Version & Update Release Manager -->
+        <div class="glass-card mt-4">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-mobile-screen-button text-indigo"></i> Mobile App Version & Update Manager</h3>
+              <p class="subtitle-text">Release new app updates and trigger instant update popup modals on member phones.</p>
+            </div>
+          </div>
+
+          <form id="appVersionForm" onsubmit="app.handleUpdateAppVersion(event)">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>Latest App Version *</label>
+                <input type="text" id="cfgLatestVersion" class="form-control" placeholder="e.g. 1.0.1" required />
+              </div>
+              <div class="form-group flex-1">
+                <label>Minimum Required Version</label>
+                <input type="text" id="cfgMinVersion" class="form-control" placeholder="e.g. 1.0.0" />
+              </div>
+            </div>
+
+            <div class="form-group mt-3">
+              <label>App Download URL</label>
+              <input type="url" id="cfgDownloadUrl" class="form-control" placeholder="https://sfgc-church.onrender.com" />
+            </div>
+
+            <div class="form-group mt-3">
+              <label>Release Notes & Feature Updates</label>
+              <textarea id="cfgUpdateNotes" class="form-control" rows="3" placeholder="Describe new features, performance improvements, and fixes..."></textarea>
+            </div>
+
+            <div class="form-group mt-3 flex-gap-16 align-center">
+              <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="cfgForceUpdate" />
+                <span>Force Mandatory Update</span>
+              </label>
+              <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="cfgNotifyUsers" checked />
+                <span>Send Mobile Push Notification</span>
+              </label>
+            </div>
+
+            <div class="form-group mt-4">
+              <button type="submit" class="btn btn-primary" id="btnSaveAppVersion">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Release & Publish App Update
+              </button>
+            </div>
+          </form>
+        </div>
+
         <!-- YouTube Video Catalog List -->
         <div class="glass-card">
           <div class="card-header">

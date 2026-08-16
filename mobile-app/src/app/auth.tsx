@@ -41,6 +41,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/use-theme";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { authService } from "@/services/authService";
+import { notificationService } from "@/services/notificationService";
 import {
   departmentService,
   DepartmentItem,
@@ -99,6 +100,7 @@ export default function AuthScreen() {
 
   useEffect(() => {
     fetchDepartments();
+    notificationService.init().catch(() => {});
   }, []);
 
   const fetchDepartments = async () => {

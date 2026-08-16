@@ -494,6 +494,7 @@ class ChurchApp {
       }
 
       this.updateStats();
+      this.loadAppVersionConfig();
       this.renderOverview();
       this.renderSongsTable();
       this.renderProjectionSongsList();
@@ -951,6 +952,56 @@ class ChurchApp {
       this.showToast('Failed to save song: ' + e.message, 'error');
     } finally {
       this.setButtonLoading('btnSubmitSong', false, '', 'Save Song');
+    }
+  }
+
+  async loadAppVersionConfig() {
+    try {
+      const res = await fetch('/api/config/app-version');
+      const data = await res.json();
+      if (data.success && data.config) {
+        const cfg = data.config;
+        if (document.getElementById('cfgLatestVersion')) document.getElementById('cfgLatestVersion').value = cfg.latestVersion || '1.0.1';
+        if (document.getElementById('cfgMinVersion')) document.getElementById('cfgMinVersion').value = cfg.minVersion || '1.0.0';
+        if (document.getElementById('cfgDownloadUrl')) document.getElementById('cfgDownloadUrl').value = cfg.downloadUrl || 'https://sfgc-church.onrender.com';
+        if (document.getElementById('cfgUpdateNotes')) document.getElementById('cfgUpdateNotes').value = cfg.updateNotes || '';
+        if (document.getElementById('cfgForceUpdate')) document.getElementById('cfgForceUpdate').checked = Boolean(cfg.forceUpdate);
+      }
+    } catch (e) {
+      console.warn('Load app version config warning:', e);
+    }
+  }
+
+  async handleUpdateAppVersion(e) {
+    if (e) e.preventDefault();
+    const btn = document.getElementById('btnSaveAppVersion');
+    this.setButtonLoading(btn, true, 'Publishing App Update...');
+
+    const payload = {
+      latestVersion: document.getElementById('cfgLatestVersion').value.trim(),
+      minVersion: document.getElementById('cfgMinVersion').value.trim(),
+      downloadUrl: document.getElementById('cfgDownloadUrl').value.trim(),
+      updateNotes: document.getElementById('cfgUpdateNotes').value.trim(),
+      forceUpdate: document.getElementById('cfgForceUpdate').checked,
+      notifyUsers: document.getElementById('cfgNotifyUsers').checked,
+    };
+
+    try {
+      const res = await this.authFetch('/api/config/app-version', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast(`🎉 ${data.message}`, 'success');
+        await this.loadAppVersionConfig();
+      } else {
+        this.showToast(`⚠️ ${data.message || 'Failed to update app version.'}`, 'error');
+      }
+    } catch (err) {
+      this.showToast('App version update failed: ' + err.message, 'error');
+    } finally {
+      this.setButtonLoading(btn, false, '', 'Release & Publish App Update');
     }
   }
 

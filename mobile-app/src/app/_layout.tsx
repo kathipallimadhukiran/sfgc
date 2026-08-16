@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useColorScheme, View, ActivityIndicator, LogBox } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import AppTabs from '@/components/app-tabs';
+import AppUpdateModal from '@/components/AppUpdateModal';
 import { AppProvider, useApp } from '@/context/AppContext';
 import AuthScreen from './auth';
 
@@ -43,6 +44,7 @@ export default function TabLayout() {
       <PaperProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <AuthGate />
+          <AppUpdateModal />
         </ThemeProvider>
       </PaperProvider>
     </AppProvider>

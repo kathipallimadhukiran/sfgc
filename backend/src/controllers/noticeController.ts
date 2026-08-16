@@ -61,7 +61,7 @@ export const createNotice = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Trigger Mobile System Push Notification to all devices
-    sendPushNotificationToAll(
+    const pushResult = await sendPushNotificationToAll(
       `📢 ${newNotice.title}`,
       newNotice.description,
       { type: 'notice', id: newNotice._id }
@@ -71,6 +71,7 @@ export const createNotice = async (req: Request, res: Response, next: NextFuncti
       success: true,
       message: 'Notice posted successfully.',
       notice: newNotice,
+      pushResult,
     });
   } catch (error) {
     next(error);
