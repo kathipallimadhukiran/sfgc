@@ -482,6 +482,43 @@ class BiblePlanService {
       addedBy: 'ai',
     };
   }
+
+  // Save/Schedule Daily Promise
+  async saveDailyPromise(promiseData: {
+    date?: string;
+    verseTelugu: string;
+    verseEnglish?: string;
+    referenceTelugu: string;
+    referenceEnglish?: string;
+  }): Promise<{ success: boolean; message?: string; data?: any }> {
+    try {
+      const resp = await axios.post(`${API_URL}/api/bible-plans/daily-promise`, promiseData, { timeout: 6000 });
+      return resp.data;
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.message || e.message || 'Failed to save promise' };
+    }
+  }
+
+  // Get Scheduled Daily Promises
+  async getScheduledPromises(): Promise<any[]> {
+    try {
+      const resp = await axios.get(`${API_URL}/api/bible-plans/scheduled-promises`, { timeout: 4000 });
+      if (resp.data && resp.data.data && Array.isArray(resp.data.data)) {
+        return resp.data.data;
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  // Delete Scheduled Daily Promise
+  async deleteDailyPromise(date: string): Promise<boolean> {
+    try {
+      const resp = await axios.delete(`${API_URL}/api/bible-plans/daily-promise/${date}`, { timeout: 4000 });
+      return resp.data.success;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 export const biblePlanService = new BiblePlanService();

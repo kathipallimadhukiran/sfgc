@@ -513,14 +513,14 @@ export default function EventsScreen() {
   return (
     <Portal.Host>
       <ScrollView 
-        style={styles.container} 
+        style={[styles.container, { backgroundColor: theme.background }]} 
         contentContainerStyle={styles.contentContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing || loading} onRefresh={handleRefresh} colors={[theme.primary]} />
         }
       >
         <View style={styles.summaryBox}>
-          <Text style={styles.summaryDesc}>
+          <Text style={[styles.summaryDesc, { color: theme.textSecondary }]}>
             {isTel ? 'రాబోయే ఆరాధన కూడికలు, ప్రార్థన సమయాలు మరియు ప్రత్యేక కార్యక్రమాలను చూడండి.' : 'Explore upcoming worship services, prayer meetings, and special events.'}
           </Text>
         </View>
@@ -545,7 +545,7 @@ export default function EventsScreen() {
               const rsvpCount = (evt.rsvps || []).length + (hasRsvped && !(evt.rsvps || []).includes(user?._id || '') ? 1 : 0);
               
               return (
-                <Card style={styles.card} key={eventKey}>
+                <Card style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder }]} key={eventKey}>
                   {/* Top Center Floating Countdown Timer Pill on the Border */}
                   <View style={styles.topCenterTimerContainer}>
                     <View style={[styles.countdownPill, { backgroundColor: countdown.bg, borderColor: countdown.borderColor }]}>
@@ -572,27 +572,27 @@ export default function EventsScreen() {
                       <View style={[styles.calendarMonthBox, { backgroundColor: theme.primary }]}>
                         <Text style={styles.calendarMonthText}>{cal.monthStr}</Text>
                       </View>
-                      <View style={styles.calendarDateBox}>
-                        <Text style={styles.calendarDateText}>{cal.dayNum}</Text>
+                      <View style={[styles.calendarDateBox, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder }]}>
+                        <Text style={[styles.calendarDateText, { color: theme.text }]}>{cal.dayNum}</Text>
                       </View>
                     </View>
 
                     {/* Details Column */}
                     <View style={styles.infoColumn}>
-                      <Title style={styles.eventTitle}>{evt.title}</Title>
+                      <Title style={[styles.eventTitle, { color: theme.text }]}>{evt.title}</Title>
                       
                       {evt.speaker ? (
-                        <Text style={styles.eventSpeaker}>🎙️ {evt.speaker}</Text>
+                        <Text style={[styles.eventSpeaker, { color: theme.textSecondary }]}>🎙️ {evt.speaker}</Text>
                       ) : null}
 
                       <View style={styles.metaInfoRow}>
-                        <MaterialCommunityIcons name="clock-outline" size={15} color="#616161" />
-                        <Text style={styles.metaText}>{cal.timeStr}</Text>
+                        <MaterialCommunityIcons name="clock-outline" size={15} color={theme.textSecondary} />
+                        <Text style={[styles.metaText, { color: theme.textSecondary }]}>{cal.timeStr}</Text>
                       </View>
 
                       <View style={[styles.metaInfoRow, { marginTop: 4 }]}>
-                        <MaterialCommunityIcons name="map-marker-outline" size={15} color="#616161" />
-                        <Text style={[styles.metaText, { flex: 1 }]} numberOfLines={2}>{evt.venue}</Text>
+                        <MaterialCommunityIcons name="map-marker-outline" size={15} color={theme.textSecondary} />
+                        <Text style={[styles.metaText, { color: theme.textSecondary, flex: 1 }]} numberOfLines={2}>{evt.venue}</Text>
                       </View>
 
                       {/* Attendance Count (Only when RSVP is enabled) */}
@@ -679,8 +679,8 @@ export default function EventsScreen() {
             })
           ) : (
             <View style={styles.emptyContainer}>
-              <Avatar.Icon size={64} icon="calendar-blank" style={{ backgroundColor: '#f5f5f5' }} color="#bdbdbd" />
-              <Text style={styles.emptyText}>
+              <Avatar.Icon size={64} icon="calendar-blank" style={{ backgroundColor: theme.backgroundElement }} color={theme.textSecondary} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
                 {isTel ? 'ప్రస్తుతానికి ఎటువంటి కార్యక్రమాలు నమోదు కాలేదు.' : 'No upcoming services registered at the moment.'}
               </Text>
             </View>
@@ -694,7 +694,7 @@ export default function EventsScreen() {
       {canManageEvents && (
         <FAB
           icon="plus"
-          style={styles.fab}
+          style={[styles.fab, { backgroundColor: theme.primary }]}
           color="#ffffff"
           onPress={handleOpenAddModal}
         />

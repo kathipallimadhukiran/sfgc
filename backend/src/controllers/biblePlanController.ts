@@ -779,6 +779,29 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
   }
 };
 
+// GET /api/bible-plans/scheduled-promises
+// Get all scheduled daily promises (up to next 14 days)
+export const getScheduledPromises = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const promises = await DailyPromise.find({ date: { $gte: todayStr } }).sort({ date: 1 }).limit(14);
+    res.status(200).json({ success: true, data: promises });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to fetch scheduled promises', error: error.message });
+  }
+};
+
+// DELETE /api/bible-plans/daily-promise/:date
+export const deleteDailyPromise = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { date } = req.params;
+    await DailyPromise.findOneAndDelete({ date });
+    res.status(200).json({ success: true, message: 'Scheduled promise deleted' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to delete promise', error: error.message });
+  }
+};
+
 // GET /api/bible-plans/admin/statistics
 export const getAdminPlanStatistics = async (req: Request, res: Response): Promise<void> => {
   try {

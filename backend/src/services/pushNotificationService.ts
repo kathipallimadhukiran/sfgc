@@ -31,8 +31,15 @@ export const sendPushNotificationToAll = async (
     // 2. Gather tokens from PushToken collection (all mobile devices & guests)
     const deviceTokens = await PushToken.find({ token: { $exists: true, $ne: '' } }).distinct('token');
 
-    // Combine and deduplicate
-    const tokens = Array.from(new Set([...userTokens, ...deviceTokens].filter(Boolean))) as string[];
+    // Combine and deduplicate real Expo push tokens (filtering out mock dev tokens like ExponentPushToken[dev_...])
+    const rawTokens = Array.from(new Set([...userTokens, ...deviceTokens].filter(Boolean))) as string[];
+    const tokens = rawTokens.filter(t => t.startsWith('ExponentPushToken[') && !t.includes('[dev_'));
+
+    // Asynchronously prune any leftover mock dev tokens from DB
+    if (rawTokens.length !== tokens.length) {
+      User.updateMany({ pushToken: { $regex: /\[dev_/ } }, { $set: { pushToken: '' } }).catch(() => {});
+      PushToken.deleteMany({ token: { $regex: /\[dev_/ } }).catch(() => {});
+    }
 
     if (tokens.length === 0) {
       console.log('ℹ️ No registered mobile Expo push tokens found in database.');
@@ -80,6 +87,20 @@ export const sendPushNotificationToAll = async (
 
       lastExpoResponse = await res.json();
       console.log('📱 [EXPO_PUSH_RESPONSE]', JSON.stringify(lastExpoResponse));
+
+      // Clean up invalid or DeviceNotRegistered tokens automatically
+      if (lastExpoResponse && Array.isArray(lastExpoResponse.data)) {
+        for (const item of lastExpoResponse.data) {
+          if (item.status === 'error' && (item.details?.error === 'DeviceNotRegistered' || item.details?.expoPushToken)) {
+            const badToken = item.details?.expoPushToken;
+            if (badToken) {
+              console.log(`🧹 Cleaning up unregistered/invalid Expo push token: ${badToken}`);
+              await User.updateMany({ pushToken: badToken }, { $set: { pushToken: '' } });
+              await PushToken.deleteMany({ token: badToken });
+            }
+          }
+        }
+      }
     }
 
     console.log(`✅ Expo push notification dispatched to ${tokens.length} device(s): "${title}"`);

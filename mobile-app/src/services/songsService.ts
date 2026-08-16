@@ -114,10 +114,11 @@ class SongsService {
           await mongoService.insertOne(COLLECTION, res.song);
           return res;
         }
-      } catch (e) {}
-
-      const created = await mongoService.insertOne(COLLECTION, newSong);
-      return { success: true, song: created };
+        return { success: false, message: res.message || 'Failed to add song to backend.' };
+      } catch (apiErr: any) {
+        console.log('API add song error:', apiErr?.message || apiErr);
+        return { success: false, message: apiErr?.message || 'Error adding song to database.' };
+      }
     } catch (err: any) {
       console.error('Error adding song:', err);
       return { success: false, message: err.message || 'Failed to add song.' };

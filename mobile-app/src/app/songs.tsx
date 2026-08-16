@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, FlatList, ScrollView, Platform, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
+import { StyleSheet, View, FlatList, ScrollView, Platform, TouchableOpacity, TextInput, Alert, RefreshControl, KeyboardAvoidingView } from 'react-native';
 import { Searchbar, Card, Title, Text, Chip, List, Banner, IconButton, Divider, Portal, Modal, Button, FAB, HelperText } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/hooks/use-theme';
@@ -297,7 +297,7 @@ export default function SongsScreen() {
 
   return (
     <Portal.Host>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         {/* Setlist Panel for operators */}
         {canOperate && showSetlistPanel && (
           <View style={styles.setlistPanel}>
@@ -461,8 +461,8 @@ export default function SongsScreen() {
               value={searchQuery}
               icon="magnify"
               clearIcon="close"
-              style={styles.searchbar}
-              inputStyle={{ fontSize: 14 }}
+              style={[styles.searchbar, { backgroundColor: theme.backgroundElement }]}
+              inputStyle={{ fontSize: 14, color: theme.text }}
             />
             <IconButton 
               icon="microphone" 
@@ -480,8 +480,8 @@ export default function SongsScreen() {
           <Chip
             selected={selectedLanguage === null}
             onPress={() => setSelectedLanguage(null)}
-            style={[styles.chip, selectedLanguage === null && styles.activeChip]}
-            textStyle={[styles.chipText, selectedLanguage === null && styles.activeChipText]}
+            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === null && styles.activeChip]}
+            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === null && styles.activeChipText]}
             showSelectedOverlay={false}
           >
             {isTel ? 'అన్ని భాషలు' : 'All Languages'}
@@ -489,8 +489,8 @@ export default function SongsScreen() {
           <Chip
             selected={selectedLanguage === 'English'}
             onPress={() => setSelectedLanguage('English')}
-            style={[styles.chip, selectedLanguage === 'English' && styles.activeChip]}
-            textStyle={[styles.chipText, selectedLanguage === 'English' && styles.activeChipText]}
+            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === 'English' && styles.activeChip]}
+            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === 'English' && styles.activeChipText]}
             showSelectedOverlay={false}
           >
             {isTel ? 'ఇంగ్లీష్' : 'English'}
@@ -498,8 +498,8 @@ export default function SongsScreen() {
           <Chip
             selected={selectedLanguage === 'Telugu'}
             onPress={() => setSelectedLanguage('Telugu')}
-            style={[styles.chip, selectedLanguage === 'Telugu' && styles.activeChip]}
-            textStyle={[styles.chipText, selectedLanguage === 'Telugu' && styles.activeChipText]}
+            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === 'Telugu' && styles.activeChip]}
+            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === 'Telugu' && styles.activeChipText]}
             showSelectedOverlay={false}
           >
             {isTel ? 'తెలుగు' : 'Telugu'}
@@ -516,8 +516,8 @@ export default function SongsScreen() {
                   key={cat}
                   selected={isSelected}
                   onPress={() => setSelectedCategory(isSelected ? null : cat)}
-                  style={[styles.categoryChip, isSelected && styles.activeCategoryChip]}
-                  textStyle={[styles.categoryChipText, isSelected && styles.activeCategoryChipText]}
+                  style={[styles.categoryChip, { backgroundColor: theme.backgroundElement }, isSelected && styles.activeCategoryChip]}
+                  textStyle={[styles.categoryChipText, { color: theme.text }, isSelected && styles.activeCategoryChipText]}
                   showSelectedOverlay={false}
                 >
                   {getTranslatedCategory(cat)}
@@ -540,7 +540,7 @@ export default function SongsScreen() {
             const isLive = liveSession && (liveSession.song?._id === songKey || liveSession.song?.id === songKey);
             
             return (
-              <View style={[styles.songCard, isLive && styles.liveSongCard]}>
+              <View style={[styles.songCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder }, isLive && styles.liveSongCard]}>
                 <TouchableOpacity 
                   activeOpacity={0.7}
                   onPress={() => router.push(isLive ? '/live-lyrics' : `/song/${songKey}`)}
@@ -555,7 +555,7 @@ export default function SongsScreen() {
                   </View>
                   <View style={styles.songDetails}>
                     <View style={styles.titleRow}>
-                      <Text style={styles.songTitle}>{item.title}</Text>
+                      <Text style={[styles.songTitle, { color: theme.text }]}>{item.title}</Text>
                       {isLive && (
                         <View style={styles.liveTagBadge}>
                           <Text style={styles.liveTagText}>LIVE</Text>
@@ -563,11 +563,11 @@ export default function SongsScreen() {
                       )}
                     </View>
                     <View style={styles.songTagsRow}>
-                      <Text style={styles.songLangTag}>
+                      <Text style={[styles.songLangTag, { color: theme.textSecondary }]}>
                         {item.language === 'Telugu' ? (isTel ? 'తెలుగు' : 'Telugu') : (isTel ? 'ఇంగ్లీష్' : 'English')}
                       </Text>
-                      <Text style={styles.songDot}>•</Text>
-                      <Text style={styles.songCatTag}>{getTranslatedCategory(item.category)}</Text>
+                      <Text style={[styles.songDot, { color: theme.textSecondary }]}>•</Text>
+                      <Text style={[styles.songCatTag, { color: theme.textSecondary }]}>{getTranslatedCategory(item.category)}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -651,30 +651,31 @@ export default function SongsScreen() {
           <Modal
             visible={addModalVisible}
             onDismiss={() => setAddModalVisible(false)}
-            contentContainerStyle={styles.modalFullScreen}
+            contentContainerStyle={[styles.modalFullScreen, { backgroundColor: theme.backgroundElement }]}
           >
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setAddModalVisible(false)} style={styles.modalCloseBtn}>
-                <MaterialCommunityIcons name="close" size={22} color="#666" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>
-                {editingId ? (isTel ? 'పాట సవరించు' : 'Edit Song') : (isTel ? 'కొత్త పాట జోడించు' : 'Add New Song')}
-              </Text>
-              <Button
-                mode="contained"
-                onPress={handleAddSongSubmit}
-                loading={submitting}
-                disabled={submitting}
-                buttonColor={theme.primary}
-                style={{ borderRadius: 8 }}
-                labelStyle={{ fontSize: 13, fontWeight: 'bold' }}
-              >
-                {isTel ? 'సేవ్ చేయి' : 'Save'}
-              </Button>
-            </View>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+              {/* Modal Header */}
+              <View style={[styles.modalHeader, { backgroundColor: theme.backgroundElement, borderBottomColor: theme.cardBorder }]}>
+                <TouchableOpacity onPress={() => setAddModalVisible(false)} style={styles.modalCloseBtn}>
+                  <MaterialCommunityIcons name="close" size={22} color={theme.textSecondary} />
+                </TouchableOpacity>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  {editingId ? (isTel ? 'పాట సవరించు' : 'Edit Song') : (isTel ? 'కొత్త పాట జోడించు' : 'Add New Song')}
+                </Text>
+                <Button
+                  mode="contained"
+                  onPress={handleAddSongSubmit}
+                  loading={submitting}
+                  disabled={submitting}
+                  buttonColor={theme.primary}
+                  style={{ borderRadius: 8 }}
+                  labelStyle={{ fontSize: 13, fontWeight: 'bold' }}
+                >
+                  {isTel ? 'సేవ్ చేయి' : 'Save'}
+                </Button>
+              </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              <ScrollView showsVerticalScrollIndicator={false} style={[styles.modalBody, { backgroundColor: theme.backgroundElement }]} keyboardShouldPersistTaps="handled">
 
               {/* Song Title */}
               <Text style={styles.inputLabel}>{isTel ? 'పాట శీర్షిక *' : 'Song Title *'}</Text>
@@ -817,8 +818,9 @@ export default function SongsScreen() {
 
               <View style={{ height: 32 }} />
             </ScrollView>
-          </Modal>
-        </Portal>
+          </KeyboardAvoidingView>
+        </Modal>
+      </Portal>
 
 
         {/* 2. Interactive Voice Search Modal */}

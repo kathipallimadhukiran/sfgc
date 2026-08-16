@@ -153,15 +153,28 @@ export default function NotificationsScreen() {
       >
         <View style={styles.header}>
           <Text variant="titleMedium" style={styles.subtitle}>
-            Stay updated with the latest announcements, meetings, and notifications from our church.
+            Stay updated with today's latest announcements, meetings, and notifications.
           </Text>
         </View>
 
-        {notices && notices.length > 0 ? (
-          notices.map((notice) => {
-            const isVideoNotif = notice.title.includes('🎬') || notice.title.toLowerCase().includes('video');
-            const noticeImage = notice.image || notice.attachment || '';
-            const noticeId = notice._id || notice.id || '';
+        {(() => {
+          const todayNotices = (notices || []).filter((notice) => {
+            const dStr = notice.date || notice.createdAt;
+            if (!dStr) return true;
+            const d = new Date(dStr);
+            const now = new Date();
+            return (
+              d.getFullYear() === now.getFullYear() &&
+              d.getMonth() === now.getMonth() &&
+              d.getDate() === now.getDate()
+            );
+          });
+
+          return todayNotices && todayNotices.length > 0 ? (
+            todayNotices.map((notice) => {
+              const isVideoNotif = notice.title.includes('🎬') || notice.title.toLowerCase().includes('video');
+              const noticeImage = notice.image || notice.attachment || '';
+              const noticeId = notice._id || notice.id || '';
 
             return (
               <Card
@@ -272,10 +285,11 @@ export default function NotificationsScreen() {
           <View style={styles.emptyContainer}>
             <Avatar.Icon size={70} icon="bell-outline" style={{ backgroundColor: '#f5f5f5' }} color="#bdbdbd" />
             <Text variant="titleMedium" style={styles.emptyText}>
-              ప్రకటనలు ఏవీ లేవు (No notifications yet)
+              నేటి ప్రకటనలు ఏవీ లేవు (No notifications today)
             </Text>
           </View>
-        )}
+        );
+      })()}
 
         <View style={{ height: 60 }} />
       </ScrollView>

@@ -137,6 +137,72 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [leaderboardRefreshTrigger, setLeaderboardRefreshTrigger] = useState(0);
 
+  // Admin Daily Promise Manager State
+  const canManagePromise = user && ['Admin', 'Super Admin', 'Event Coordinator', 'Notice Manager'].includes(user.role);
+  const [promiseModalVisible, setPromiseModalVisible] = useState(false);
+  const [promiseTel, setPromiseTel] = useState('');
+  const [promiseEng, setPromiseEng] = useState('');
+  const [refTel, setRefTel] = useState('');
+  const [refEng, setRefEng] = useState('');
+  const [promiseDate, setPromiseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduledPromisesList, setScheduledPromisesList] = useState<any[]>([]);
+  const [savingPromise, setSavingPromise] = useState(false);
+
+  const openPromiseManager = async () => {
+    setPromiseTel(dailyPromise?.verseTelugu || '');
+    setPromiseEng(dailyPromise?.verseEnglish || '');
+    setRefTel(dailyPromise?.referenceTelugu || '');
+    setRefEng(dailyPromise?.referenceEnglish || '');
+    setPromiseDate(new Date().toISOString().split('T')[0]);
+    setPromiseModalVisible(true);
+    fetchScheduledPromisesList();
+  };
+
+  const fetchScheduledPromisesList = async () => {
+    try {
+      const list = await biblePlanService.getScheduledPromises();
+      setScheduledPromisesList(list);
+    } catch (e) {}
+  };
+
+  const handleSaveDailyPromise = async () => {
+    if (!promiseTel.trim() || !refTel.trim()) {
+      alert('Please fill in Telugu Verse and Reference.');
+      return;
+    }
+    setSavingPromise(true);
+    try {
+      const res = await biblePlanService.saveDailyPromise({
+        date: promiseDate,
+        verseTelugu: promiseTel.trim(),
+        verseEnglish: promiseEng.trim(),
+        referenceTelugu: refTel.trim(),
+        referenceEnglish: refEng.trim(),
+      });
+
+      if (res.success) {
+        alert('🎉 Daily Promise saved & scheduled successfully!');
+        await loadDailyPromise();
+        await fetchScheduledPromisesList();
+      } else {
+        alert(res.message || 'Failed to save promise.');
+      }
+    } catch (err: any) {
+      alert(`Error saving promise: ${err.message}`);
+    } finally {
+      setSavingPromise(false);
+    }
+  };
+
+  const handleDeleteScheduledPromise = async (dateStr: string) => {
+    const ok = await biblePlanService.deleteDailyPromise(dateStr);
+    if (ok) {
+      alert(`Deleted promise for ${dateStr}`);
+      fetchScheduledPromisesList();
+      loadDailyPromise();
+    }
+  };
+
   // YouTube Slider state
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [recentVideos, setRecentVideos] = useState<HomeVideo[]>([]);
@@ -164,15 +230,23 @@ export default function HomeScreen() {
 
       liveVideosService.getVideos().then(result => {
         if (!isActive || !result.success) return;
-        setRecentVideos(result.videos.map(video => ({
-          id: video._id,
-          titleTel: video.title,
-          titleEng: video.title,
-          type: 'video',
-          duration: '--:--',
-          thumbnail: video.thumbnail,
-          url: video.youtubeUrl,
-        })));
+        const latest5 = (result.videos || []).slice(0, 5);
+        setRecentVideos(latest5.map(video => {
+          const cleanTitle = (video.title || 'Church Video')
+            .replace(/#\w+/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          return {
+            id: video._id || video.id,
+            titleTel: cleanTitle,
+            titleEng: cleanTitle,
+            type: 'video',
+            duration: '',
+            thumbnail: video.thumbnail,
+            url: video.youtubeUrl,
+          };
+        }));
       });
 
       return () => {
@@ -379,9 +453,16 @@ export default function HomeScreen() {
               {isTel ? 'నేటి దేవుని వాగ్దానము' : 'Today\'s God\'s Promise'}
             </Text>
           </View>
-          <TouchableOpacity onPress={handleShareVerse} style={styles.shareIconBtn}>
-            <MaterialCommunityIcons name="share-variant" size={18} color={theme.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {canManagePromise && (
+              <TouchableOpacity onPress={openPromiseManager} style={{ padding: 4 }}>
+                <MaterialCommunityIcons name="pencil" size={18} color={theme.primary} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleShareVerse} style={styles.shareIconBtn}>
+              <MaterialCommunityIcons name="share-variant" size={18} color={theme.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -425,18 +506,6 @@ export default function HomeScreen() {
                 {/* Overlay Play Icon */}
                 <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -25 }, { translateY: -25 }], width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
                   <MaterialCommunityIcons name="play" size={32} color="#ffffff" style={{ marginLeft: 2 }} />
-                </View>
-
-                {/* Type Badge (Video / Shorts) */}
-                <View style={{ position: 'absolute', top: 12, right: 12, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, backgroundColor: item.type === 'short' ? '#ff0000' : 'rgba(0,0,0,0.7)', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <MaterialCommunityIcons 
-                    name={item.type === 'short' ? 'flash' : 'video'} 
-                    size={12} 
-                    color="#ffffff" 
-                  />
-                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#ffffff' }}>
-                    {item.type === 'short' ? 'SHORTS' : item.duration}
-                  </Text>
                 </View>
 
                 {/* Bottom Title Bar */}
@@ -915,6 +984,125 @@ export default function HomeScreen() {
         </View>
       </View>
     </Modal>
+
+    {/* Admin Daily Promise Manager & Scheduler Modal */}
+    <Modal
+      visible={promiseModalVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setPromiseModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalCard, { backgroundColor: theme.backgroundElement, maxHeight: '85%' }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 17, fontWeight: 'bold', color: theme.primary }}>
+              {isTel ? '🌅 నేటి వాగ్దానం నిర్వహణ (Admin)' : '🌅 Daily Promise Manager'}
+            </Text>
+            <TouchableOpacity onPress={() => setPromiseModalVisible(false)}>
+              <MaterialCommunityIcons name="close-circle" size={24} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 4 }}>
+              Schedule Date (YYYY-MM-DD)
+            </Text>
+            <TextInput
+              value={promiseDate}
+              onChangeText={setPromiseDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#757575"
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
+              Telugu Verse (తెలుగు వాగ్దానం) *
+            </Text>
+            <TextInput
+              value={promiseTel}
+              onChangeText={setPromiseTel}
+              placeholder="e.g. యెహోవా నా కాపరి; నాకు లేమి కలుగదు..."
+              placeholderTextColor="#757575"
+              multiline
+              numberOfLines={3}
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 70, textAlignVertical: 'top' }]}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
+              Telugu Reference (ఆధారము) *
+            </Text>
+            <TextInput
+              value={refTel}
+              onChangeText={setRefTel}
+              placeholder="e.g. కీర్తనలు 23:1-2"
+              placeholderTextColor="#757575"
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
+              English Verse (Optional)
+            </Text>
+            <TextInput
+              value={promiseEng}
+              onChangeText={setPromiseEng}
+              placeholder="e.g. The Lord is my shepherd..."
+              placeholderTextColor="#757575"
+              multiline
+              numberOfLines={2}
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 60, textAlignVertical: 'top' }]}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
+              English Reference (Optional)
+            </Text>
+            <TextInput
+              value={refEng}
+              onChangeText={setRefEng}
+              placeholder="e.g. Psalms 23:1-2"
+              placeholderTextColor="#757575"
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+            />
+
+            <TouchableOpacity
+              style={[styles.modalBtnPrimary, { backgroundColor: theme.primary, marginTop: 16 }]}
+              onPress={handleSaveDailyPromise}
+              disabled={savingPromise}
+            >
+              <Text style={styles.modalBtnTextPrimary}>
+                {savingPromise ? 'Saving...' : '💾 Save & Schedule Promise'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Scheduled Promises List (Next 7 Days) */}
+            <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text, marginTop: 20, marginBottom: 8 }}>
+              🗓️ Scheduled Promises (Next 7 Days)
+            </Text>
+
+            {scheduledPromisesList && scheduledPromisesList.length > 0 ? (
+              scheduledPromisesList.map((item) => (
+                <View key={item._id || item.date} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.cardBorder, marginBottom: 6, backgroundColor: theme.background }}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.primary }}>
+                      📅 {item.date}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: theme.text }} numberOfLines={1}>
+                      "{item.verseTelugu}" - {item.referenceTelugu}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleDeleteScheduledPromise(item.date)}>
+                    <MaterialCommunityIcons name="delete-outline" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ))
+            ) : (
+              <Text style={{ fontSize: 12, color: theme.textSecondary, fontStyle: 'italic', marginBottom: 10 }}>
+                No future promises scheduled yet.
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   </>
 );
 }
@@ -922,6 +1110,14 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    fontSize: 14,
+    marginTop: 4,
   },
   contentContainer: {
     paddingHorizontal: 16,

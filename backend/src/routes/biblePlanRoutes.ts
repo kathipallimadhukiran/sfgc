@@ -9,6 +9,8 @@ import {
   getLeaderboard,
   getDailyPromise,
   setDailyPromise,
+  getScheduledPromises,
+  deleteDailyPromise,
   getAdminPlanStatistics,
   adminUpdatePlan,
   getPublicPlan,
@@ -29,6 +31,8 @@ router.post('/submit-quiz', authenticate, submitQuizAttempt);
 router.get('/leaderboard', getLeaderboard);
 router.get('/daily-promise', getDailyPromise);
 router.post('/daily-promise', setDailyPromise);
+router.get('/scheduled-promises', getScheduledPromises);
+router.delete('/daily-promise/:date', deleteDailyPromise);
 
 
 // Shareable Public Contributor Link Routes (No Admin Login Required)
