@@ -666,12 +666,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         refreshData();
         notificationService.scheduleLocalEventReminder(newEvent);
 
-        // Trigger System Notification
+        // Trigger System Notification (Single Notification with Banner)
         const bannerUrl = newEvent.banner || newEvent.imageUrl || '';
+        const parsedDate = new Date(newEvent.date);
+        const eventDateStr = !isNaN(parsedDate.getTime())
+          ? parsedDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+          : (newEvent.date || '');
+
         notificationService.triggerNotification(
-          `📅 New Event: ${newEvent.title}`,
-          `📍 ${newEvent.venue}${newEvent.time ? ` at ${newEvent.time}` : ''}`,
-          { type: 'EVENT', id: newEvent._id || newEvent.id, imageUrl: bannerUrl },
+          `🗓️ New Event: ${newEvent.title}`,
+          `📍 ${newEvent.venue}${newEvent.time ? ` at ${newEvent.time}` : ''}${eventDateStr ? ` | 📅 ${eventDateStr}` : ''}`,
+          { type: 'EVENT', id: newEvent._id || newEvent.id, imageUrl: bannerUrl, banner: bannerUrl },
           bannerUrl
         );
       });

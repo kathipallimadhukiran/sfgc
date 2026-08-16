@@ -514,11 +514,21 @@ export default function LiveLyricsScreen() {
           </View>
         )}
         <View style={styles.audienceLyricsArea}>
-          {lines.map((line: string, i: number) => (
-            <Text key={i} style={[styles.audienceLine, hli === i && styles.audienceLineHL]}>
-              {line}
-            </Text>
-          ))}
+          {lines.map((line: string, i: number) => {
+            if (line.includes('MEDIA_ONLY:') || line.includes('IMAGE_ONLY:') || line.includes('THUMBNAIL_ONLY:')) {
+              const imgUri = line.replace(/.*?(MEDIA_ONLY|IMAGE_ONLY|THUMBNAIL_ONLY):\s*/i, '').replace(/\]$/, '').trim();
+              return (
+                <View key={i} style={{ width: '100%', height: '85%', justifyContent: 'center', alignItems: 'center' }}>
+                  <Image source={{ uri: imgUri }} style={{ width: '92%', height: '92%', borderRadius: 16 }} resizeMode="contain" />
+                </View>
+              );
+            }
+            return (
+              <Text key={i} style={[styles.audienceLine, hli === i && styles.audienceLineHL]}>
+                {line}
+              </Text>
+            );
+          })}
         </View>
         <View style={styles.audienceDotsRow}>
           {song?.lyrics?.map((_: any, i: number) => (
@@ -649,6 +659,14 @@ export default function LiveLyricsScreen() {
                     <View style={{ width: width, paddingHorizontal: 16, justifyContent: 'center' }}>
                       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ justifyContent: 'center', flexGrow: 1 }}>
                         {lines.map((line: string, i: number) => {
+                          if (line.includes('MEDIA_ONLY:') || line.includes('IMAGE_ONLY:') || line.includes('THUMBNAIL_ONLY:')) {
+                            const imgUri = line.replace(/.*?(MEDIA_ONLY|IMAGE_ONLY|THUMBNAIL_ONLY):\s*/i, '').replace(/\]$/, '').trim();
+                            return (
+                              <View key={i} style={{ width: '100%', height: 180, justifyContent: 'center', alignItems: 'center' }}>
+                                <Image source={{ uri: imgUri }} style={{ width: '90%', height: 170, borderRadius: 12 }} resizeMode="contain" />
+                              </View>
+                            );
+                          }
                           const isHL = currentSlide === index && highlightLine === i;
                           return (
                             <TouchableOpacity
@@ -1128,7 +1146,10 @@ export default function LiveLyricsScreen() {
               <Button
                 mode="contained"
                 buttonColor="#6366f1"
-                onPress={() => setShowAddTvModal(true)}
+                onPress={() => {
+                  setShowCastModal(false);
+                  setTimeout(() => setShowAddTvModal(true), 150);
+                }}
                 icon="plus"
                 style={{ flex: 1, borderRadius: 8 }}
               >

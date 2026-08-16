@@ -14,16 +14,30 @@ if (Notifications && Notifications.setNotificationHandler) {
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
         priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
       }),
     });
-  } catch (err) {
-    console.log('setNotificationHandler notice:', err);
-  }
+  } catch (err) {}
 }
+
+const sanitizeImageUrl = (url: any): string => {
+  if (!url || typeof url !== 'string') return '';
+  let trimmed = url.trim();
+  if (trimmed.startsWith('data:') || trimmed.length > 2048) {
+    return '';
+  }
+  if (trimmed.startsWith('/') && API_URL) {
+    trimmed = `${API_URL.replace(/\/$/, '')}${trimmed}`;
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  return '';
+};
 
 class NotificationService {
   private isConfigured = false;
@@ -45,9 +59,7 @@ class NotificationService {
             enableVibrate: true,
             showBadge: true,
           });
-        } catch (chanErr) {
-          console.log('Android notification channel setup notice:', chanErr);
-        }
+        } catch (chanErr) {}
       }
 
       // 2. Check & Request Notification Permissions
@@ -66,13 +78,7 @@ class NotificationService {
             });
             finalStatus = status;
           }
-
-          if (finalStatus !== 'granted') {
-            console.log('📱 Notification permission not granted by user.');
-          }
-        } catch (permErr) {
-          console.log('Permission check notice:', permErr);
-        }
+        } catch (permErr) {}
       }
 
       this.isConfigured = true;
@@ -89,20 +95,14 @@ class NotificationService {
       if (Notifications?.getExpoPushTokenAsync) {
         try {
           tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-          console.log('✅ Strategy 1 (Expo Push Token with EAS ProjectID) succeeded:', tokenData?.data);
-        } catch (err1: any) {
-          console.log('⚠️ Strategy 1 getExpoPushTokenAsync(projectId) notice:', err1?.message || err1);
-        }
+        } catch (err1: any) {}
       }
 
       // Strategy 2: Expo Push Token without parameters
       if (!tokenData?.data && Notifications?.getExpoPushTokenAsync) {
         try {
           tokenData = await Notifications.getExpoPushTokenAsync();
-          console.log('✅ Strategy 2 (Expo Default Token) succeeded:', tokenData?.data);
-        } catch (err2: any) {
-          console.log('⚠️ Strategy 2 getExpoPushTokenAsync() notice:', err2?.message || err2);
-        }
+        } catch (err2: any) {}
       }
 
       // Strategy 3: Native Device FCM/APNs Push Token
@@ -111,11 +111,8 @@ class NotificationService {
           const deviceTokenData = await Notifications.getDevicePushTokenAsync();
           if (deviceTokenData?.data) {
             tokenData = { data: deviceTokenData.data };
-            console.log('✅ Strategy 3 (Native Device Token) succeeded:', tokenData?.data);
           }
-        } catch (err3: any) {
-          console.log('⚠️ Strategy 3 getDevicePushTokenAsync() notice:', err3?.message || err3);
-        }
+        } catch (err3: any) {}
       }
 
       // Strategy 4: Fallback persistent token for local dev environment
@@ -126,7 +123,6 @@ class NotificationService {
           await AsyncStorage.setItem('expo_dev_push_token', devId);
         }
         tokenData = { data: devId };
-        console.log('📱 Persistent Dev Token assigned:', devId);
       }
 
       if (tokenData?.data) {
@@ -171,20 +167,35 @@ class NotificationService {
 
   async triggerNotification(title: string, body: string, data?: any, imageUrl?: string): Promise<void> {
     try {
-      const img = imageUrl || data?.imageUrl || data?.image || data?.banner || '';
+      const img = sanitizeImageUrl(imageUrl || data?.imageUrl || data?.image || data?.banner);
+
+      const cleanData: Record<string, any> = {};
+      if (data && typeof data === 'object') {
+        Object.keys(data).forEach((key) => {
+          const val = data[key];
+          if (typeof val === 'string' && val.length < 500 && !val.startsWith('data:')) {
+            cleanData[key] = val;
+          } else if (typeof val === 'number' || typeof val === 'boolean') {
+            cleanData[key] = val;
+          }
+        });
+      }
+      if (img) cleanData.imageUrl = img;
+
       if (Notifications?.scheduleNotificationAsync) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title,
-            body,
-            data: data || {},
+            title: (title || '').substring(0, 200),
+            body: (body || '').substring(0, 500),
+            data: cleanData,
             sound: 'default',
             priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
-            attachments: img ? [{ url: img }] : undefined,
+            ...(img ? {
+              attachments: [{ url: img, identifier: 'image' }],
+            } : {}),
           },
           trigger: null, // trigger immediately
         });
-        console.log('🔔 System OS Notification Displayed:', title);
       }
     } catch (err: any) {
       console.log('Error triggering system OS notification:', err?.message || err);
@@ -208,29 +219,34 @@ class NotificationService {
       // Only schedule if 2h prior time is in the future
       if (triggerTimeMs > nowMs && Notifications?.scheduleNotificationAsync) {
         const timeStr = event.time ? ` at ${event.time}` : '';
-        const bannerUrl = event.banner || event.imageUrl || '';
+        const bannerUrl = sanitizeImageUrl(event.banner || event.imageUrl);
+        const eventId = String(event._id || event.id || 'evt').substring(0, 50);
 
-        const notificationId = `event_2h_${event._id || event.id || event.title}`;
+        const notificationId = `event_2h_${eventId}`;
 
         // Cancel previous scheduled instance if any to avoid duplicates
         try {
           await Notifications.cancelScheduledNotificationAsync(notificationId);
         } catch (cErr) {}
 
+        const cleanData: Record<string, any> = {
+          type: 'event',
+          id: eventId,
+          eventId: eventId,
+        };
+        if (bannerUrl) cleanData.imageUrl = bannerUrl;
+
         await Notifications.scheduleNotificationAsync({
           identifier: notificationId,
           content: {
             title: `⏰ Upcoming Event in 2 Hours!`,
-            body: `🗓️ ${event.title}\n📍 ${event.venue}${timeStr}`,
-            data: {
-              type: 'event',
-              id: event._id || event.id,
-              eventId: event._id || event.id,
-              imageUrl: bannerUrl,
-            },
+            body: `🗓️ ${String(event.title || 'Event').substring(0, 150)}\n📍 ${String(event.venue || 'Sanctuary').substring(0, 150)}${timeStr}`,
+            data: cleanData,
             sound: 'default',
             priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
-            attachments: bannerUrl ? [{ url: bannerUrl }] : undefined,
+            ...(bannerUrl ? {
+              attachments: [{ url: bannerUrl, identifier: 'image' }],
+            } : {}),
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,

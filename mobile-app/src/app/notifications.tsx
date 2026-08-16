@@ -26,19 +26,36 @@ export default function NotificationsScreen() {
     });
   }, [notices]);
 
-  const handleBroadcastNotice = (noticeTitle: string, noticeDesc: string) => {
+  const handleBroadcastNotice = (notice: any) => {
+    const noticeTitle = notice.title || 'Church Announcement';
+    const noticeDesc = notice.description || '';
+    const noticeImage = notice.image || notice.attachment || notice.banner || '';
+
+    let youtubeId = notice.youtubeId || '';
+    if (!youtubeId && noticeDesc) {
+      const match = noticeDesc.match(/(?:youtu\.be\/|watch\?v=)([^#&?]{11})/i);
+      if (match && match[1]) youtubeId = match[1];
+    }
+
+    let mediaUrl = noticeImage;
+    if (youtubeId) {
+      mediaUrl = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+    }
+
+    const slideText = mediaUrl 
+      ? `[MEDIA_ONLY: ${mediaUrl}]` 
+      : `${noticeTitle}\n\n${noticeDesc}`.replace(/https?:\/\/[^\s]+/gi, '').trim();
+
     const noteSongObj = {
       _id: 'notice_broadcast_' + Date.now(),
       title: noticeTitle,
       language: 'Telugu' as const,
       category: 'Announcement',
-      lyrics: [{ type: 'Announcement', text: `${noticeTitle}\n\n${noticeDesc}` }],
+      lyrics: [{ type: mediaUrl ? 'Media Presentation' : 'Announcement', text: slideText }],
     };
+
     startLiveSession(noteSongObj, 0);
-    Alert.alert(
-      '📢 Broadcast Active',
-      `"${noticeTitle}" is now displaying live on all TV screens and lyrics displays!`
-    );
+    router.push('/live-lyrics');
   };
 
   // Add/Edit Notice form states
@@ -175,6 +192,9 @@ export default function NotificationsScreen() {
           todayNotices.map((notice) => {
             const rawUrlMatch = notice.description?.match(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/i);
             const extractedYoutubeUrl = notice.youtubeUrl || (Array.isArray(rawUrlMatch) ? rawUrlMatch[0] : '');
+            const isVideoNotif = notice.title?.includes('🎬') || notice.title?.toLowerCase().includes('video');
+            const noticeImage = notice.image || notice.attachment || notice.banner || (notice.youtubeId ? `https://img.youtube.com/vi/${notice.youtubeId}/hqdefault.jpg` : '');
+            const noticeId = notice._id || notice.id || '';
 
             return (
               <Card
@@ -217,7 +237,7 @@ export default function NotificationsScreen() {
                             size={18}
                             iconColor="#eab308"
                             style={{ margin: 0, padding: 0 }}
-                            onPress={() => handleBroadcastNotice(notice.title, notice.description)}
+                            onPress={() => handleBroadcastNotice(notice)}
                           />
                         )}
                         <IconButton

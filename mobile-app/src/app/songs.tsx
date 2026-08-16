@@ -158,20 +158,22 @@ export default function SongsScreen() {
   // Alphabetical Index & Favorites filter state
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [letterModalVisible, setLetterModalVisible] = useState(false);
 
   const TELUGU_LETTERS = ['అ','ఆ','ఇ','ఈ','ఉ','ఊ','ఎ','ఏ','ఐ','ఒ','ఓ','ఔ','క','ఖ','గ','ఘ','చ','ఛ','జ','త','థ','ద','ధ','న','ప','ఫ','బ','భ','మ','య','ర','ల','వ','శ','ష','స','హ'];
   const ALPHABET_INDEX = TELUGU_LETTERS;
 
   const filteredSongs = songs.filter(song => {
-    const songKey = song._id || song.id || '';
-    const matchesSearch = song.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const songKey = (song._id || song.id || '').toString();
+    const matchesSearch = !searchQuery || 
+                          song.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (song.lyrics && song.lyrics.some((l: any) => l.text?.toLowerCase().includes(searchQuery.toLowerCase()))) ||
                           (song.tags && song.tags.some((t: string) => t.toLowerCase().includes(searchQuery.toLowerCase())));
     const matchesLang = !selectedLanguage || song.language === selectedLanguage;
-    const matchesCat = !selectedCategory || song.category === selectedCategory;
-    const matchesFav = !showFavoritesOnly || favorites.includes(songKey);
+    const matchesFav = !showFavoritesOnly || favorites.some((f: any) => (f._id || f.id || f).toString() === songKey);
     const matchesLetter = !selectedLetter || (song.title || '').trim().charAt(0).toUpperCase() === selectedLetter.toUpperCase();
 
-    return matchesSearch && matchesLang && matchesCat && matchesFav && matchesLetter;
+    return matchesSearch && matchesLang && matchesFav && matchesLetter;
   });
 
   const activeSlide = liveSession?.song?.lyrics?.[liveSession?.currentSlideIndex];
@@ -510,29 +512,38 @@ export default function SongsScreen() {
           </Chip>
         </View>
 
-        {/* Alphabetical First-Letter Index Bar (Telugu / English A-Z) */}
-        <View style={{ marginVertical: 6 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 4 }}>
-            <TouchableOpacity
-              onPress={() => setSelectedLetter(null)}
-              style={[{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: theme.cardBorder, backgroundColor: theme.backgroundElement }, selectedLetter === null && { backgroundColor: theme.primary, borderColor: theme.primary }]}
-            >
-              <Text style={[{ fontSize: 12, fontWeight: 'bold', color: theme.text }, selectedLetter === null && { color: '#ffffff' }]}>
-                {isTel ? 'అన్నీ' : 'ALL'}
+        {/* Button to open Telugu Letter Selection Popup Modal */}
+        <View style={{ marginVertical: 8, paddingHorizontal: 12 }}>
+          <TouchableOpacity
+            onPress={() => setLetterModalVisible(true)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: selectedLetter ? theme.primary : theme.cardBorder,
+              backgroundColor: selectedLetter ? theme.primary + '15' : theme.backgroundElement,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <MaterialCommunityIcons name="sort-alphabetical-variant" size={22} color={theme.primary} />
+              <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.text }}>
+                {selectedLetter 
+                  ? (isTel ? `ఎంచుకున్న అక్షరం: "${selectedLetter}" (మార్చు)` : `Selected Letter: "${selectedLetter}" (Change)`)
+                  : (isTel ? '🔤 అక్షరంతో పాటను ఎంచుకోండి (అ - హ)' : '🔤 Filter Songs by Starting Letter (అ - హ)')}
               </Text>
-            </TouchableOpacity>
-            {ALPHABET_INDEX.map((letter) => (
-              <TouchableOpacity
-                key={letter}
-                onPress={() => setSelectedLetter(selectedLetter === letter ? null : letter)}
-                style={[{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: theme.cardBorder, backgroundColor: theme.backgroundElement }, selectedLetter === letter && { backgroundColor: theme.primary, borderColor: theme.primary }]}
-              >
-                <Text style={[{ fontSize: 12, fontWeight: 'bold', color: theme.text }, selectedLetter === letter && { color: '#ffffff' }]}>
-                  {letter}
-                </Text>
+            </View>
+            {selectedLetter ? (
+              <TouchableOpacity onPress={() => setSelectedLetter(null)} style={{ padding: 2 }}>
+                <MaterialCommunityIcons name="close-circle" size={20} color="#ef4444" />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            ) : (
+              <MaterialCommunityIcons name="chevron-right" size={20} color={theme.textSecondary} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Songs FlatList */}
@@ -827,6 +838,54 @@ export default function SongsScreen() {
               <View style={{ height: 32 }} />
             </ScrollView>
           </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Telugu Alphabet Letter Selector Modal */}
+        <Modal
+          visible={letterModalVisible}
+          onDismiss={() => setLetterModalVisible(false)}
+          contentContainerStyle={{
+            backgroundColor: theme.backgroundElement,
+            margin: 20,
+            borderRadius: 16,
+            padding: 18,
+            maxHeight: '80%',
+          }}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.primary }}>
+              {isTel ? '🔤 అక్షరంతో పాటను ఎంచుకోండి' : '🔤 Select Starting Letter'}
+            </Text>
+            <TouchableOpacity onPress={() => setLetterModalVisible(false)}>
+              <MaterialCommunityIcons name="close" size={22} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <Text style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 14 }}>
+            {isTel ? 'పాట శీర్షిక మొదలయ్యే తెలుగు అక్షరాన్ని ఎంచుకోండి:' : 'Select Telugu letter to filter songs:'}
+          </Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', paddingBottom: 16 }}>
+              <TouchableOpacity
+                onPress={() => { setSelectedLetter(null); setLetterModalVisible(false); }}
+                style={[{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: theme.cardBorder, backgroundColor: theme.background }, selectedLetter === null && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+              >
+                <Text style={[{ fontSize: 13, fontWeight: 'bold', color: theme.text }, selectedLetter === null && { color: '#ffffff' }]}>
+                  {isTel ? 'అన్ని పాటలు (All)' : 'All Songs'}
+                </Text>
+              </TouchableOpacity>
+              {ALPHABET_INDEX.map((letter) => (
+                <TouchableOpacity
+                  key={letter}
+                  onPress={() => { setSelectedLetter(letter); setLetterModalVisible(false); }}
+                  style={[{ width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder, backgroundColor: theme.background }, selectedLetter === letter && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+                >
+                  <Text style={[{ fontSize: 15, fontWeight: 'bold', color: theme.text }, selectedLetter === letter && { color: '#ffffff' }]}>
+                    {letter}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </Modal>
       </Portal>
 

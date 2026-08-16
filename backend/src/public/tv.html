@@ -189,12 +189,18 @@
 
       const slide = state.song.lyrics?.[state.currentSlideIndex || 0];
 
-      if (!slide || !slide.text) {
-        lyricsBox.innerHTML = '';
+      const rawText = slide.text || '';
+      if (rawText.includes('MEDIA_ONLY:') || rawText.includes('IMAGE_ONLY:') || rawText.includes('THUMBNAIL_ONLY:')) {
+        const imgUrl = rawText.replace(/.*?(MEDIA_ONLY|IMAGE_ONLY|THUMBNAIL_ONLY):\s*/i, '').replace(/\]$/, '').trim();
+        lyricsBox.innerHTML = `
+          <div style="width: 100%; height: 90vh; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
+            <img src="${imgUrl}" style="max-width: 95vw; max-height: 88vh; border-radius: 16px; object-fit: contain; box-shadow: 0 10px 40px rgba(0,0,0,0.8);" />
+          </div>
+        `;
         return;
       }
 
-      const lines = slide.text.split('\n');
+      const lines = rawText.split('\n');
       lyricsBox.innerHTML = lines.map((line, idx) => {
         const isHL = state.highlightedLineIndex === idx;
         return `<div class="tv-lyric-line ${isHL ? 'highlighted' : ''}">${line}</div>`;

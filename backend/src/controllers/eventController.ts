@@ -75,18 +75,17 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
         isPinned: false,
       });
 
-      // Broadcast newEvent & newNotice to connected clients
+      // Broadcast newEvent to connected clients (ONLY newEvent to avoid duplicate notification)
       const io = (req as any).app.get('io');
       if (io) {
         io.emit('newEvent', newEvent);
-        io.emit('newNotice', newNotice);
       }
 
       // Trigger System Mobile Push Notification with Event Banner Image
       sendPushNotificationToAll(
         `🗓️ New Event: ${newEvent.title}`,
         `📍 ${newEvent.venue} | 📅 ${eventDateStr} ${time ? `at ${time}` : ''}`,
-        { type: 'event', id: newEvent._id, imageUrl: newEvent.banner },
+        { type: 'event', id: newEvent._id, imageUrl: newEvent.banner, banner: newEvent.banner },
         newEvent.banner
       );
     } catch (noticeErr) {

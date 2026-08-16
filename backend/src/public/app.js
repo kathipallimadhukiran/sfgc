@@ -731,9 +731,21 @@ class ChurchApp {
     contentEl.innerHTML = `
       <div class="stage-slide-type">${slide.type || 'Verse'}</div>
       ${lines.map((l, idx) => `
-        <div class="stage-line ${this.activeLineIndex === idx ? 'highlighted' : ''}">${l}</div>
+        <div class="stage-line ${this.activeLineIndex === idx ? 'highlighted' : ''}" style="cursor: pointer; padding: 6px 12px; border-radius: 6px; margin-bottom: 4px; transition: all 0.2s;" onclick="app.selectLine(${idx})" title="Click to highlight this line live">${l}</div>
       `).join('')}
     `;
+  }
+
+  selectLine(lineIndex) {
+    if (this.activeLineIndex === lineIndex) {
+      this.activeLineIndex = -1;
+    } else {
+      this.activeLineIndex = lineIndex;
+    }
+    if (this.socket) {
+      this.socket.emit('highlightLine', { highlightedLineIndex: this.activeLineIndex });
+    }
+    this.renderStageDisplay();
   }
 
   renderSlideTriggers() {

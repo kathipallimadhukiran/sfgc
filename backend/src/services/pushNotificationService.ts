@@ -46,7 +46,15 @@ export const sendPushNotificationToAll = async (
       return { success: true, sentCount: 0, message: 'Notification broadcasted via real-time sockets (No registered mobile push tokens yet).' };
     }
 
-    const imageToSend = imageUrl || data.image || data.imageUrl || data.banner || '';
+    let rawImage = imageUrl || data.image || data.imageUrl || data.banner || '';
+    if (rawImage.startsWith('data:')) {
+      rawImage = ''; // Base64 data URLs cannot be fetched by Push notification services
+    }
+    if (rawImage.startsWith('/') && (process.env.BACKEND_URL || process.env.SERVER_URL)) {
+      const baseUrl = (process.env.BACKEND_URL || process.env.SERVER_URL || '').replace(/\/$/, '');
+      rawImage = `${baseUrl}${rawImage}`;
+    }
+    const imageToSend = rawImage;
 
     const messages: PushMessagePayload[] = tokens.map(token => {
       const msg: PushMessagePayload = {
@@ -54,7 +62,7 @@ export const sendPushNotificationToAll = async (
         sound: 'default',
         title,
         body,
-        data: { ...data, image: imageToSend, imageUrl: imageToSend, timestamp: new Date().toISOString() },
+        data: { ...data, image: imageToSend, imageUrl: imageToSend, banner: imageToSend, timestamp: new Date().toISOString() },
         badge: 1,
         priority: 'high',
         channelId: 'default',
