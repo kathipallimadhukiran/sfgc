@@ -179,6 +179,17 @@ class EventsService {
       return { success: false, isGoing: false };
     }
   }
+
+  // Admin manually re-pushes event push notification to all devices
+  async pushEventNotification(eventId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await apiClient.post(`/api/events/${eventId}/push`, {});
+      return res;
+    } catch (err: any) {
+      console.error('Error pushing event notification:', err);
+      return { success: false, message: err.message || 'Failed to push notification.' };
+    }
+  }
 }
 
 export const eventsService = new EventsService();

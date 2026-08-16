@@ -11,6 +11,7 @@ export interface IEvent extends Document {
   description?: string;
   requiresRSVP?: boolean;
   rsvps: string[];
+  notified2hBefore?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +27,7 @@ const EventSchema = new Schema<IEvent>({
   description: { type: String, default: '' },
   requiresRSVP: { type: Boolean, default: false },
   rsvps: { type: [String], default: [] },
+  notified2hBefore: { type: Boolean, default: false },
 }, {
   timestamps: true,
 });

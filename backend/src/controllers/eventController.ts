@@ -82,11 +82,12 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
         io.emit('newNotice', newNotice);
       }
 
-      // Trigger System Mobile Push Notification
+      // Trigger System Mobile Push Notification with Event Banner Image
       sendPushNotificationToAll(
         `🗓️ New Event: ${newEvent.title}`,
         `📍 ${newEvent.venue} | 📅 ${eventDateStr} ${time ? `at ${time}` : ''}`,
-        { type: 'event', id: newEvent._id }
+        { type: 'event', id: newEvent._id, imageUrl: newEvent.banner },
+        newEvent.banner
       );
     } catch (noticeErr) {
       console.log('Notice creation for event ignored:', noticeErr);
@@ -191,6 +192,52 @@ export const toggleRSVP = async (req: AuthRequest, res: Response, next: NextFunc
       isGoing,
       rsvpsCount: event.rsvps.length,
       message: isGoing ? 'RSVP confirmed. See you there!' : 'RSVP cancelled.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   POST /api/events/:id/push
+// @desc    Admin manually pushes notification for an event to all users
+export const pushEventNotification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      res.status(404).json({ success: false, message: 'Event not found.' });
+      return;
+    }
+
+    const parsedDate = new Date(event.date);
+    const eventDateStr = !isNaN(parsedDate.getTime()) 
+      ? parsedDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+      : event.date;
+
+    const bannerUrl = event.banner || '';
+
+    // Broadcast socket event
+    const io = (req as any).app.get('io');
+    if (io) {
+      io.emit('newEvent', event);
+    }
+
+    const pushResult = await sendPushNotificationToAll(
+      `🗓️ ${event.title}`,
+      `📍 ${event.venue} | 📅 ${eventDateStr} ${event.time ? `at ${event.time}` : ''}`,
+      {
+        type: 'event',
+        id: event._id.toString(),
+        eventId: event._id.toString(),
+        imageUrl: bannerUrl,
+        banner: bannerUrl,
+      },
+      bannerUrl
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Event notification pushed to all devices.`,
+      pushResult,
     });
   } catch (error) {
     next(error);

@@ -10,6 +10,9 @@ export interface PushMessagePayload {
   badge?: number;
   priority?: 'default' | 'normal' | 'high';
   channelId?: string;
+  attachments?: Array<{ url: string }>;
+  richMedia?: string;
+  image?: string;
 }
 
 /**
@@ -18,7 +21,8 @@ export interface PushMessagePayload {
 export const sendPushNotificationToAll = async (
   title: string,
   body: string,
-  data: Record<string, any> = {}
+  data: Record<string, any> = {},
+  imageUrl?: string
 ): Promise<{ success: boolean; sentCount: number; message: string; expoResponse?: any }> => {
   try {
     // 1. Gather tokens from logged in Users
@@ -35,16 +39,28 @@ export const sendPushNotificationToAll = async (
       return { success: false, sentCount: 0, message: 'No registered mobile devices found in database.' };
     }
 
-    const messages: PushMessagePayload[] = tokens.map(token => ({
-      to: token,
-      sound: 'default',
-      title,
-      body,
-      data: { ...data, timestamp: new Date().toISOString() },
-      badge: 1,
-      priority: 'high',
-      channelId: 'default',
-    }));
+    const imageToSend = imageUrl || data.image || data.imageUrl || data.banner || '';
+
+    const messages: PushMessagePayload[] = tokens.map(token => {
+      const msg: PushMessagePayload = {
+        to: token,
+        sound: 'default',
+        title,
+        body,
+        data: { ...data, image: imageToSend, imageUrl: imageToSend, timestamp: new Date().toISOString() },
+        badge: 1,
+        priority: 'high',
+        channelId: 'default',
+      };
+
+      if (imageToSend) {
+        msg.attachments = [{ url: imageToSend }];
+        msg.image = imageToSend;
+        msg.richMedia = imageToSend;
+      }
+
+      return msg;
+    });
 
     let lastExpoResponse: any = null;
 

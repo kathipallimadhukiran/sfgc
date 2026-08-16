@@ -169,8 +169,9 @@ class NotificationService {
     }
   }
 
-  async triggerNotification(title: string, body: string, data?: any): Promise<void> {
+  async triggerNotification(title: string, body: string, data?: any, imageUrl?: string): Promise<void> {
     try {
+      const img = imageUrl || data?.imageUrl || data?.image || data?.banner || '';
       if (Notifications?.scheduleNotificationAsync) {
         await Notifications.scheduleNotificationAsync({
           content: {
@@ -179,16 +180,67 @@ class NotificationService {
             data: data || {},
             sound: 'default',
             priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
+            attachments: img ? [{ url: img }] : undefined,
           },
           trigger: null, // trigger immediately
         });
         console.log('🔔 System OS Notification Displayed:', title);
       }
-      // Always present in-app alert dialog so notice is never missed
-      Alert.alert(title, body);
     } catch (err: any) {
-      console.log('Error triggering local notification, falling back to Alert:', err?.message || err);
-      Alert.alert(title, body);
+      console.log('Error triggering system OS notification:', err?.message || err);
+    }
+  }
+
+  /**
+   * Schedule OS Local Notification 2 Hours before event start time
+   */
+  async scheduleLocalEventReminder(event: any): Promise<void> {
+    if (!event || !event.date || Platform.OS === 'web') return;
+
+    try {
+      const eventDate = new Date(event.date);
+      const eventMs = eventDate.getTime();
+      if (isNaN(eventMs)) return;
+
+      const triggerTimeMs = eventMs - 2 * 60 * 60 * 1000; // 2 hours before
+      const nowMs = Date.now();
+
+      // Only schedule if 2h prior time is in the future
+      if (triggerTimeMs > nowMs && Notifications?.scheduleNotificationAsync) {
+        const timeStr = event.time ? ` at ${event.time}` : '';
+        const bannerUrl = event.banner || event.imageUrl || '';
+
+        const notificationId = `event_2h_${event._id || event.id || event.title}`;
+
+        // Cancel previous scheduled instance if any to avoid duplicates
+        try {
+          await Notifications.cancelScheduledNotificationAsync(notificationId);
+        } catch (cErr) {}
+
+        await Notifications.scheduleNotificationAsync({
+          identifier: notificationId,
+          content: {
+            title: `⏰ Upcoming Event in 2 Hours!`,
+            body: `🗓️ ${event.title}\n📍 ${event.venue}${timeStr}`,
+            data: {
+              type: 'event',
+              id: event._id || event.id,
+              eventId: event._id || event.id,
+              imageUrl: bannerUrl,
+            },
+            sound: 'default',
+            priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
+            attachments: bannerUrl ? [{ url: bannerUrl }] : undefined,
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(triggerTimeMs),
+          },
+        });
+        console.log(`⏰ Scheduled local 2h OS notification for "${event.title}" at ${new Date(triggerTimeMs).toLocaleString()}`);
+      }
+    } catch (err: any) {
+      console.log('Notice scheduling 2h local event notification:', err?.message || err);
     }
   }
 }

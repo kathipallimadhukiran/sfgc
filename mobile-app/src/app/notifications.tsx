@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar } from 'react-native';
+import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar, Image } from 'react-native';
 import { Card, Title, Paragraph, Button, Text, Avatar, IconButton, Portal, Modal, FAB } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
 import { useApp } from '@/context/AppContext';
@@ -160,15 +160,23 @@ export default function NotificationsScreen() {
         {notices && notices.length > 0 ? (
           notices.map((notice) => {
             const isVideoNotif = notice.title.includes('🎬') || notice.title.toLowerCase().includes('video');
+            const noticeImage = notice.image || notice.attachment || '';
+            const noticeId = notice._id || notice.id || '';
+
             return (
               <Card
                 style={[
                   styles.card,
                   isVideoNotif && { borderColor: '#ef444450', borderWidth: 1 }
                 ]}
-                key={notice._id}
+                key={noticeId || notice.title}
                 onPress={() => isVideoNotif && router.push('/live-stream')}
               >
+                {Boolean(noticeImage) && (
+                  <View style={{ width: '100%', height: 130, overflow: 'hidden', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
+                    <Image source={{ uri: noticeImage }} style={{ width: '100%', height: 130 }} resizeMode="cover" />
+                  </View>
+                )}
                 <Card.Content style={styles.cardContent}>
                   <View style={styles.iconContainer}>
                     <Avatar.Icon
@@ -203,6 +211,20 @@ export default function NotificationsScreen() {
                         {canManageNotices && !isVideoNotif && (
                           <>
                             <IconButton
+                              icon="bell-ring-outline"
+                              size={17}
+                              iconColor="#6366f1"
+                              style={{ margin: 0, padding: 0 }}
+                              onPress={async () => {
+                                try {
+                                  const response = await noticesService.pushNoticeNotification(noticeId);
+                                  alert(response.success ? `📢 Push notification re-sent for "${notice.title}"!` : (response.message || 'Push failed'));
+                                } catch (err: any) {
+                                  alert(`Push error: ${err.message}`);
+                                }
+                              }}
+                            />
+                            <IconButton
                               icon="pencil"
                               size={16}
                               iconColor={theme.primary}
@@ -214,7 +236,7 @@ export default function NotificationsScreen() {
                               size={16}
                               iconColor={theme.primary}
                               style={{ margin: 0, padding: 0 }}
-                              onPress={() => handleDeleteNotice(notice._id || notice.id || '', notice.title)}
+                              onPress={() => handleDeleteNotice(noticeId, notice.title)}
                             />
                           </>
                         )}

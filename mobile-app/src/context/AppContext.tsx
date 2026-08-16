@@ -17,6 +17,11 @@ import { authService } from '../services/authService';
 import { API_URL } from '../constants/config';
 import { router } from 'expo-router';
 
+let Notifications: any = null;
+try {
+  Notifications = require('expo-notifications');
+} catch (e) {}
+
 // Fallback Mock data for daily verse
 const MOCK_VERSE =
   "For I know the plans I have for you,” declares the Lord, “plans to prosper you and not to harm you, plans to give you hope and a future. - Jeremiah 29:11";
@@ -319,6 +324,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (eventsRes.events) {
           setEvents(eventsRes.events);
+          eventsRes.events.forEach((evt: any) => {
+            notificationService.scheduleLocalEventReminder(evt);
+          });
         }
 
         if (noticesRes.notices) {
@@ -336,6 +344,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
     loadCache();
     initGlobalSocket();
+
+    // Deep-linking / direct navigation when user taps a push or local notification
+    let responseSub: any = null;
+    if (Notifications?.addNotificationResponseReceivedListener) {
+      const handleNotificationClick = (response: any) => {
+        try {
+          const data = response?.notification?.request?.content?.data;
+          if (!data) return;
+
+          const type = String(data.type || '').toLowerCase();
+          console.log('📱 [NOTIFICATION_TAP_NAVIGATE]', type, data);
+
+          if (type === 'event') {
+            router.push('/events');
+          } else if (type === 'notice') {
+            router.push('/notifications');
+          } else if (type === 'video') {
+            router.push('/live-stream');
+          }
+        } catch (err) {
+          console.log('Error handling notification click navigation:', err);
+        }
+      };
+
+      responseSub = Notifications.addNotificationResponseReceivedListener(handleNotificationClick);
+
+      if (Notifications?.getLastNotificationResponseAsync) {
+        Notifications.getLastNotificationResponseAsync()
+          .then((lastResp: any) => {
+            if (lastResp) handleNotificationClick(lastResp);
+          })
+          .catch(() => {});
+      }
+    }
+
+    return () => {
+      responseSub?.remove?.();
+    };
   }, []);
 
   // --------------------------------------------------
@@ -471,6 +517,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (eventsRes.events) {
         setEvents(eventsRes.events);
+        eventsRes.events.forEach((evt: any) => {
+          notificationService.scheduleLocalEventReminder(evt);
+        });
       }
 
       if (noticesRes.notices) {
@@ -598,7 +647,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         notificationService.triggerNotification(
           newNotice.title,
           newNotice.description,
-          { type: 'NOTICE', id: newNotice._id || newNotice.id }
+          { type: 'NOTICE', id: newNotice._id || newNotice.id, imageUrl: newNotice.image },
+          newNotice.image
         );
       });
 
@@ -614,12 +664,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           return [newEvent, ...prev];
         });
         refreshData();
+        notificationService.scheduleLocalEventReminder(newEvent);
 
         // Trigger System Notification
+        const bannerUrl = newEvent.banner || newEvent.imageUrl || '';
         notificationService.triggerNotification(
           `📅 New Event: ${newEvent.title}`,
           `📍 ${newEvent.venue}${newEvent.time ? ` at ${newEvent.time}` : ''}`,
-          { type: 'EVENT', id: newEvent._id || newEvent.id }
+          { type: 'EVENT', id: newEvent._id || newEvent.id, imageUrl: bannerUrl },
+          bannerUrl
         );
       });
 
@@ -640,6 +693,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           date: payload.createdAt,
           time: new Date(payload.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           location: 'YouTube Sanctuary Media',
+          image: payload.thumbnail,
         };
 
         setNotices((prev) => {
@@ -655,7 +709,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         notificationService.triggerNotification(
           `🎬 ${payload.title}`,
           payload.message,
-          { type: 'VIDEO', videoId: payload.videoId }
+          { type: 'VIDEO', videoId: payload.videoId, imageUrl: payload.thumbnail },
+          payload.thumbnail
         );
       });
 

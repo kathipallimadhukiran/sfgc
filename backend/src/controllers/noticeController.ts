@@ -64,7 +64,8 @@ export const createNotice = async (req: Request, res: Response, next: NextFuncti
     const pushResult = await sendPushNotificationToAll(
       `📢 ${newNotice.title}`,
       newNotice.description,
-      { type: 'notice', id: newNotice._id }
+      { type: 'notice', id: newNotice._id, imageUrl: newNotice.image },
+      newNotice.image
     );
 
     res.status(201).json({
@@ -116,6 +117,46 @@ export const deleteNotice = async (req: Request, res: Response, next: NextFuncti
     res.status(200).json({
       success: true,
       message: 'Notice deleted successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   POST /api/notices/:id/push
+// @desc    Admin manually pushes notification for a notice to all users
+export const pushNoticeNotification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const notice = await Notice.findById(req.params.id);
+    if (!notice) {
+      res.status(404).json({ success: false, message: 'Notice not found.' });
+      return;
+    }
+
+    const imageUrl = notice.image || '';
+
+    // Broadcast socket event
+    const io = (req as any).app.get('io');
+    if (io) {
+      io.emit('newNotice', notice);
+    }
+
+    const pushResult = await sendPushNotificationToAll(
+      `📢 ${notice.title}`,
+      notice.description,
+      {
+        type: 'notice',
+        id: notice._id.toString(),
+        noticeId: notice._id.toString(),
+        imageUrl: imageUrl,
+      },
+      imageUrl
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Notice notification pushed to all devices.`,
+      pushResult,
     });
   } catch (error) {
     next(error);

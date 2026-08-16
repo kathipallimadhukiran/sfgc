@@ -66,6 +66,7 @@ app.use(errorHandler);
 setupLiveLyricsSocket(io);
 
 import { autoSyncChannelVideosJob } from './controllers/liveVideoController';
+import { checkUpcomingEventReminders } from './services/eventNotificationScheduler';
 
 // Start Server & Connect Database
 const startServer = async () => {
@@ -92,9 +93,19 @@ const startServer = async () => {
     }
   }, 30 * 1000);
 
+  // 2-Hour Pre-Event Push Notification Reminder Job (polls every 60 seconds)
+  setInterval(async () => {
+    try {
+      await checkUpcomingEventReminders(io);
+    } catch (evtErr) {
+      console.error('2-Hour Event Reminder Error:', evtErr);
+    }
+  }, 60 * 1000);
+
   // Initial sync check 10 seconds after startup
   setTimeout(() => {
     autoSyncChannelVideosJob(io).catch(console.error);
+    checkUpcomingEventReminders(io).catch(console.error);
   }, 10000);
 };
 

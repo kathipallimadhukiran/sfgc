@@ -1342,6 +1342,9 @@ class ChurchApp {
           </td>
           <td>
             <div style="display:flex; gap:6px;">
+              <button class="btn btn-sm" style="background:#e0e7ff; border:1px solid #c7d2fe; color:#3730a3; padding:6px 12px; border-radius:8px; font-weight:600;" onclick="app.pushEventNotification('${ev._id}')" title="Re-push Notification to Mobile App">
+                <i class="fa-solid fa-bell text-indigo"></i> Push
+              </button>
               <button class="btn btn-sm" style="background:#f8fafc; border:1px solid #cbd5e1; color:#334155; padding:6px 12px; border-radius:8px; font-weight:600;" onclick="app.editEvent('${ev._id}')" title="Edit Event">
                 <i class="fa-solid fa-pen-to-square text-primary"></i> Edit
               </button>
@@ -1518,6 +1521,9 @@ class ChurchApp {
         <td>${n.time || new Date(n.date || n.createdAt).toLocaleDateString()}</td>
         <td>${n.location || 'All Wings'}</td>
         <td>
+          <button class="btn btn-sm" style="background:#e0e7ff; border:1px solid #c7d2fe; color:#3730a3; padding:6px 10px; border-radius:8px; font-weight:600; margin-right:4px;" onclick="app.pushNoticeNotification('${n._id}')" title="Re-push Notification">
+            <i class="fa-solid fa-bell"></i> Push
+          </button>
           <button class="btn btn-sm btn-danger-action" style="padding: 6px 10px;" onclick="app.deleteNotice('${n._id}')">
             <i class="fa-solid fa-trash"></i>
           </button>
@@ -1712,6 +1718,20 @@ class ChurchApp {
     }
   }
 
+  async pushEventNotification(id) {
+    try {
+      this.showToast('Broadcasting event push notification...', 'info');
+      const res = await this.authFetch(`/api/events/${id}/push`, { method: 'POST' });
+      if (res.success) {
+        this.showToast(res.message || 'Event push notification sent!', 'success');
+      } else {
+        this.showToast('Push failed: ' + (res.message || 'Error'), 'error');
+      }
+    } catch (e) {
+      this.showToast('Push error: ' + e.message, 'error');
+    }
+  }
+
   async deleteNotice(id) {
     if (!confirm('Delete this notice?')) return;
     try {
@@ -1720,6 +1740,20 @@ class ChurchApp {
       await this.refreshAll();
     } catch (e) {
       this.showToast('Delete failed: ' + e.message, 'error');
+    }
+  }
+
+  async pushNoticeNotification(id) {
+    try {
+      this.showToast('Broadcasting notice push notification...', 'info');
+      const res = await this.authFetch(`/api/notices/${id}/push`, { method: 'POST' });
+      if (res.success) {
+        this.showToast(res.message || 'Notice push notification sent!', 'success');
+      } else {
+        this.showToast('Push failed: ' + (res.message || 'Error'), 'error');
+      }
+    } catch (e) {
+      this.showToast('Push error: ' + e.message, 'error');
     }
   }
 

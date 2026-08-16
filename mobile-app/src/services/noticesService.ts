@@ -121,6 +121,17 @@ class NoticesService {
       return { success: false, message: err.message || 'Failed to delete notice.' };
     }
   }
+
+  // Admin manually re-pushes notice push notification to all devices
+  async pushNoticeNotification(noticeId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await apiClient.post(`/api/notices/${noticeId}/push`, {});
+      return res;
+    } catch (err: any) {
+      console.error('Error pushing notice notification:', err);
+      return { success: false, message: err.message || 'Failed to push notice notification.' };
+    }
+  }
 }
 
 export const noticesService = new NoticesService();

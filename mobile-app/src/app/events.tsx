@@ -555,13 +555,13 @@ export default function EventsScreen() {
                     </View>
                   </View>
 
-                  {/* Full Size Uploaded Poster Banner (Aspect-Preserved) */}
+                  {/* Compact Poster Banner Image */}
                   {Boolean(evt.banner || evt.imageUrl) && (
                     <View style={styles.imageWrapper}>
                       <Image
                         source={{ uri: evt.banner || evt.imageUrl }}
                         style={styles.eventCardImage}
-                        resizeMode="contain"
+                        resizeMode="cover"
                       />
                     </View>
                   )}
@@ -625,6 +625,23 @@ export default function EventsScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       {canManageEvents && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 4 }}>
+                          <IconButton
+                            icon="bell-ring-outline"
+                            iconColor="#6366f1"
+                            size={19}
+                            onPress={async () => {
+                              try {
+                                const response = await eventsService.pushEventNotification(eventKey);
+                                alert(response.success 
+                                  ? (isTel ? `📢 "${evt.title}" నోటిఫికేషన్ పంపబడింది!` : `📢 Push notification sent for "${evt.title}"!`)
+                                  : (response.message || 'Failed to send push notification')
+                                );
+                              } catch (err: any) {
+                                alert(`Error sending notification: ${err.message}`);
+                              }
+                            }}
+                            style={{ margin: 0 }}
+                          />
                           <IconButton
                             icon="pencil-outline"
                             iconColor="#424242"
@@ -1131,12 +1148,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 135,
   },
   eventCardImage: {
     width: '100%',
-    minHeight: 180,
-    maxHeight: 380,
-    aspectRatio: 16 / 9,
+    height: 135,
   },
   cardBody: {
     flexDirection: 'row',
