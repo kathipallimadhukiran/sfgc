@@ -6,10 +6,11 @@ import AppUpdateModal from '@/components/AppUpdateModal';
 import { AppProvider, useApp } from '@/context/AppContext';
 import AuthScreen from './auth';
 
-// Suppress non-critical deprecation warnings in logs
+// Suppress non-critical deprecation and performance warnings in logs
 LogBox.ignoreLogs([
   '[expo-av]: Expo AV has been deprecated',
   'Expo AV has been deprecated',
+  'VirtualizedList: You have a large list that is slow to update',
 ]);
 
 /**

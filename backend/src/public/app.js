@@ -455,10 +455,26 @@ class ChurchApp {
     }
   }
 
-  // Arrow Key Slide Navigation
+  // Comprehensive Keyboard Shortcuts for Live Projection Console
   initKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+      // Allow searching when typing in input
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        if (e.key === 'Escape') {
+          document.activeElement.blur();
+        }
+        return;
+      }
+
+      if (e.key === '/' || (e.ctrlKey && e.key.toLowerCase() === 'k')) {
+        e.preventDefault();
+        const searchInput = document.getElementById('projSongSearch');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        return;
+      }
 
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
         e.preventDefault();
@@ -466,8 +482,27 @@ class ChurchApp {
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
         this.prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        this.firstSlide();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        this.lastSlide();
       } else if (e.key.toLowerCase() === 'b') {
+        e.preventDefault();
         this.toggleBlackout();
+      } else if (e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        this.toggleBlank();
+      } else if (e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        this.toggleLogo();
+      } else if (/^[1-9]$/.test(e.key)) {
+        const slideIndex = parseInt(e.key, 10) - 1;
+        if (this.activeSong && this.activeSong.lyrics?.[slideIndex]) {
+          e.preventDefault();
+          this.selectSlide(slideIndex);
+        }
       }
     });
   }
@@ -559,6 +594,15 @@ class ChurchApp {
     this.filterProjectionSongs();
   }
 
+  clearProjSearch() {
+    const input = document.getElementById('projSongSearch');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    this.filterProjectionSongs();
+  }
+
   setSongFilterLang(lang) {
     this.selectedSongLangFilter = lang;
     const btns = document.querySelectorAll('.proj-filter-btn');
@@ -578,41 +622,78 @@ class ChurchApp {
     const list = document.getElementById('projSongsList');
     if (!list) return;
 
-    const query = (document.getElementById('projSongSearch')?.value || '').toLowerCase().trim();
+    const queryInput = document.getElementById('projSongSearch');
+    const query = (queryInput?.value || '').toLowerCase().trim();
+    const clearBtn = document.getElementById('projSearchClearBtn');
+    if (clearBtn) {
+      clearBtn.style.display = query ? 'block' : 'none';
+    }
+
     const langFilter = this.selectedSongLangFilter || 'all';
+    const catFilter = (document.getElementById('projCategoryFilter')?.value || '').toLowerCase().trim();
 
-    let filtered = this.songs;
+    let filtered = this.songs || [];
 
+    // Language filter
     if (langFilter !== 'all') {
       filtered = filtered.filter(s => (s.language || '').toLowerCase() === langFilter.toLowerCase());
     }
 
+    // Category filter
+    if (catFilter) {
+      filtered = filtered.filter(s => {
+        const cat = (s.category || '').toLowerCase();
+        const tags = Array.isArray(s.tags) ? s.tags.map(t => String(t).toLowerCase()) : [];
+        if (catFilter === 'akk') {
+          return cat.includes('akk') || cat.includes('hymn') || tags.includes('akk') || tags.includes('keerthanalu');
+        }
+        return cat.includes(catFilter) || tags.includes(catFilter);
+      });
+    }
+
+    // Search query filter (matches title, category, tags, or lyrics)
     if (query) {
-      filtered = filtered.filter(s => 
-        s.title.toLowerCase().includes(query) || 
-        (s.category || '').toLowerCase().includes(query) ||
-        (s.lyrics || []).some(l => l.text.toLowerCase().includes(query))
-      );
+      filtered = filtered.filter(s => {
+        const inTitle = (s.title || '').toLowerCase().includes(query);
+        const inCat = (s.category || '').toLowerCase().includes(query);
+        const inTags = Array.isArray(s.tags) && s.tags.some(t => String(t).toLowerCase().includes(query));
+        const inLyrics = Array.isArray(s.lyrics) && s.lyrics.some(l => (l.text || '').toLowerCase().includes(query));
+        return inTitle || inCat || inTags || inLyrics;
+      });
+    }
+
+    // Update song count badge
+    const countBadge = document.getElementById('projSongCountBadge');
+    if (countBadge) {
+      countBadge.innerText = filtered.length;
     }
 
     if (filtered.length === 0) {
-      list.innerHTML = '<div class="text-center py-4 text-muted" style="font-size:13px;"><i class="fa-solid fa-music-slash mb-1" style="font-size:24px; opacity:0.5;"></i><br>No matching worship songs found</div>';
+      list.innerHTML = `
+        <div class="text-center py-5 text-muted" style="font-size:13px;">
+          <i class="fa-solid fa-music-slash mb-2" style="font-size:28px; opacity:0.4;"></i><br>
+          No songs found matching "<strong>${query || langFilter}</strong>"<br>
+          <button class="btn btn-xs btn-outline mt-3" onclick="app.clearProjSearch(); app.setSongFilterLang('all');">Reset Filters</button>
+        </div>
+      `;
       return;
     }
 
     list.innerHTML = filtered.map(song => {
       const isActive = this.activeSong?._id === song._id;
-      const hasChords = (song.lyrics || []).some(l => l.chords || (l.text && l.text.includes('[')));
+      const hasChords = song.chords || (song.lyrics || []).some(l => l.chords || (l.text && l.text.includes('[')));
+      const slideCount = song.lyrics?.length || 0;
+
       return `
         <div class="proj-song-card ${isActive ? 'active-proj-card' : ''}" onclick="app.loadSongToProjector('${song._id}')">
           <div class="proj-card-top">
             <h4 class="proj-card-title">${song.title}</h4>
-            ${isActive ? '<span class="proj-badge-live"><span class="pulse-red-dot"></span> LIVE NOW</span>' : ''}
+            ${isActive ? '<span class="proj-badge-live"><span class="pulse-red-dot"></span> LIVE</span>' : ''}
           </div>
           <div class="proj-card-meta">
             <span class="badge ${song.language === 'Telugu' ? 'badge-telugu' : 'badge-english'}">${song.language || 'Telugu'}</span>
             <span class="badge badge-category">${song.category || 'Worship'}</span>
-            <span class="badge badge-slides"><i class="fa-solid fa-layer-group"></i> ${song.lyrics?.length || 0} Slides</span>
+            <span class="badge badge-slides"><i class="fa-solid fa-layer-group"></i> ${slideCount} Slides</span>
             ${hasChords ? '<span class="badge badge-chords"><i class="fa-solid fa-guitar"></i> Chords</span>' : ''}
           </div>
         </div>
@@ -629,12 +710,28 @@ class ChurchApp {
     this.activeLineIndex = -1;
     this.blackScreen = false;
     this.blankScreen = false;
+    this.logoScreen = false;
 
     if (this.socket) {
       this.socket.emit('startSession', { song, slideIndex: 0 });
     }
 
+    // Update status bar
+    const titleEl = document.getElementById('activeSongTitle');
+    const metaEl = document.getElementById('activeSongMeta');
+    const indicatorEl = document.getElementById('projLiveIndicator');
+    const deckBadge = document.getElementById('deckSlideCountBadge');
+
+    if (titleEl) titleEl.innerText = song.title;
+    if (metaEl) metaEl.innerText = `${song.category || 'Worship'} • ${song.language || 'Telugu'} • ${song.lyrics?.length || 0} Slides`;
+    if (indicatorEl) {
+      indicatorEl.className = 'proj-status-dot active';
+    }
+    if (deckBadge) deckBadge.innerText = `${song.lyrics?.length || 0} Slides`;
+
+    this.updateOverrideButtons();
     this.renderStageScreen();
+    this.renderNextSlidePreview();
     this.renderSlideTriggers();
     this.renderProjectionSongsList();
   }
@@ -649,7 +746,18 @@ class ChurchApp {
     }
 
     this.renderStageScreen();
+    this.renderNextSlidePreview();
     this.highlightActiveTrigger();
+  }
+
+  firstSlide() {
+    if (!this.activeSong) return;
+    this.selectSlide(0);
+  }
+
+  lastSlide() {
+    if (!this.activeSong || !this.activeSong.lyrics) return;
+    this.selectSlide(this.activeSong.lyrics.length - 1);
   }
 
   nextSlide() {
@@ -668,9 +776,12 @@ class ChurchApp {
 
   toggleBlackout() {
     this.blackScreen = !this.blackScreen;
-    if (this.blackScreen) this.blankScreen = false;
+    if (this.blackScreen) {
+      this.blankScreen = false;
+      this.logoScreen = false;
+    }
     if (this.socket) {
-      this.socket.emit('screenState', { blackScreen: this.blackScreen, blankScreen: this.blankScreen });
+      this.socket.emit('screenState', { blackScreen: this.blackScreen, blankScreen: this.blankScreen, logoScreen: this.logoScreen });
     }
     this.renderStageScreen();
     this.updateOverrideButtons();
@@ -678,9 +789,25 @@ class ChurchApp {
 
   toggleBlank() {
     this.blankScreen = !this.blankScreen;
-    if (this.blankScreen) this.blackScreen = false;
+    if (this.blankScreen) {
+      this.blackScreen = false;
+      this.logoScreen = false;
+    }
     if (this.socket) {
-      this.socket.emit('screenState', { blackScreen: this.blackScreen, blankScreen: this.blankScreen });
+      this.socket.emit('screenState', { blackScreen: this.blackScreen, blankScreen: this.blankScreen, logoScreen: this.logoScreen });
+    }
+    this.renderStageScreen();
+    this.updateOverrideButtons();
+  }
+
+  toggleLogo() {
+    this.logoScreen = !this.logoScreen;
+    if (this.logoScreen) {
+      this.blackScreen = false;
+      this.blankScreen = false;
+    }
+    if (this.socket) {
+      this.socket.emit('screenState', { blackScreen: this.blackScreen, blankScreen: this.blankScreen, logoScreen: this.logoScreen });
     }
     this.renderStageScreen();
     this.updateOverrideButtons();
@@ -689,8 +816,18 @@ class ChurchApp {
   updateOverrideButtons() {
     const btnB = document.getElementById('btnBlackout');
     const btnClr = document.getElementById('btnBlank');
-    if (btnB) btnB.classList.toggle('active', this.blackScreen);
-    if (btnClr) btnClr.classList.toggle('active', this.blankScreen);
+    const btnLogo = document.getElementById('btnLogo');
+    if (btnB) btnB.classList.toggle('active', !!this.blackScreen);
+    if (btnClr) btnClr.classList.toggle('active', !!this.blankScreen);
+    if (btnLogo) btnLogo.classList.toggle('active', !!this.logoScreen);
+  }
+
+  openProjectorWindow() {
+    const w = 1280;
+    const h = 720;
+    const left = (window.screen.width - w) / 2;
+    const top = (window.screen.height - h) / 2;
+    window.open('/tv.html', 'SFGC_Sanctuary_Projector', `width=${w},height=${h},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no,resizable=yes`);
   }
 
   endLiveSession() {
@@ -698,42 +835,104 @@ class ChurchApp {
       this.socket.emit('endSession');
     }
     this.activeSong = null;
+    this.blackScreen = false;
+    this.blankScreen = false;
+    this.logoScreen = false;
+
+    const titleEl = document.getElementById('activeSongTitle');
+    const metaEl = document.getElementById('activeSongMeta');
+    const indicatorEl = document.getElementById('projLiveIndicator');
+    const deckBadge = document.getElementById('deckSlideCountBadge');
+
+    if (titleEl) titleEl.innerText = 'No Song Loaded on Projector';
+    if (metaEl) metaEl.innerText = 'Select a song from the library to begin live projection';
+    if (indicatorEl) indicatorEl.className = 'proj-status-dot standby';
+    if (deckBadge) deckBadge.innerText = '0 Slides';
+
+    this.updateOverrideButtons();
     this.renderStageScreen();
+    this.renderNextSlidePreview();
     this.renderSlideTriggers();
     this.renderProjectionSongsList();
   }
 
   renderStageScreen() {
     const contentEl = document.getElementById('stageScreenContent');
-    const titleEl = document.getElementById('activeSongTitle');
+    const slideIndicator = document.getElementById('stageSlideIndicator');
 
     if (!this.activeSong) {
-      titleEl.innerText = 'No Song Loaded on Projector';
-      contentEl.innerHTML = '<p class="stage-placeholder">Select a song from the left list to begin projection</p>';
+      if (slideIndicator) slideIndicator.innerText = 'Slide 0 of 0';
+      if (contentEl) contentEl.innerHTML = '<p class="stage-placeholder">Select a song to start live projection</p>';
       return;
     }
 
-    titleEl.innerText = `Projecting: ${this.activeSong.title} (${this.activeSong.language})`;
+    const totalSlides = this.activeSong.lyrics?.length || 0;
+    const slide = this.activeSong.lyrics?.[this.activeSlideIndex];
+    const slideType = slide?.type || `Slide ${this.activeSlideIndex + 1}`;
+
+    if (slideIndicator) {
+      slideIndicator.innerText = `Slide ${this.activeSlideIndex + 1} of ${totalSlides} • [${slideType}]`;
+    }
 
     if (this.blackScreen) {
-      contentEl.innerHTML = '<p class="stage-placeholder" style="color: #64748b;">[ SCREEN BLACKOUT ACTIVE ]</p>';
+      contentEl.innerHTML = '<p class="stage-placeholder" style="color: #64748b; font-weight:700;"><i class="fa-solid fa-moon mb-2" style="font-size:24px;"></i><br>[ SCREEN BLACKOUT ACTIVE ]</p>';
       return;
     }
 
     if (this.blankScreen) {
-      contentEl.innerHTML = '<p class="stage-placeholder" style="color: #ef4444;">[ TEXT BLANKED BY OPERATOR ]</p>';
+      contentEl.innerHTML = '<p class="stage-placeholder" style="color: #ef4444; font-weight:700;"><i class="fa-solid fa-eye-slash mb-2" style="font-size:24px;"></i><br>[ TEXT BLANKED BY OPERATOR ]</p>';
       return;
     }
 
-    const slide = this.activeSong.lyrics?.[this.activeSlideIndex];
+    if (this.logoScreen) {
+      contentEl.innerHTML = '<p class="stage-placeholder" style="color: #6366f1; font-weight:700;"><i class="fa-solid fa-church mb-2" style="font-size:28px;"></i><br>[ CHURCH LOGO DISPLAY ]</p>';
+      return;
+    }
+
     if (!slide) return;
 
-    const lines = (slide.text || '').split('\n');
+    const lines = (slide.text || '').split('\n').filter(Boolean);
     contentEl.innerHTML = `
-      <div class="stage-slide-type">${slide.type || 'Verse'}</div>
+      <div class="stage-slide-type">${slideType}</div>
       ${lines.map((l, idx) => `
-        <div class="stage-line ${this.activeLineIndex === idx ? 'highlighted' : ''}" style="cursor: pointer; padding: 6px 12px; border-radius: 6px; margin-bottom: 4px; transition: all 0.2s;" onclick="app.selectLine(${idx})" title="Click to highlight this line live">${l}</div>
+        <div class="stage-line ${this.activeLineIndex === idx ? 'highlighted' : ''}" 
+             style="cursor: pointer; padding: 4px 10px; border-radius: 6px; margin-bottom: 3px;" 
+             onclick="app.selectLine(${idx})" 
+             title="Click to highlight this line live on sanctuary projector">${l}</div>
       `).join('')}
+    `;
+  }
+
+  renderNextSlidePreview() {
+    const nextContentEl = document.getElementById('nextSlideContent');
+    const nextIndicator = document.getElementById('nextSlideIndicator');
+    if (!nextContentEl) return;
+
+    if (!this.activeSong || !this.activeSong.lyrics) {
+      if (nextIndicator) nextIndicator.innerText = 'Next Slide Preview';
+      nextContentEl.innerHTML = '<p class="stage-placeholder">No song loaded</p>';
+      return;
+    }
+
+    const nextIndex = this.activeSlideIndex + 1;
+    const totalSlides = this.activeSong.lyrics.length;
+
+    if (nextIndex >= totalSlides) {
+      if (nextIndicator) nextIndicator.innerText = 'End of Song';
+      nextContentEl.innerHTML = '<p class="stage-placeholder" style="color:#64748b;">[ End of Song - No Upcoming Slide ]</p>';
+      return;
+    }
+
+    const nextSlide = this.activeSong.lyrics[nextIndex];
+    const nextType = nextSlide?.type || `Slide ${nextIndex + 1}`;
+    if (nextIndicator) {
+      nextIndicator.innerText = `Slide ${nextIndex + 1} of ${totalSlides} • [${nextType}]`;
+    }
+
+    const nextLines = (nextSlide.text || '').split('\n').filter(Boolean);
+    nextContentEl.innerHTML = `
+      <div class="stage-slide-type" style="background: rgba(168,85,247,0.15); color: #d8b4fe;">${nextType}</div>
+      ${nextLines.map(l => `<div class="stage-line" style="font-size:14px; color:#94a3b8; line-height:1.4;">${l}</div>`).join('')}
     `;
   }
 
@@ -746,22 +945,38 @@ class ChurchApp {
     if (this.socket) {
       this.socket.emit('highlightLine', { highlightedLineIndex: this.activeLineIndex });
     }
-    this.renderStageDisplay();
+    this.renderStageScreen();
   }
 
   renderSlideTriggers() {
     const grid = document.getElementById('slidesGrid');
-    if (!this.activeSong || !this.activeSong.lyrics) {
-      grid.innerHTML = '<p class="empty-hint">Load a song to view lyric slide triggers.</p>';
+    if (!grid) return;
+
+    if (!this.activeSong || !this.activeSong.lyrics || this.activeSong.lyrics.length === 0) {
+      grid.innerHTML = '<p class="empty-hint">Load a song from the left library to display lyric slide triggers.</p>';
       return;
     }
 
-    grid.innerHTML = this.activeSong.lyrics.map((slide, index) => `
-      <div class="slide-trigger-card ${this.activeSlideIndex === index ? 'active' : ''}" onclick="app.selectSlide(${index})">
-        <div class="slide-trigger-tag">${slide.type || `Slide ${index + 1}`}</div>
-        <div class="slide-trigger-text">${slide.text}</div>
-      </div>
-    `).join('');
+    grid.innerHTML = this.activeSong.lyrics.map((slide, index) => {
+      const type = (slide.type || `Slide ${index + 1}`).trim();
+      let tagClass = 'tag-other';
+      const lc = type.toLowerCase();
+      if (lc.includes('chorus') || lc.includes('పల్లవి')) tagClass = 'tag-chorus';
+      else if (lc.includes('verse') || lc.includes('చరణం')) tagClass = 'tag-verse';
+      else if (lc.includes('bridge') || lc.includes('అనుపల్లవి')) tagClass = 'tag-bridge';
+
+      const isActive = this.activeSlideIndex === index;
+
+      return `
+        <div class="slide-trigger-card ${isActive ? 'active' : ''}" onclick="app.selectSlide(${index})" id="slide-card-${index}">
+          <div class="slide-card-header">
+            <span class="slide-trigger-tag ${tagClass}">${type}</span>
+            <span class="slide-num-badge">#${index + 1}</span>
+          </div>
+          <div class="slide-trigger-text">${slide.text}</div>
+        </div>
+      `;
+    }).join('');
   }
 
   highlightActiveTrigger() {
@@ -769,6 +984,11 @@ class ChurchApp {
     cards.forEach((c, idx) => {
       c.classList.toggle('active', idx === this.activeSlideIndex);
     });
+
+    const activeCard = document.getElementById(`slide-card-${this.activeSlideIndex}`);
+    if (activeCard) {
+      activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 
   // SONGS CATALOG METHODS

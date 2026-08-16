@@ -110,7 +110,7 @@ export default function AppTabs() {
   return (
     <Tabs 
       initialRouteName="index"
-      backBehavior="initialRoute"
+      backBehavior="history"
       screenOptions={{
         tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: inactiveColor,
@@ -278,6 +278,17 @@ export default function AppTabs() {
         name="live-operator"
         options={{
           title: 'Live Operator Console',
+          href: null,
+          tabBarStyle: { display: 'none' },
+          headerShown: false,
+        }}
+      />
+
+      {/* Hidden Screens: Song Editor */}
+      <Tabs.Screen
+        name="song-editor"
+        options={{
+          title: 'Song Editor',
           href: null,
           tabBarStyle: { display: 'none' },
           headerShown: false,

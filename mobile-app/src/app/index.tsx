@@ -4,7 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, Title, Paragraph, Button, Avatar, Text, ActivityIndicator } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -204,11 +204,28 @@ export default function HomeScreen() {
 
   const [allAvailablePlans, setAllAvailablePlans] = useState<any[]>([]);
 
+  const routeParams = useLocalSearchParams<{ autoOpenPromise?: string; book?: string; chapter?: string; verse?: string; returnToBible?: string }>();
+  const [returnToBibleAfterPromise, setReturnToBibleAfterPromise] = useState(false);
+
   useEffect(() => {
     biblePlanService.getAllPlans().then(plans => {
       if (plans && plans.length > 0) setAllAvailablePlans(plans);
     });
   }, []);
+
+  useEffect(() => {
+    if (routeParams?.autoOpenPromise === 'true') {
+      setPromiseModalVisible(true);
+      fetchScheduledPromisesList();
+      if (routeParams.returnToBible === 'true') {
+        setReturnToBibleAfterPromise(true);
+      }
+      if (routeParams.book && routeParams.chapter && routeParams.verse) {
+        const foundBook = bibleService.getBook(routeParams.book);
+        loadPassageForSelection(foundBook, routeParams.chapter, routeParams.verse);
+      }
+    }
+  }, [routeParams?.autoOpenPromise, routeParams?.book, routeParams?.chapter, routeParams?.verse, routeParams?.returnToBible]);
 
   // Update dynamic chapters & verses when book, chapter or verse changes
   const loadPassageForSelection = async (bookObj: any, chVal: string | number, vVal: string | number) => {
@@ -296,6 +313,20 @@ export default function HomeScreen() {
     }
   };
 
+  const closePromiseManager = () => {
+    setPromiseModalVisible(false);
+    if (returnToBibleAfterPromise) {
+      setReturnToBibleAfterPromise(false);
+      router.push({
+        pathname: '/bible',
+        params: {
+          autoOpenBook: selectedBook?.english,
+          autoOpenChapter: selectedChapter,
+        }
+      });
+    }
+  };
+
   const openPromiseManager = async () => {
     setPromiseModalVisible(true);
     fetchScheduledPromisesList();
@@ -334,6 +365,9 @@ export default function HomeScreen() {
         alert(`Promise scheduled successfully for ${promiseDate}.\nNotification will be sent at 5:00 AM on the scheduled date.`);
         await loadDailyPromise();
         await fetchScheduledPromisesList();
+        if (returnToBibleAfterPromise) {
+          closePromiseManager();
+        }
       } else {
         alert(res.message || 'Failed to save promise.');
       }
@@ -647,6 +681,10 @@ export default function HomeScreen() {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
+            windowSize={3}
+            removeClippedSubviews={Platform.OS === 'android'}
             getItemLayout={(data, index) => ({
               length: Dimensions.get('window').width - 32,
               offset: (Dimensions.get('window').width - 32) * index,
@@ -1131,7 +1169,7 @@ export default function HomeScreen() {
       visible={promiseModalVisible}
       transparent={true}
       animationType="slide"
-      onRequestClose={() => setPromiseModalVisible(false)}
+      onRequestClose={closePromiseManager}
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalCard, { backgroundColor: theme.backgroundElement, maxHeight: '85%' }]}>
@@ -1139,7 +1177,7 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 17, fontWeight: 'bold', color: theme.primary }}>
               {isTel ? '🌅 నేటి వాగ్దానం నిర్వహణ (Admin)' : '🌅 Daily Promise Manager'}
             </Text>
-            <TouchableOpacity onPress={() => setPromiseModalVisible(false)}>
+            <TouchableOpacity onPress={closePromiseManager}>
               <MaterialCommunityIcons name="close-circle" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>

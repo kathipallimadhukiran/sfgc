@@ -8,7 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { songsService } from '@/services/songsService';
 
 export default function SongDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, returnTo } = useLocalSearchParams<{ id?: string; returnTo?: string }>();
   const { favorites, toggleFavorite, songs, user, addToSetlist, language } = useApp();
   const theme = useTheme();
   const router = useRouter();
@@ -87,13 +87,23 @@ export default function SongDetailScreen() {
 
   const handleGoLive = () => {
     if (!song) return;
-    router.push({ pathname: '/live-operator', params: { songId: song._id || song.id } });
+    router.push({ pathname: '/live-operator', params: { songId: song._id || song.id, returnTo: `/song/${song._id || song.id}` } });
   };
 
   const handleScrollStateToggle = () => {
     setAutoScrollActive(!autoScrollActive);
     if (!autoScrollActive) {
       currentScrollY.current = 0; // reset scroll to top on toggle on
+    }
+  };
+
+  const handleGoBack = () => {
+    if (returnTo) {
+      router.replace(returnTo as any);
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/songs');
     }
   };
 
@@ -114,7 +124,7 @@ export default function SongDetailScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header bar */}
       <Appbar.Header style={{ backgroundColor: theme.primary }}>
-        <Appbar.BackAction color="#fff" onPress={() => router.push('/songs')} />
+        <Appbar.BackAction color="#fff" onPress={handleGoBack} />
         <Appbar.Content title={song.title} color="#fff" titleStyle={{ fontWeight: 'bold' }} />
         <Appbar.Action
           color="#fff"
@@ -122,7 +132,14 @@ export default function SongDetailScreen() {
           onPress={() => toggleFavorite(song._id || song.id)}
         />
         {canOperate && (
-          <Appbar.Action color="#ffd54f" icon="playlist-plus" onPress={handleAddToSetlist} />
+          <>
+            <Appbar.Action
+              color="#fff"
+              icon="pencil"
+              onPress={() => router.push({ pathname: '/song-editor', params: { editId: song._id || song.id, returnTo: `/song/${song._id || song.id}` } })}
+            />
+            <Appbar.Action color="#ffd54f" icon="playlist-plus" onPress={handleAddToSetlist} />
+          </>
         )}
         <Appbar.Action color="#fff" icon="share-variant" onPress={handleShare} />
       </Appbar.Header>

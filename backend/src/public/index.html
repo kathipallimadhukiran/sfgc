@@ -306,68 +306,115 @@
         <div class="projection-workspace">
           <!-- Left Song Picker & Control Sidebar -->
           <div class="projection-control-sidebar glass-card">
-            <div class="section-title">
-              <h3><i class="fa-solid fa-list-music"></i> Select Song to Project</h3>
+            <div class="proj-sidebar-header">
+              <div class="section-title">
+                <h3><i class="fa-solid fa-list-music text-primary"></i> Song Library</h3>
+                <span id="projSongCountBadge" class="badge badge-primary">0</span>
+              </div>
             </div>
-            <div class="song-filter-pills">
-              <button type="button" class="btn btn-xs btn-primary proj-filter-btn active" data-lang="all" onclick="app.setSongFilterLang('all')">All Songs</button>
-              <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="Telugu" onclick="app.setSongFilterLang('Telugu')">Telugu</button>
-              <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="English" onclick="app.setSongFilterLang('English')">English</button>
+
+            <!-- Search & Quick Filters -->
+            <div class="proj-search-box">
+              <div class="search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="projSongSearch" placeholder="Search Telugu / English (e.g. 'yesu', 'andala')..." oninput="app.filterProjectionSongs()" autocomplete="off">
+                <button type="button" id="projSearchClearBtn" class="search-clear-btn" onclick="app.clearProjSearch()" style="display:none;" title="Clear Search">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div class="proj-filter-row">
+                <div class="song-filter-pills">
+                  <button type="button" class="btn btn-xs btn-primary proj-filter-btn active" data-lang="all" onclick="app.setSongFilterLang('all')">All</button>
+                  <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="Telugu" onclick="app.setSongFilterLang('Telugu')">Telugu</button>
+                  <button type="button" class="btn btn-xs btn-outline proj-filter-btn" data-lang="English" onclick="app.setSongFilterLang('English')">English</button>
+                </div>
+                <select id="projCategoryFilter" class="proj-cat-select" onchange="app.filterProjectionSongs()">
+                  <option value="">All Categories</option>
+                  <option value="Worship">Worship</option>
+                  <option value="AKK">AKK Hymns</option>
+                  <option value="Praise">Praise</option>
+                  <option value="Prayer">Prayer</option>
+                  <option value="Christmas">Christmas</option>
+                  <option value="Special">Special Songs</option>
+                </select>
+              </div>
             </div>
-            <div class="search-input-wrap">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" id="projSongSearch" placeholder="Search song title, lyrics, or category..." oninput="app.filterProjectionSongs()" autocomplete="off">
-            </div>
+
+            <!-- Song List -->
             <div class="proj-songs-list" id="projSongsList">
               <!-- Loaded dynamically -->
             </div>
-
-            <!-- Projection Master Controls -->
-            <div class="projection-master-actions">
-              <h4><i class="fa-solid fa-play"></i> Worship Session Controls</h4>
-              <div class="toggle-btn-row mb-2">
-                <button id="btnStartWorshipSession" class="btn btn-emerald-action flex-1" onclick="app.startLiveSession()">
-                  <i class="fa-solid fa-play"></i> Start Session
-                </button>
-                <button id="btnEndWorshipSession" class="btn btn-danger-action flex-1" onclick="app.endLiveSession()">
-                  <i class="fa-solid fa-stop"></i> End Session
-                </button>
-              </div>
-
-              <h4 class="mt-2"><i class="fa-solid fa-sliders"></i> Slide Navigation</h4>
-              <div class="toggle-btn-row mb-2">
-                <button class="btn btn-outline flex-1" onclick="app.prevSlide()">
-                  <i class="fa-solid fa-chevron-left"></i> Previous Slide
-                </button>
-                <button class="btn btn-primary flex-1" onclick="app.nextSlide()">
-                  Next Slide <i class="fa-solid fa-chevron-right"></i>
-                </button>
-              </div>
-
-              <h4 class="mt-2">Display Overrides</h4>
-              <div class="toggle-btn-row">
-                <button id="btnBlackout" class="btn btn-dark-action" onclick="app.toggleBlackout()">
-                  <i class="fa-solid fa-moon"></i> Blackout Screen
-                </button>
-                <button id="btnBlank" class="btn btn-dark-action" onclick="app.toggleBlank()">
-                  <i class="fa-solid fa-eye-slash"></i> Clear Text
-                </button>
-              </div>
-            </div>
           </div>
 
-          <!-- Right: Live Slides Grid & Projector Screen Preview -->
+          <!-- Right: Live Projection Control & Studio Area -->
           <div class="projection-main-area">
-            <!-- Screen Preview Monitor -->
-            <div class="preview-monitor-card glass-card">
-              <div class="monitor-header">
-                <div class="monitor-tag"><span class="pulse-red"></span> LIVE SANCTUARY PROJECTOR OUTPUT</div>
-                <div class="monitor-info" id="activeSongTitle">No Song Loaded on Projector</div>
+            <!-- Top Master Control Bar -->
+            <div class="proj-master-bar glass-card">
+              <div class="proj-master-left">
+                <div class="active-song-status">
+                  <span id="projLiveIndicator" class="proj-status-dot standby"></span>
+                  <div class="active-song-meta-wrap">
+                    <h3 id="activeSongTitle">No Song Loaded on Projector</h3>
+                    <div id="activeSongMeta" class="active-song-sub">Select a song from the library to begin live projection</div>
+                  </div>
+                </div>
               </div>
-              <div class="stage-screen" id="stageScreen">
-                <div class="stage-watermark">SFGC Pro Live Engine</div>
-                <div class="stage-content" id="stageScreenContent">
-                  <p class="stage-placeholder">Select a song from the left list to begin projection</p>
+              <div class="proj-master-actions">
+                <!-- Display Overrides -->
+                <div class="override-btn-group">
+                  <button id="btnBlackout" class="btn btn-override" onclick="app.toggleBlackout()" title="Turn screen black [B]">
+                    <i class="fa-solid fa-moon"></i> <span>Blackout</span> <kbd>B</kbd>
+                  </button>
+                  <button id="btnBlank" class="btn btn-override" onclick="app.toggleBlank()" title="Clear text [C]">
+                    <i class="fa-solid fa-eye-slash"></i> <span>Clear Text</span> <kbd>C</kbd>
+                  </button>
+                  <button id="btnLogo" class="btn btn-override" onclick="app.toggleLogo()" title="Show Church Logo [L]">
+                    <i class="fa-solid fa-church"></i> <span>Logo</span> <kbd>L</kbd>
+                  </button>
+                </div>
+                <div class="proj-action-divider"></div>
+                <!-- Projector Tools -->
+                <div class="proj-tool-group">
+                  <button class="btn btn-primary btn-sm" onclick="app.openProjectorWindow()" title="Open Projector Screen in New Window">
+                    <i class="fa-solid fa-display"></i> <span>Open TV Display</span> <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i>
+                  </button>
+                  <button class="btn btn-danger-action btn-sm" onclick="app.endLiveSession()" title="End Active Live Session">
+                    <i class="fa-solid fa-power-off"></i> <span>End Live</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dual Monitors: Live Program & Next Slide Preview -->
+            <div class="proj-monitors-row">
+              <!-- Live Stage Program Monitor (16:9) -->
+              <div class="preview-monitor-card glass-card">
+                <div class="monitor-header">
+                  <div class="monitor-tag">
+                    <span class="pulse-red"></span> LIVE ON AIR
+                  </div>
+                  <div class="monitor-info" id="stageSlideIndicator">Slide 0 of 0</div>
+                </div>
+                <div class="stage-screen" id="stageScreen">
+                  <div class="stage-watermark">SFGC SANCTUARY LIVE</div>
+                  <div class="stage-content" id="stageScreenContent">
+                    <p class="stage-placeholder">Select a song to start live projection</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Next Slide Preview Monitor (16:9) -->
+              <div class="preview-monitor-card glass-card next-slide-monitor">
+                <div class="monitor-header">
+                  <div class="monitor-tag next-tag">
+                    <i class="fa-solid fa-forward"></i> UP NEXT
+                  </div>
+                  <div class="monitor-info" id="nextSlideIndicator">Next Slide Preview</div>
+                </div>
+                <div class="next-stage-screen" id="nextStageScreen">
+                  <div class="stage-content" id="nextSlideContent">
+                    <p class="stage-placeholder">No upcoming slide</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -375,14 +422,37 @@
             <!-- Slide Selection Deck -->
             <div class="slides-deck-card glass-card">
               <div class="deck-header">
-                <h3><i class="fa-solid fa-sliders"></i> Lyrics Slide Deck (Click to Display)</h3>
-                <div class="flex-gap-8">
-                  <button class="btn btn-sm btn-outline" onclick="app.prevSlide()"><i class="fa-solid fa-arrow-left"></i> Prev</button>
-                  <button class="btn btn-sm btn-primary" onclick="app.nextSlide()">Next <i class="fa-solid fa-arrow-right"></i></button>
+                <div class="deck-title-wrap">
+                  <h3><i class="fa-solid fa-layer-group text-primary"></i> Lyrics Slide Deck</h3>
+                  <span id="deckSlideCountBadge" class="badge badge-slides">0 Slides</span>
+                </div>
+                <div class="deck-nav-tools">
+                  <button class="btn btn-sm btn-outline" onclick="app.firstSlide()" title="Jump to First Slide [Home]">
+                    <i class="fa-solid fa-backward-step"></i> <span class="hide-mobile">First</span>
+                  </button>
+                  <button class="btn btn-sm btn-outline" onclick="app.prevSlide()" title="Previous Slide [Left Arrow]">
+                    <i class="fa-solid fa-chevron-left"></i> Prev <kbd>←</kbd>
+                  </button>
+                  <button class="btn btn-sm btn-primary" onclick="app.nextSlide()" title="Next Slide [Right Arrow / Space]">
+                    Next <kbd>→</kbd> <i class="fa-solid fa-chevron-right"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline" onclick="app.lastSlide()" title="Jump to Last Slide [End]">
+                    <span class="hide-mobile">Last</span> <i class="fa-solid fa-forward-step"></i>
+                  </button>
                 </div>
               </div>
               <div class="slides-grid" id="slidesGrid">
-                <p class="empty-hint">Load a song to view lyric slide triggers.</p>
+                <p class="empty-hint">Load a song from the left library to display lyric slide triggers.</p>
+              </div>
+
+              <!-- Quick Shortcut Bar Footer -->
+              <div class="proj-shortcuts-footer">
+                <div class="shortcut-item"><kbd>Space</kbd> / <kbd>→</kbd> Next Slide</div>
+                <div class="shortcut-item"><kbd>←</kbd> Prev Slide</div>
+                <div class="shortcut-item"><kbd>B</kbd> Blackout</div>
+                <div class="shortcut-item"><kbd>C</kbd> Clear Text</div>
+                <div class="shortcut-item"><kbd>L</kbd> Church Logo</div>
+                <div class="shortcut-item"><kbd>1-9</kbd> Jump to Slide #</div>
               </div>
             </div>
           </div>

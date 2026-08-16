@@ -7,6 +7,7 @@ interface LiveSessionState {
   highlightedLineIndex: number;
   blackScreen: boolean;
   blankScreen: boolean;
+  logoScreen: boolean;
   activeYoutubeLink: string;
 }
 
@@ -17,6 +18,7 @@ let currentLiveSession: LiveSessionState = {
   highlightedLineIndex: -1,
   blackScreen: false,
   blankScreen: false,
+  logoScreen: false,
   activeYoutubeLink: '',
 };
 
@@ -131,20 +133,28 @@ export const setupLiveLyricsSocket = (io: SocketIOServer) => {
       io.emit('lineHighlighted', { lineIndex: payload.lineIndex });
     });
 
-    // Screen State Changed (Blackout / Blank screen)
-    socket.on('screenState', async (payload: { blackScreen: boolean; blankScreen: boolean }) => {
+    // Screen State Changed (Blackout / Blank screen / Logo screen)
+    socket.on('screenState', async (payload: { blackScreen: boolean; blankScreen: boolean; logoScreen?: boolean }) => {
       currentLiveSession.blackScreen = Boolean(payload.blackScreen);
       currentLiveSession.blankScreen = Boolean(payload.blankScreen);
+      currentLiveSession.logoScreen = Boolean(payload.logoScreen);
 
       io.emit('screenStateChanged', {
         blackScreen: currentLiveSession.blackScreen,
         blankScreen: currentLiveSession.blankScreen,
+        logoScreen: currentLiveSession.logoScreen,
       });
 
       try {
         await LiveState.findOneAndUpdate(
           { key: 'active_session' },
-          { $set: { blackScreen: currentLiveSession.blackScreen, blankScreen: currentLiveSession.blankScreen } }
+          {
+            $set: {
+              blackScreen: currentLiveSession.blackScreen,
+              blankScreen: currentLiveSession.blankScreen,
+              logoScreen: currentLiveSession.logoScreen,
+            },
+          }
         );
       } catch (e) {}
     });

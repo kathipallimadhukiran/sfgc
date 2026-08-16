@@ -11,8 +11,9 @@ export const getSongs = async (req: Request, res: Response, next: NextFunction):
     if (language && language !== 'All') {
       query.language = language;
     }
-    if (category && category !== 'All') {
-      query.category = category;
+    if (category && category !== 'All' && category !== 'All Categories') {
+      const cleanCat = String(category).replace(/\s+Songs$/i, '');
+      query.category = { $regex: new RegExp(cleanCat, 'i') };
     }
     if (search) {
       const regex = new RegExp(String(search), 'i');
@@ -69,7 +70,7 @@ export const createSong = async (req: Request, res: Response, next: NextFunction
     const newSong = await Song.create({
       title: title.trim(),
       language: language || 'English',
-      category: category || 'Worship Songs',
+      category: category || 'Worship',
       tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
       youtubeLink: youtubeLink || '',
       chords: chords || '',

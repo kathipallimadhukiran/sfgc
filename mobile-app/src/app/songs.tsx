@@ -10,9 +10,9 @@ import { songsService } from '@/services/songsService';
 import { VoiceSearchModal } from '@/components/VoiceSearchModal';
 
 const CATEGORIES = [
-  'Worship Songs', 'Christmas Songs', 'Easter Songs', 'Good Friday Songs',
-  'Offering Songs', 'Youth Songs', 'Healing Prayer Songs', 'Fasting Prayer Songs',
-  'Revival Songs', 'Communion Songs', 'Baptism Songs', 'Special Event Songs'
+  'Worship', 'Praise', 'Prayer', 'Christmas', 'Easter', 'Youth',
+  'Special Songs', 'Telugu', 'English', 'Good Friday', 'Offering',
+  'Healing Prayer', 'Fasting Prayer', 'Revival', 'Communion', 'Baptism'
 ];
 
 export default function SongsScreen() {
@@ -37,17 +37,6 @@ export default function SongsScreen() {
 
   const router = useRouter();
   const theme = useTheme();
-
-  // Add/Edit Song Form states
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [newTitle, setNewTitle] = useState('');
-  const [newLang, setNewLang] = useState('Telugu');
-  const [newCat, setNewCat] = useState('Worship Songs');
-  const [newYoutube, setNewYoutube] = useState('');
-  const [newChords, setNewChords] = useState('');
-  const [newLyrics, setNewLyrics] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   // Pull-to-refresh state
   const [refreshing, setRefreshing] = useState(false);
@@ -124,21 +113,41 @@ export default function SongsScreen() {
     }
   };
 
-  const getTranslatedCategory = (cat: string) => {
+  const getTranslatedCategory = (cat?: string) => {
+    if (!cat) return isTel ? 'ఆరాధన గీతాలు' : 'Worship';
     if (!isTel) return cat;
-    switch(cat) {
+    const cleanCat = cat.trim();
+    switch (cleanCat) {
+      case 'Worship':
       case 'Worship Songs': return 'ఆరాధన గీతాలు';
+      case 'Praise':
+      case 'Praise Songs': return 'స్తుతి గీతాలు';
+      case 'Prayer':
+      case 'Prayer Songs': return 'ప్రార్థన పాటలు';
+      case 'Christmas':
       case 'Christmas Songs': return 'క్రిస్మస్ పాటలు';
+      case 'Easter':
       case 'Easter Songs': return 'ఈస్టర్ పాటలు';
-      case 'Good Friday Songs': return 'గుడ్ ఫ్రైడే పాటలు';
-      case 'Offering Songs': return 'కానుకల పాటలు';
+      case 'Youth':
       case 'Youth Songs': return 'యూత్ సాంగ్స్';
-      case 'Healing Prayer Songs': return 'స్వస్థత ప్రార్థన పాటలు';
-      case 'Fasting Prayer Songs': return 'ఉపవాస ప్రార్థన పాటలు';
-      case 'Revival Songs': return 'ఉజ్జీవ కూడిక పాటలు';
-      case 'Communion Songs': return 'ప్రభు రాత్రి భోజన పాటలు';
-      case 'Baptism Songs': return 'బాప్తిస్మపు పాటలు';
+      case 'Special Songs':
       case 'Special Event Songs': return 'ప్రత్యేక కూడిక పాటలు';
+      case 'Good Friday':
+      case 'Good Friday Songs': return 'గుడ్ ఫ్రైడే పాటలు';
+      case 'Offering':
+      case 'Offering Songs': return 'కానుకల పాటలు';
+      case 'Healing Prayer':
+      case 'Healing Prayer Songs': return 'స్వస్థత ప్రార్థన పాటలు';
+      case 'Fasting Prayer':
+      case 'Fasting Prayer Songs': return 'ఉపవాస ప్రార్థన పాటలు';
+      case 'Revival':
+      case 'Revival Songs': return 'ఉజ్జీవ కూడిక పాటలు';
+      case 'Communion':
+      case 'Communion Songs': return 'ప్రభు రాత్రి భోజన పాటలు';
+      case 'Baptism':
+      case 'Baptism Songs': return 'బాప్తిస్మపు పాటలు';
+      case 'Telugu': return 'తెలుగు';
+      case 'English': return 'ఇంగ్లీష్';
       default: return cat;
     }
   };
@@ -155,7 +164,7 @@ export default function SongsScreen() {
     setVoiceSearchActive(true);
   };
 
-  // Alphabetical Index & Favorites filter state
+  // Alphabetical Index, Favorites & Category filter state
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [letterModalVisible, setLetterModalVisible] = useState(false);
@@ -165,6 +174,8 @@ export default function SongsScreen() {
 
   const filteredSongs = songs.filter(song => {
     const songKey = (song._id || song.id || '').toString();
+    const songCat = song.category || 'Worship';
+
     const matchesSearch = !searchQuery || 
                           song.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (song.lyrics && song.lyrics.some((l: any) => l.text?.toLowerCase().includes(searchQuery.toLowerCase()))) ||
@@ -173,7 +184,20 @@ export default function SongsScreen() {
     const matchesFav = !showFavoritesOnly || favorites.some((f: any) => (f._id || f.id || f).toString() === songKey);
     const matchesLetter = !selectedLetter || (song.title || '').trim().charAt(0).toUpperCase() === selectedLetter.toUpperCase();
 
-    return matchesSearch && matchesLang && matchesFav && matchesLetter;
+    let matchesCategory = true;
+    if (selectedCategory) {
+      if (selectedCategory === 'Telugu') {
+        matchesCategory = song.language === 'Telugu' || songCat === 'Telugu';
+      } else if (selectedCategory === 'English') {
+        matchesCategory = song.language === 'English' || songCat === 'English';
+      } else {
+        const catBase = selectedCategory.toLowerCase().replace(/\s+songs$/i, '');
+        const songCatBase = songCat.toLowerCase().replace(/\s+songs$/i, '');
+        matchesCategory = songCatBase.includes(catBase) || catBase.includes(songCatBase);
+      }
+    }
+
+    return matchesSearch && matchesLang && matchesFav && matchesLetter && matchesCategory;
   });
 
   const activeSlide = liveSession?.song?.lyrics?.[liveSession?.currentSlideIndex];
@@ -189,32 +213,12 @@ export default function SongsScreen() {
   const [setlistSnack, setSetlistSnack] = useState('');
 
   const handleOpenAddModal = () => {
-    setEditingId(null);
-    setNewTitle('');
-    setNewLang('Telugu');
-    setNewCat('Worship Songs');
-    setNewYoutube('');
-    setNewChords('');
-    setNewLyrics('');
-    setAddModalVisible(true);
+    router.push({ pathname: '/song-editor', params: { returnTo: '/songs' } });
   };
 
   const handleOpenEditModal = (song: any) => {
-    setEditingId(song._id || song.id);
-    setNewTitle(song.title);
-    setNewLang(song.language || 'Telugu');
-    setNewCat(song.category || 'Worship Songs');
-    setNewYoutube(song.youtubeLink || '');
-    setNewChords(song.chords || '');
-    
-    // Format lyrics from slides back to text with [Section Title] headers
-    const lyricsText = (song.lyrics || []).map((s: any) => {
-      const typeStr = s.type ? `[${s.type}]\n` : '';
-      return `${typeStr}${s.text || ''}`;
-    }).join('\n\n');
-    setNewLyrics(lyricsText || '');
-    
-    setAddModalVisible(true);
+    const songId = song._id || song.id;
+    router.push({ pathname: '/song-editor', params: { editId: songId, returnTo: '/songs' } });
   };
 
   const handleDeleteSong = (songId: string, title: string) => {
@@ -242,81 +246,6 @@ export default function SongsScreen() {
         }
       ]
     );
-  };
-
-  const handleAddSongSubmit = async () => {
-    if (!newTitle || !newLyrics) {
-      alert('Please enter a Title and Lyrics.');
-      return;
-    }
-    
-    setSubmitting(true);
-    try {
-      // Split by double-newline, filter empty blocks, detect custom bracket tags [Verse 1] or prefixes
-      const rawBlocks = newLyrics.split(/\n\s*\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
-      let verseCount = 0;
-      const slides = rawBlocks.map((block: string) => {
-        let type = 'Verse';
-        let text = block;
-
-        const headerMatch = block.match(/^\[([^\]]+)\]\s*\n?/);
-        if (headerMatch && headerMatch[1]) {
-          type = headerMatch[1].trim();
-          text = block.replace(/^\[([^\]]+)\]\s*\n?/, '').trim();
-        } else {
-          const lc = block.toLowerCase();
-          if (lc.startsWith('chorus:')) {
-            type = 'Chorus'; text = block.replace(/^chorus:?\s*/i, '').trim();
-          } else if (lc.startsWith('bridge:')) {
-            type = 'Bridge'; text = block.replace(/^bridge:?\s*/i, '').trim();
-          } else if (lc.startsWith('pre-chorus:') || lc.startsWith('prechorus:')) {
-            type = 'Pre-Chorus'; text = block.replace(/^pre-?chorus:?\s*/i, '').trim();
-          } else if (lc.startsWith('outro:')) {
-            type = 'Outro'; text = block.replace(/^outro:?\s*/i, '').trim();
-          } else if (lc.startsWith('intro:')) {
-            type = 'Intro'; text = block.replace(/^intro:?\s*/i, '').trim();
-          } else {
-            verseCount++;
-            type = `Verse ${verseCount}`;
-          }
-        }
-        return { type, text };
-      }).filter((s: any) => s.text.length > 0);
-
-      const payload = {
-        title: newTitle,
-        language: newLang as 'Telugu' | 'English',
-        category: newCat,
-        youtubeLink: newYoutube,
-        chords: newChords,
-        lyrics: slides,
-        tags: [newLang.toLowerCase(), newCat.toLowerCase()]
-      };
-
-      let response;
-      if (editingId) {
-        response = await songsService.updateSong(editingId, payload);
-      } else {
-        response = await songsService.addSong(payload);
-      }
-
-      if (response.success) {
-        setNewTitle('');
-        setNewYoutube('');
-        setNewChords('');
-        setNewLyrics('');
-        setEditingId(null);
-        setAddModalVisible(false);
-        refreshData();
-      } else {
-        alert(`Failed to save song: ${response.message || 'Error'}`);
-      }
-    } catch (err: any) {
-      console.log('Save song error:', err);
-      alert(`Error saving song: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   return (
@@ -462,7 +391,7 @@ export default function SongsScreen() {
           </Card>
         )}
 
-        {/* Search Section */}
+        {/* 1. SEARCH */}
         <View style={styles.searchSection}>
           <View style={styles.searchRow}>
             <Searchbar
@@ -485,45 +414,113 @@ export default function SongsScreen() {
           </View>
         </View>
 
-        {/* Language & Favorites Quick Filters */}
-        <View style={styles.filterRow}>
-          <Chip
-            selected={selectedLanguage === null && !showFavoritesOnly}
-            onPress={() => { setSelectedLanguage(null); setShowFavoritesOnly(false); }}
-            style={[styles.chip, { backgroundColor: theme.backgroundElement }, (selectedLanguage === null && !showFavoritesOnly) && styles.activeChip]}
-            textStyle={[styles.chipText, { color: theme.text }, (selectedLanguage === null && !showFavoritesOnly) && styles.activeChipText]}
-            showSelectedOverlay={false}
+        {/* CATEGORY CAROUSEL — Fixed Exact Height */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={{ height: 44, maxHeight: 44, marginVertical: 4 }}
+          contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center', gap: 8 }}
+        >
+          {/* All Songs Pill */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              setSelectedCategory(null);
+              setShowFavoritesOnly(false);
+            }}
+            style={[
+              styles.categoryPill,
+              {
+                backgroundColor: (selectedCategory === null && !showFavoritesOnly) ? theme.primary : theme.backgroundElement,
+                borderColor: (selectedCategory === null && !showFavoritesOnly) ? theme.primary : theme.cardBorder,
+              }
+            ]}
           >
-            {isTel ? 'అన్ని పాటలు' : 'All Songs'}
-          </Chip>
-          <Chip
-            selected={showFavoritesOnly}
-            onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
-            style={[styles.chip, { backgroundColor: theme.backgroundElement }, showFavoritesOnly && { backgroundColor: '#e91e63' }]}
-            textStyle={[styles.chipText, { color: theme.text }, showFavoritesOnly && { color: '#ffffff', fontWeight: 'bold' }]}
-            showSelectedOverlay={false}
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.categoryPillText,
+                { color: (selectedCategory === null && !showFavoritesOnly) ? '#ffffff' : theme.text },
+                (selectedCategory === null && !showFavoritesOnly) && { fontWeight: 'bold' }
+              ]}
+            >
+              {isTel ? 'అన్ని పాటలు' : 'All Songs'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Favorites Pill */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              setShowFavoritesOnly(!showFavoritesOnly);
+              if (!showFavoritesOnly) {
+                setSelectedCategory(null);
+              }
+            }}
+            style={[
+              styles.categoryPill,
+              {
+                backgroundColor: showFavoritesOnly ? '#e91e63' : theme.backgroundElement,
+                borderColor: showFavoritesOnly ? '#e91e63' : theme.cardBorder,
+              }
+            ]}
           >
-            {isTel ? '❤️ ఇష్టమైనవి' : '❤️ Favorites'}
-          </Chip>
-          <Chip
-            selected={selectedLanguage === 'Telugu'}
-            onPress={() => { setSelectedLanguage(selectedLanguage === 'Telugu' ? null : 'Telugu'); }}
-            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === 'Telugu' && styles.activeChip]}
-            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === 'Telugu' && styles.activeChipText]}
-            showSelectedOverlay={false}
-          >
-            {isTel ? 'తెలుగు' : 'Telugu'}
-          </Chip>
-          <Chip
-            selected={selectedLanguage === 'English'}
-            onPress={() => { setSelectedLanguage(selectedLanguage === 'English' ? null : 'English'); }}
-            style={[styles.chip, { backgroundColor: theme.backgroundElement }, selectedLanguage === 'English' && styles.activeChip]}
-            textStyle={[styles.chipText, { color: theme.text }, selectedLanguage === 'English' && styles.activeChipText]}
-            showSelectedOverlay={false}
-          >
-            {isTel ? 'ఇంగ్లీష్' : 'English'}
-          </Chip>
-        </View>
+            <MaterialCommunityIcons 
+              name="heart-outline" 
+              size={15} 
+              color={showFavoritesOnly ? '#ffffff' : '#e91e63'} 
+            />
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.categoryPillText,
+                { color: showFavoritesOnly ? '#ffffff' : theme.text },
+                showFavoritesOnly && { fontWeight: 'bold' }
+              ]}
+            >
+              {isTel ? 'ఇష్టమైనవి' : 'Favorites'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Category Pills */}
+          {CATEGORIES.filter(cat => cat !== 'Telugu' && cat !== 'English').map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                activeOpacity={0.7}
+                onPress={() => {
+                  if (selectedCategory === cat) {
+                    setSelectedCategory(null);
+                  } else {
+                    setSelectedCategory(cat);
+                    setShowFavoritesOnly(false);
+                  }
+                }}
+                style={[
+                  styles.categoryPill,
+                  {
+                    backgroundColor: isSelected ? theme.primary : theme.backgroundElement,
+                    borderColor: isSelected ? theme.primary : theme.cardBorder,
+                  }
+                ]}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.categoryPillText,
+                    { color: isSelected ? '#ffffff' : theme.text },
+                    isSelected && { fontWeight: 'bold' }
+                  ]}
+                >
+                  {getTranslatedCategory(cat)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* 4. ALPHABETICAL FILTER */}
 
         {/* Button to open Telugu Letter Selection Popup Modal */}
         <View style={{ marginVertical: 8, paddingHorizontal: 12 }}>
@@ -566,6 +563,11 @@ export default function SongsScreen() {
           contentContainerStyle={styles.listContent}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === 'android'}
+          updateCellsBatchingPeriod={50}
           renderItem={({ item }) => {
             const songKey = item._id || item.id || '';
             const isFav = favorites.includes(songKey);
@@ -575,19 +577,21 @@ export default function SongsScreen() {
               <View style={[styles.songCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder }, isLive && styles.liveSongCard]}>
                 <TouchableOpacity 
                   activeOpacity={0.7}
-                  onPress={() => router.push(isLive ? '/live-lyrics' : `/song/${songKey}`)}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                  onPress={() => router.push({ pathname: (isLive ? '/live-lyrics' : `/song/${songKey}`) as any, params: { returnTo: '/songs' } })}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 6 }}
                 >
                   <View style={[styles.songIconBox, isLive && styles.liveSongIconBox]}>
                     <MaterialCommunityIcons 
                       name={isLive ? "radio-tower" : "music-clef-treble"} 
-                      size={24} 
+                      size={22} 
                       color={isLive ? "#ffffff" : theme.primary} 
                     />
                   </View>
                   <View style={styles.songDetails}>
                     <View style={styles.titleRow}>
-                      <Text style={[styles.songTitle, { color: theme.text }]}>{item.title}</Text>
+                      <Text style={[styles.songTitle, { color: theme.text }]} numberOfLines={1}>
+                        {item.title}
+                      </Text>
                       {isLive && (
                         <View style={styles.liveTagBadge}>
                           <Text style={styles.liveTagText}>LIVE</Text>
@@ -599,44 +603,46 @@ export default function SongsScreen() {
                         {item.language === 'Telugu' ? (isTel ? 'తెలుగు' : 'Telugu') : (isTel ? 'ఇంగ్లీష్' : 'English')}
                       </Text>
                       <Text style={[styles.songDot, { color: theme.textSecondary }]}>•</Text>
-                      <Text style={[styles.songCatTag, { color: theme.textSecondary }]}>{getTranslatedCategory(item.category)}</Text>
+                      <Text style={[styles.songCatTag, { color: theme.textSecondary }]} numberOfLines={1}>
+                        {getTranslatedCategory(item.category)}
+                      </Text>
                     </View>
                   </View>
                 </TouchableOpacity>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
                   <IconButton
                     icon={isFav ? 'heart' : 'heart-outline'}
-                    iconColor={isFav ? '#e91e63' : (isLive ? '#fff' : '#757575')}
-                    size={20}
+                    iconColor={isFav ? '#e91e63' : theme.textSecondary}
+                    size={19}
                     onPress={() => toggleFavorite(songKey)}
-                    style={{ margin: 0 }}
+                    style={{ margin: 0, width: 30, height: 30 }}
                   />
                   {canManageSongs && (
                     <>
                       <IconButton
                         icon="playlist-plus"
-                        iconColor={isLive ? '#ffd54f' : '#6366f1'}
+                        iconColor={theme.primary}
                         size={18}
                         onPress={() => {
                           addToSetlist(item);
                           setSetlistSnack(isTel ? `"${item.title}" జాబితాకు జోడించబడింది` : `"${item.title}" added to setlist`);
                         }}
-                        style={{ margin: 0 }}
+                        style={{ margin: 0, width: 30, height: 30 }}
                       />
                       <IconButton
                         icon="pencil"
-                        iconColor={isLive ? '#fff' : theme.primary}
-                        size={18}
+                        iconColor={theme.primary}
+                        size={17}
                         onPress={() => handleOpenEditModal(item)}
-                        style={{ margin: 0 }}
+                        style={{ margin: 0, width: 30, height: 30 }}
                       />
                       <IconButton
                         icon="delete"
-                        iconColor={isLive ? '#fff' : '#d32f2f'}
-                        size={18}
+                        iconColor="#dc2626"
+                        size={17}
                         onPress={() => handleDeleteSong(songKey, item.title)}
-                        style={{ margin: 0 }}
+                        style={{ margin: 0, width: 30, height: 30 }}
                       />
                     </>
                   )}
@@ -678,224 +684,9 @@ export default function SongsScreen() {
           </>
         )}
 
-        {/* Add/Edit Song Modal Overlay — Full Screen */}
+        {/* Telugu Alphabet Letter Selector Modal */}
         <Portal>
           <Modal
-            visible={addModalVisible}
-            onDismiss={() => setAddModalVisible(false)}
-            contentContainerStyle={[styles.modalFullScreen, { backgroundColor: theme.backgroundElement }]}
-          >
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-              {/* Modal Header */}
-              <View style={[styles.modalHeader, { backgroundColor: theme.backgroundElement, borderBottomColor: theme.cardBorder }]}>
-                <TouchableOpacity onPress={() => setAddModalVisible(false)} style={styles.modalCloseBtn}>
-                  <MaterialCommunityIcons name="close" size={22} color={theme.textSecondary} />
-                </TouchableOpacity>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>
-                  {editingId ? (isTel ? 'పాట సవరించు' : 'Edit Song') : (isTel ? 'కొత్త పాట జోడించు' : 'Add New Song')}
-                </Text>
-                <Button
-                  mode="contained"
-                  onPress={handleAddSongSubmit}
-                  loading={submitting}
-                  disabled={submitting}
-                  buttonColor={theme.primary}
-                  style={{ borderRadius: 8 }}
-                  labelStyle={{ fontSize: 13, fontWeight: 'bold' }}
-                >
-                  {submitting ? (isTel ? 'సేవ్ చేస్తోంది...' : 'Saving...') : (isTel ? 'సేవ్ చేయి' : 'Save')}
-                </Button>
-              </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} style={[styles.modalBody, { backgroundColor: theme.backgroundElement }]} keyboardShouldPersistTaps="handled">
-
-              {/* Song Title */}
-              <Text style={styles.inputLabel}>{isTel ? 'పాట శీర్షిక *' : 'Song Title *'}</Text>
-              <TextInput
-                placeholder={isTel ? 'ఉదా: హోసన్నా' : 'e.g., Hosanna in the Highest'}
-                placeholderTextColor="#aaa"
-                value={newTitle}
-                onChangeText={setNewTitle}
-                style={styles.textInput}
-              />
-
-              {/* Language */}
-              <Text style={styles.inputLabel}>{isTel ? 'భాష' : 'Language'}</Text>
-              <View style={styles.rowSelector}>
-                {['Telugu', 'English'].map(lang => (
-                  <TouchableOpacity
-                    key={lang}
-                    style={[styles.selectorChip, newLang === lang && styles.selectorChipActive]}
-                    onPress={() => setNewLang(lang)}
-                  >
-                    <Text style={[styles.selectorChipText, newLang === lang && styles.selectorChipTextActive]}>
-                      {lang === 'Telugu' ? (isTel ? 'తెలుగు' : 'Telugu') : (isTel ? 'ఇంగ్లీష్' : 'English')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Category */}
-              <Text style={styles.inputLabel}>{isTel ? 'వర్గం' : 'Category'}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  {CATEGORIES.map(cat => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.selectorChip, newCat === cat && styles.selectorChipActive]}
-                      onPress={() => setNewCat(cat)}
-                    >
-                      <Text style={[styles.selectorChipText, newCat === cat && styles.selectorChipTextActive]}>
-                        {getTranslatedCategory(cat)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-
-              {/* YouTube Link */}
-              <Text style={styles.inputLabel}>{isTel ? 'యూట్యూబ్ లింక్ (ఐచ్ఛికం)' : 'YouTube Link (Optional)'}</Text>
-              <TextInput
-                placeholder="https://youtube.com/watch?v=..."
-                placeholderTextColor="#aaa"
-                value={newYoutube}
-                onChangeText={setNewYoutube}
-                style={styles.textInput}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-
-              {/* Chords */}
-              <Text style={styles.inputLabel}>{isTel ? 'గిటార్ కోర్డులు (ఐచ్ఛికం)' : 'Guitar Chords (Optional)'}</Text>
-              <TextInput
-                placeholder="G   C   D   Em  ..."
-                placeholderTextColor="#aaa"
-                value={newChords}
-                onChangeText={setNewChords}
-                multiline
-                style={[styles.textInput, styles.chordsInput]}
-              />
-
-              {/* Lyrics — large area */}
-              <View style={styles.lyricsLabelRow}>
-                <Text style={styles.inputLabel}>{isTel ? 'సాహిత్యం *' : 'Lyrics *'}</Text>
-                {newLyrics.length > 0 && (() => {
-                  const count = newLyrics.split(/\n\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0).length;
-                  return (
-                    <View style={styles.slideCountBadge}>
-                      <MaterialCommunityIcons name="layers" size={12} color={theme.primary} />
-                      <Text style={[styles.slideCountText, { color: theme.primary }]}>
-                        {count} {isTel ? 'స్లయిడ్లు' : count === 1 ? 'slide' : 'slides'}
-                      </Text>
-                    </View>
-                  );
-                })()}
-              </View>
-
-              {/* Instruction box */}
-              <View style={styles.lyricsHintBox}>
-                <MaterialCommunityIcons name="information-outline" size={14} color="#6366f1" style={{ marginTop: 1 }} />
-                <Text style={styles.lyricsHintText}>
-                  {isTel
-                    ? 'ప్రతి వర్సు/కోరస్ మధ్య రెండుసార్లు Enter నొక్కండి — ఒక్కో విభాగం ఒక స్లయిడ్ అవుతుంది.\nPrefix ఉపయోగించండి: chorus: bridge: outro:'
-                    : 'Press Enter twice between each verse/chorus — each block becomes one slide.\nOptional prefixes: chorus: bridge: outro: pre-chorus:'}
-                </Text>
-              </View>
-
-              {/* Section Header Quick Chips */}
-              <Text style={[styles.inputLabel, { marginTop: 10 }]}>{isTel ? 'త్వరిత విభాగాలు (Quick Section Headers):' : 'Quick Section Headers:'}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 4 }}>
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  {['Verse 1', 'Verse 2', 'Verse 3', 'Chorus', 'Bridge', 'Pre-Chorus', 'Intro', 'Outro'].map((sec) => (
-                    <TouchableOpacity
-                      key={sec}
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        borderRadius: 14,
-                        backgroundColor: theme.primary + '18',
-                        borderWidth: 1,
-                        borderColor: theme.primary + '40',
-                      }}
-                      onPress={() => {
-                        const prefix = newLyrics.trim().length === 0 ? `[${sec}]\n` : `\n\n[${sec}]\n`;
-                        setNewLyrics(prev => prev + prefix);
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.primary }}>
-                        + [{sec}]
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-
-              <TextInput
-                placeholder={
-                  isTel
-                    ? '[Verse 1]\nమొదటి పంక్తి\nరెండవ పంక్తి\n\n[Chorus]\nకోరస్ మొదటి పంక్తి\nకోరస్ రెండవ పంక్తి\n\n[Verse 2]\nరెండవ వర్సు పంక్తి'
-                    : '[Verse 1]\nLine 1 of verse 1\nLine 2 of verse 1\n\n[Chorus]\nChorus line 1\nChorus line 2\n\n[Verse 2]\nLine 1 of verse 2'
-                }
-                placeholderTextColor="#bbb"
-                value={newLyrics}
-                onChangeText={(t) => setNewLyrics(t)}
-                multiline={true}
-                numberOfLines={10}
-                style={[styles.lyricsTextarea, { minHeight: 180 }]}
-                textAlignVertical="top"
-                autoCorrect={false}
-                autoCapitalize="sentences"
-                selectionColor={theme.primary}
-              />
-
-              {/* Slide preview when lyrics present */}
-              {newLyrics.trim().length > 0 && (() => {
-                const rawBlocks = newLyrics.split(/\n\s*\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
-                return rawBlocks.length > 0 ? (
-                  <View style={styles.slidePreviewBox}>
-                    <Text style={styles.slidePreviewTitle}>
-                      {isTel ? '📋 స్లయిడ్ ప్రివ్యూ' : '📋 Live Slide Preview'}
-                    </Text>
-                    {rawBlocks.map((block: string, i: number) => {
-                      let label = `Verse ${i + 1}`;
-                      let displayText = block;
-
-                      const headerMatch = block.match(/^\[([^\]]+)\]\s*\n?/);
-                      if (headerMatch && headerMatch[1]) {
-                        label = headerMatch[1].trim();
-                        displayText = block.replace(/^\[([^\]]+)\]\s*\n?/, '').trim();
-                      } else {
-                        const lc = block.toLowerCase();
-                        if (lc.startsWith('chorus:')) { label = 'Chorus'; displayText = block.replace(/^chorus:?\s*/i, ''); }
-                        else if (lc.startsWith('bridge:')) { label = 'Bridge'; displayText = block.replace(/^bridge:?\s*/i, ''); }
-                        else if (lc.startsWith('pre-chorus:') || lc.startsWith('prechorus:')) { label = 'Pre-Chorus'; displayText = block.replace(/^pre-?chorus:?\s*/i, ''); }
-                        else if (lc.startsWith('outro:')) { label = 'Outro'; displayText = block.replace(/^outro:?\s*/i, ''); }
-                        else if (lc.startsWith('intro:')) { label = 'Intro'; displayText = block.replace(/^intro:?\s*/i, ''); }
-                      }
-
-                      return (
-                        <View key={i} style={styles.slidePreviewItem}>
-                          <View style={styles.slidePreviewHeader}>
-                            <View style={[styles.slidePreviewBadge, { backgroundColor: label.toLowerCase().includes('chorus') ? '#ec4899' : (label.toLowerCase().includes('bridge') ? '#8b5cf6' : theme.primary) }]}>
-                              <Text style={styles.slidePreviewBadgeText}>{label.toUpperCase()}</Text>
-                            </View>
-                            <Text style={styles.slidePreviewIndex}>#{i + 1}</Text>
-                          </View>
-                          <Text style={styles.slidePreviewText} numberOfLines={4}>{displayText.trim()}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : null;
-              })()}
-
-              <View style={{ height: 32 }} />
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* Telugu Alphabet Letter Selector Modal */}
-        <Modal
           visible={letterModalVisible}
           onDismiss={() => setLetterModalVisible(false)}
           contentContainerStyle={{
@@ -1127,6 +918,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 8,
   },
+  categoryPill: {
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 6,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+  },
+  langToggleBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+  },
+  langToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  categoryPillText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   categoryChip: {
     backgroundColor: '#ffffff',
     borderRadius: 8,
@@ -1175,28 +1003,31 @@ const styles = StyleSheet.create({
   },
   songDetails: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   songTitle: {
     fontSize: 15,
     fontWeight: 'bold',
     color: '#1a1a1a',
+    flexShrink: 1,
   },
   liveTagBadge: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#dc2626',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    flexShrink: 0,
   },
   liveTagText: {
     fontSize: 9,
     color: '#ffffff',
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   songTagsRow: {
     flexDirection: 'row',

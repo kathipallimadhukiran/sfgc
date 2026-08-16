@@ -26,7 +26,7 @@ const LyricSlideSchema = new Schema<ILyricSlide>({
 const SongSchema = new Schema<ISong>({
   title: { type: String, required: true, trim: true },
   language: { type: String, enum: ['Telugu', 'English'], required: true, default: 'English' },
-  category: { type: String, required: true, default: 'Worship Songs' },
+  category: { type: String, required: true, default: 'Worship' },
   tags: { type: [String], default: [] },
   youtubeLink: { type: String, default: '' },
   chords: { type: String, default: '' },

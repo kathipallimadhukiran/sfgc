@@ -28,7 +28,7 @@ export default function LiveLyricsScreen() {
   const {
     liveSession, joinLiveSession, leaveLiveSession, language, user,
     songs, socket, startLiveSession, endLiveSession,
-    addToSetlist, setlist, notices,
+    addToSetlist, setlist, notices, events,
   } = useApp();
 
   const isTel = language === 'Telugu';
@@ -45,6 +45,24 @@ export default function LiveLyricsScreen() {
   const [isLive, setIsLive] = useState(false);
   const [highlightLine, setHighlightLine] = useState(-1);
   const [activeNoticeText, setActiveNoticeText] = useState<string | null>(null);
+
+  // Editable Presets State
+  const [presets, setPresets] = useState(ANNOUNCEMENT_PRESETS);
+  const [showAddPresetModal, setShowAddPresetModal] = useState(false);
+  const [newPresetTitle, setNewPresetTitle] = useState('');
+  const [newPresetText, setNewPresetText] = useState('');
+  const [editingPresetIndex, setEditingPresetIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('custom_announcement_presets');
+        if (stored) {
+          setPresets(JSON.parse(stored));
+        }
+      } catch (e) {}
+    })();
+  }, []);
 
   // Modals
   const [showSongPicker, setShowSongPicker] = useState(false);
@@ -94,7 +112,14 @@ export default function LiveLyricsScreen() {
 
   // ── Safe Back Navigation ───────────────────────────────────────────────────
   const handleSafeBack = () => {
-    router.replace('/songs');
+    const returnTo = (params?.returnTo as string);
+    if (returnTo) {
+      router.replace(returnTo as any);
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/songs');
+    }
   };
 
   // ── Socket Connection & Sync ───────────────────────────────────────────────
@@ -284,11 +309,64 @@ export default function LiveLyricsScreen() {
       category: 'Announcement',
       lyrics: [{ type: 'Announcement', text: customTitle ? `${customTitle}\n\n${trimmed}` : trimmed }],
     };
+    setSelectedSong(noteSongObj);
+    setCurrentSlide(0);
     isLocalChangeRef.current = true;
     startLiveSession(noteSongObj, 0);
     setIsLive(true);
     setShowCustomNoteModal(false);
     setCustomNoteText('');
+  };
+
+  // Broadcast Event Image / Banner directly to screens
+  const handleBroadcastEventBanner = (event: any) => {
+    const bannerUrl = event.bannerImage || event.imageUrl || event.image || event.thumbnail;
+    const titleText = isTel ? (event.titleTelugu || event.title) : (event.titleEnglish || event.title);
+    const dateText = event.date ? `📅 ${event.date}` : '';
+    const venueText = event.venue ? `📍 ${event.venue}` : '';
+    
+    const textContent = bannerUrl 
+      ? `MEDIA_ONLY:${bannerUrl}\n\n🎉 ${titleText}\n${dateText} ${venueText}`
+      : `🎉 ${titleText}\n\n${dateText}\n${venueText}\n\n${event.description || ''}`;
+
+    handleBroadcastAnnouncement(textContent, isTel ? '🎪 చర్చి సభ / కార్యక్రమం' : '🎪 Church Event');
+  };
+
+  // Manage Presets (Save & Delete)
+  const handleSavePreset = async () => {
+    if (!newPresetTitle.trim() || !newPresetText.trim()) return;
+    let updated;
+    const itemObj = {
+      icon: 'star-outline',
+      titleTel: newPresetTitle.trim(),
+      titleEng: newPresetTitle.trim(),
+      text: newPresetText.trim(),
+    };
+
+    if (editingPresetIndex !== null) {
+      updated = [...presets];
+      updated[editingPresetIndex] = itemObj;
+    } else {
+      updated = [itemObj, ...presets];
+    }
+
+    setPresets(updated);
+    try {
+      await AsyncStorage.setItem('custom_announcement_presets', JSON.stringify(updated));
+    } catch (e) {}
+
+    setNewPresetTitle('');
+    setNewPresetText('');
+    setEditingPresetIndex(null);
+    setShowAddPresetModal(false);
+  };
+
+  const handleDeletePreset = async (index: number) => {
+    const updated = presets.filter((_, i) => i !== index);
+    setPresets(updated);
+    try {
+      await AsyncStorage.setItem('custom_announcement_presets', JSON.stringify(updated));
+    } catch (e) {}
   };
 
   const handleShareTvLink = async () => {
@@ -498,8 +576,19 @@ export default function LiveLyricsScreen() {
     const slide = song?.lyrics?.[si ?? 0];
     const lines = slide?.text?.split('\n') ?? [];
 
-    if (bs) return <View style={{ flex: 1, backgroundColor: '#000' }}><StatusBar hidden /></View>;
-    if (bls) return <View style={{ flex: 1, backgroundColor: '#fff' }}><StatusBar hidden /></View>;
+    if (bs) return <View style={{ flex: 1, backgroundColor: '#000000' }}><StatusBar hidden /></View>;
+    if (bls) return (
+      <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <StatusBar hidden />
+        <MaterialCommunityIcons name="cross" size={54} color="#ffd54f" style={{ marginBottom: 12 }} />
+        <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#ffffff', textAlign: 'center', letterSpacing: 1 }}>
+          {isTel ? 'దేవునికి స్తోత్రము ✝️' : 'Praise the Lord! ✝️'}
+        </Text>
+        <Text style={{ fontSize: 14, color: '#94a3b8', marginTop: 8, fontStyle: 'italic' }}>
+          {isTel ? 'SFGC ఆరాధనా మహోత్సవము' : 'Satellite City Full Gospel Church'}
+        </Text>
+      </View>
+    );
 
     return (
       <View style={styles.audienceContainer}>
@@ -639,6 +728,10 @@ export default function LiveLyricsScreen() {
                 disableIntervalMomentum={true}
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(_, index) => index.toString()}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={3}
+                removeClippedSubviews={Platform.OS === 'android'}
                 onScrollBeginDrag={handleScrollBeginDrag}
                 onScrollEndDrag={handleScrollEndDrag}
                 onMomentumScrollEnd={handleMomentumScrollEnd}
@@ -691,11 +784,16 @@ export default function LiveLyricsScreen() {
               />
             </View>
           ) : (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
               {blackScreen ? (
-                <Text style={{ color: '#555', fontSize: 13 }}>⚫ BLACKOUT ACTIVE</Text>
+                <View style={{ flex: 1, backgroundColor: '#000000', width: '100%' }} />
               ) : blankScreen ? (
-                <Text style={{ color: '#888', fontSize: 13 }}>⚪ BLANK SCREEN ACTIVE</Text>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a', width: '100%', padding: 12 }}>
+                  <MaterialCommunityIcons name="cross" size={28} color="#ffd54f" />
+                  <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginTop: 4 }}>
+                    {isTel ? 'దేవునికి స్తోత్రము ✝️' : 'Praise the Lord! ✝️'}
+                  </Text>
+                </View>
               ) : (
                 <TouchableOpacity onPress={() => setShowSongPicker(true)} style={{ alignItems: 'center' }}>
                   <MaterialCommunityIcons name="music-note-plus" size={36} color="#6366f1" />
@@ -940,34 +1038,102 @@ export default function LiveLyricsScreen() {
                 : 'Click any preset or church announcement below to instantly display it on TV & audience screens.'}
             </Text>
 
-            {/* Quick Presets - Direct Broadcast on Tap */}
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366f1', marginBottom: 6 }}>
-              ⚡ QUICK PRESETS (CLICK TO DISPLAY)
-            </Text>
+            {/* Quick Presets - Direct Broadcast on Tap & Edit Controls */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366f1' }}>
+                ⚡ QUICK PRESETS (CLICK TO DISPLAY)
+              </Text>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+                onPress={() => {
+                  setEditingPresetIndex(null);
+                  setNewPresetTitle('');
+                  setNewPresetText('');
+                  setShowAddPresetModal(true);
+                }}
+              >
+                <MaterialCommunityIcons name="plus-circle" size={16} color="#6366f1" />
+                <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#6366f1' }}>{isTel ? 'జోడించు' : 'Add Preset'}</Text>
+              </TouchableOpacity>
+            </View>
+
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                {ANNOUNCEMENT_PRESETS.map((preset, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={styles.presetChip}
-                    onPress={() => handleBroadcastAnnouncement(preset.text, isTel ? preset.titleTel : preset.titleEng)}
-                  >
-                    <MaterialCommunityIcons name={preset.icon as any} size={14} color="#6366f1" />
-                    <Text style={styles.presetChipText}>
-                      {isTel ? preset.titleTel : preset.titleEng}
-                    </Text>
-                  </TouchableOpacity>
+                {presets.map((preset, idx) => (
+                  <View key={idx} style={styles.presetChipContainer}>
+                    <TouchableOpacity
+                      style={styles.presetChip}
+                      onPress={() => handleBroadcastAnnouncement(preset.text, isTel ? preset.titleTel : preset.titleEng)}
+                    >
+                      <MaterialCommunityIcons name={(preset.icon || 'star-outline') as any} size={14} color="#6366f1" />
+                      <Text style={styles.presetChipText}>
+                        {isTel ? preset.titleTel : preset.titleEng}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.presetEditBtn}
+                      onPress={() => {
+                        setEditingPresetIndex(idx);
+                        setNewPresetTitle(preset.titleEng || preset.titleTel || '');
+                        setNewPresetText(preset.text || '');
+                        setShowAddPresetModal(true);
+                      }}
+                    >
+                      <MaterialCommunityIcons name="pencil" size={12} color="#6366f1" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.presetDeleteBtn}
+                      onPress={() => handleDeletePreset(idx)}
+                    >
+                      <MaterialCommunityIcons name="close" size={12} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </View>
             </ScrollView>
 
-            {/* Live Church Notices List */}
+            {/* Live Church Events List (Broadcast Event Image Banner) */}
+            {events && events.length > 0 && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366f1', marginBottom: 6 }}>
+                  🎪 UPCOMING CHURCH EVENTS (BROADCAST EVENT BANNER)
+                </Text>
+                <ScrollView style={{ maxHeight: 110 }} showsVerticalScrollIndicator={false}>
+                  <View style={{ gap: 6 }}>
+                    {events.map((ev, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.noticeBroadcastItem}
+                        onPress={() => handleBroadcastEventBanner(ev)}
+                      >
+                        <MaterialCommunityIcons name="calendar-star" size={18} color="#ec4899" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#1e293b' }} numberOfLines={1}>
+                            {ev.title}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: '#64748b' }} numberOfLines={1}>
+                            {ev.date} {ev.venue ? `• ${ev.venue}` : ''}
+                          </Text>
+                        </View>
+                        <View style={[styles.displayBadge, { backgroundColor: '#ec4899' }]}>
+                          <Text style={styles.displayBadgeText}>{isTel ? 'బ్యానర్ ప్రదర్శించు' : 'DISPLAY BANNER'}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Live Church Bulletin Notices List */}
             {notices && notices.length > 0 && (
               <View style={{ marginBottom: 12 }}>
                 <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366f1', marginBottom: 6 }}>
                   📜 CHURCH BULLETIN ANNOUNCEMENTS (CLICK TO BROADCAST)
                 </Text>
-                <ScrollView style={{ maxHeight: 120 }} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ maxHeight: 100 }} showsVerticalScrollIndicator={false}>
                   <View style={{ gap: 6 }}>
                     {notices.map((n, i) => (
                       <TouchableOpacity
@@ -1026,6 +1192,68 @@ export default function LiveLyricsScreen() {
                 style={{ flex: 1, borderRadius: 8 }}
               >
                 {isTel ? 'ప్రసారం చేయి' : 'Broadcast Note'}
+              </Button>
+            </View>
+          </Modal>
+        </Portal>
+
+        {/* ── MODAL: Add/Edit Preset ── */}
+        <Portal>
+          <Modal
+            visible={showAddPresetModal}
+            onDismiss={() => setShowAddPresetModal(false)}
+            contentContainerStyle={styles.noteModal}
+          >
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>
+                ⚡ {editingPresetIndex !== null ? (isTel ? 'ప్రీసెట్ సవరించు' : 'Edit Quick Preset') : (isTel ? 'కొత్త ప్రీసెట్ జోడించు' : 'Add New Quick Preset')}
+              </Text>
+              <TouchableOpacity onPress={() => setShowAddPresetModal(false)}>
+                <MaterialCommunityIcons name="close" size={22} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366f1', marginBottom: 4 }}>
+              📌 PRESET TITLE
+            </Text>
+            <TextInput
+              style={[styles.customNoteInput, { minHeight: 44, marginBottom: 12 }]}
+              placeholder={isTel ? 'ఉదా: ప్రార్థనకు మోకరించండి' : 'e.g., Kneel for Prayer'}
+              placeholderTextColor="#aaa"
+              value={newPresetTitle}
+              onChangeText={setNewPresetTitle}
+            />
+
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366f1', marginBottom: 4 }}>
+              📜 PRESET BROADCAST MESSAGE
+            </Text>
+            <TextInput
+              style={[styles.customNoteInput, { minHeight: 80, marginBottom: 14 }]}
+              placeholder={isTel ? 'ప్రదర్శించాల్సిన సందేశం...' : 'Broadcast message content...'}
+              placeholderTextColor="#aaa"
+              multiline
+              numberOfLines={3}
+              value={newPresetText}
+              onChangeText={setNewPresetText}
+              textAlignVertical="top"
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowAddPresetModal(false)}
+                style={{ flex: 1, borderRadius: 8 }}
+              >
+                {isTel ? 'రద్దు' : 'Cancel'}
+              </Button>
+              <Button
+                mode="contained"
+                buttonColor="#6366f1"
+                onPress={handleSavePreset}
+                disabled={!newPresetTitle.trim() || !newPresetText.trim()}
+                style={{ flex: 1, borderRadius: 8 }}
+              >
+                {isTel ? 'సేవ్ చేయి' : 'Save Preset'}
               </Button>
             </View>
           </Modal>
@@ -1447,4 +1675,27 @@ const styles = StyleSheet.create({
   },
   displayBadge: { backgroundColor: '#6366f1', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   displayBadgeText: { color: '#fff', fontSize: 9, fontWeight: 'bold' },
+  presetChipContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eef2ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    overflow: 'hidden',
+  },
+  presetEditBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderLeftWidth: 1,
+    borderLeftColor: '#c7d2fe',
+  },
+  presetDeleteBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderLeftWidth: 1,
+    borderLeftColor: '#c7d2fe',
+  },
 });

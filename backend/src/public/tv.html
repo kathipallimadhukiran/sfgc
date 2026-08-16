@@ -141,10 +141,11 @@
         }
       });
 
-      socket.on('screenStateChanged', ({ blackScreen, blankScreen }) => {
+      socket.on('screenStateChanged', ({ blackScreen, blankScreen, logoScreen }) => {
         if (window.currentState) {
           window.currentState.blackScreen = blackScreen;
           window.currentState.blankScreen = blankScreen;
+          window.currentState.logoScreen = logoScreen;
           renderLiveLyrics(window.currentState);
         }
       });
@@ -173,14 +174,26 @@
       if (state.blackScreen) {
         placeholder.style.display = 'none';
         activeView.style.display = 'block';
-        lyricsBox.innerHTML = '<div class="tv-override-screen" style="color: #1e293b;"></div>';
+        lyricsBox.innerHTML = '<div class="tv-override-screen" style="background:#000000; min-height:80vh;"></div>';
         return;
       }
 
       if (state.blankScreen) {
         placeholder.style.display = 'none';
         activeView.style.display = 'block';
-        lyricsBox.innerHTML = '<div class="tv-override-screen" style="color: #334155;"></div>';
+        lyricsBox.innerHTML = '<div class="tv-override-screen" style="min-height:80vh;"></div>';
+        return;
+      }
+
+      if (state.logoScreen) {
+        placeholder.style.display = 'none';
+        activeView.style.display = 'block';
+        lyricsBox.innerHTML = `
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; min-height:80vh;">
+            <img src="/logo.png" onerror="this.src='/sfgc-logo.png'" style="max-height:220px; object-fit:contain; filter:drop-shadow(0 10px 30px rgba(0,0,0,0.8));" />
+            <h1 style="font-size:42px; font-weight:800; color:#fff; letter-spacing:2px; text-shadow: 0 4px 20px rgba(0,0,0,0.8);">SATELLITE CITY FULL GOSPEL CHURCH</h1>
+          </div>
+        `;
         return;
       }
 

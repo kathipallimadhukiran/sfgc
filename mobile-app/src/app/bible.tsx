@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, ScrollView, View, Platform, TouchableOpacity, Share, PanResponder, RefreshControl } from 'react-native';
 import { Card, Button, Text, Divider, ActivityIndicator, Portal, Modal, IconButton, Switch } from 'react-native-paper';
-import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '@/context/AppContext';
@@ -45,6 +45,8 @@ const BIBLE_QUOTES = [
 
 export default function BibleScreen() {
   const { language, bibleLanguage, themeMode, setLanguage, t, user, selectedBiblePlan, setSelectedBiblePlan } = useApp();
+  const router = useRouter();
+  const isAdmin = !!(user && ['Admin', 'Super Admin', 'Event Coordinator', 'Notice Manager'].includes(user.role));
   
   // Localized theme mode override for Bible screen only
   const [localThemeMode, setLocalThemeMode] = useState<'light' | 'dark' | null>(null);
@@ -456,6 +458,23 @@ export default function BibleScreen() {
     }
   };
 
+  // Admin Handler: Directly navigate to Daily Promise Manager with selected verse reference
+  const handleMarkAsDailyPromise = (vNum?: string | number) => {
+    const selectedList = Object.values(selectedVersesMap).sort((a: any, b: any) => Number(a.verse) - Number(b.verse));
+    const targetVerse = vNum ? vNum.toString() : (selectedList.length > 0 ? selectedList[0].verse.toString() : (selectedVerse !== 'All' ? selectedVerse : '1'));
+
+    router.push({
+      pathname: '/',
+      params: {
+        autoOpenPromise: 'true',
+        book: selectedBook.english,
+        chapter: selectedChapter,
+        verse: targetVerse,
+        returnToBible: 'true',
+      }
+    });
+  };
+
   const currentVerses = bibleVersion === 'Telugu' ? teluguVerses : englishVerses;
 
   const displayVerses = selectedVerse === 'All' 
@@ -627,6 +646,17 @@ export default function BibleScreen() {
                         />
                       </View>
 
+                      {/* Admin Only: Mark as Daily Promise Icon Button */}
+                      {isAdmin && (
+                        <IconButton 
+                          icon="calendar-star"
+                          size={20}
+                          iconColor="#f59e0b"
+                          style={{ margin: 0 }}
+                          onPress={() => handleMarkAsDailyPromise()}
+                        />
+                      )}
+
                       {/* Share Button (Shares Selected Verses if any, or Full Chapter) */}
                       <IconButton 
                         icon="share-variant"
@@ -699,12 +729,26 @@ export default function BibleScreen() {
                   <View style={[styles.floatingVerseBar, { backgroundColor: theme.backgroundElement, borderColor: theme.primary }]}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primary }} numberOfLines={1}>
-                        📖 {bibleVersion === 'Telugu' ? selectedBook.telugu : selectedBook.english} {selectedChapter} ({selectedCount} {language === 'Telugu' ? 'వచనాలు ఎంచుకోబడ్డాయి' : 'verses selected'})
+                        📖 {bibleVersion === 'Telugu' ? selectedBook.telugu : selectedBook.english} {selectedChapter} ({selectedCount} {language === 'Telugu' ? 'వచనాలు' : 'verses'})
                       </Text>
                       <Text style={{ fontSize: 11, color: theme.textSecondary }} numberOfLines={1}>
                         {Object.values(selectedVersesMap).map((v: any) => v.verse).join(', ')}
                       </Text>
                     </View>
+
+                    {isAdmin && selectedCount === 1 && (
+                      <Button
+                        mode="contained"
+                        compact
+                        icon="calendar-star"
+                        buttonColor="#f59e0b"
+                        textColor="#ffffff"
+                        style={{ borderRadius: 8, marginRight: 4 }}
+                        onPress={() => handleMarkAsDailyPromise()}
+                      >
+                        {language === 'Telugu' ? 'వాగ్దానము 🌅' : 'Promise 🌅'}
+                      </Button>
+                    )}
 
                     <Button
                       mode="contained"
@@ -715,7 +759,7 @@ export default function BibleScreen() {
                       style={{ borderRadius: 8 }}
                       onPress={handleMainSharePress}
                     >
-                      {language === 'Telugu' ? `షేర్ చేయి (${selectedCount})` : `Share (${selectedCount})`}
+                      {language === 'Telugu' ? `షేర్ (${selectedCount})` : `Share (${selectedCount})`}
                     </Button>
 
                     <IconButton
