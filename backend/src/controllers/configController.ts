@@ -10,11 +10,11 @@ export const getAppVersionConfig = async (req: Request, res: Response, next: Nex
     if (!config) {
       config = await AppConfig.create({
         key: 'mobile_app_version',
-        latestVersion: '1.0.1',
+        latestVersion: '1.0.0',
         minVersion: '1.0.0',
         forceUpdate: false,
         downloadUrl: 'https://sfgc-church.onrender.com',
-        updateNotes: '🎉 New version available with enhanced push notifications, sanctuary live stream updates, and bug fixes!',
+        updateNotes: '🎉 SFGC Mobile App is up to date!',
       });
     }
 

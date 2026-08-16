@@ -43,41 +43,43 @@ class SongsService {
 
         const res = await apiClient.get(endpoint);
         if (res.success && Array.isArray(res.songs)) {
-          // Sync with local collection & AsyncStorage for instant offline access
+          // Sync with local collection using chunked storage for offline access
           await mongoService.setLocalCollection(COLLECTION, res.songs);
-          try {
-            await AsyncStorage.setItem('@church_app_db_songs', JSON.stringify(res.songs));
-          } catch (e) {}
+          AsyncStorage.removeItem('@church_app_db_songs').catch(() => {});
           return res;
         }
       } catch (networkErr) {
-        console.log('Backend songs API unreachable, loading from local DB & AsyncStorage');
+        console.log('Backend songs API unreachable, loading from local offline DB');
       }
 
-      // 2. Local Fallback (AsyncStorage & Local DB)
-      try {
-        const cachedSongs = await AsyncStorage.getItem('@church_app_db_songs');
-        if (cachedSongs) {
-          const parsed = JSON.parse(cachedSongs);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const filtered = (language && language !== 'All')
-              ? parsed.filter((s: any) => s.language === language)
-              : parsed;
-            return { success: true, songs: filtered };
-          }
+      // 2. Local Fallback (Chunked Local DB)
+      const localSongs = await mongoService.getLocalCollection(COLLECTION);
+      if (Array.isArray(localSongs) && localSongs.length > 0) {
+        let filtered = localSongs;
+        if (language && language !== 'All') {
+          filtered = filtered.filter((s: any) => s.language === language);
         }
-      } catch (e) {}
+        if (search) {
+          const q = search.toLowerCase().trim();
+          filtered = filtered.filter((s: any) => 
+            (s.title || '').toLowerCase().includes(q) ||
+            (s.category || '').toLowerCase().includes(q) ||
+            (Array.isArray(s.tags) && s.tags.some((t: string) => String(t).toLowerCase().includes(q)))
+          );
+        }
+        return { success: true, songs: filtered };
+      }
 
       const query: any = {};
       if (language && language !== 'All') query.language = language;
 
       const songs = await mongoService.find(COLLECTION, {
         filter: query,
-        sort: { createdAt: -1 }
+        sort: { title: 1 }
       });
-      const realSongs = songs.filter(
-        (s: any) => !String(s._id || s.id || '').startsWith('seed_')
-      );
+      const realSongs = songs
+        .filter((s: any) => !String(s._id || s.id || '').startsWith('seed_'))
+        .sort((a: any, b: any) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
       return { success: true, songs: realSongs };
     } catch (err) {
       console.error('Error fetching songs:', err);

@@ -202,6 +202,8 @@ class NotificationService {
     }
   }
 
+  private scheduledEventIds = new Set<string>();
+
   /**
    * Schedule OS Local Notification 2 Hours before event start time
    */
@@ -218,10 +220,14 @@ class NotificationService {
 
       // Only schedule if 2h prior time is in the future
       if (triggerTimeMs > nowMs && Notifications?.scheduleNotificationAsync) {
+        const eventId = String(event._id || event.id || 'evt').substring(0, 50);
+        const scheduleKey = `${eventId}_${triggerTimeMs}`;
+        if (this.scheduledEventIds.has(scheduleKey)) {
+          return; // Already scheduled in this session
+        }
+
         const timeStr = event.time ? ` at ${event.time}` : '';
         const bannerUrl = sanitizeImageUrl(event.banner || event.imageUrl);
-        const eventId = String(event._id || event.id || 'evt').substring(0, 50);
-
         const notificationId = `event_2h_${eventId}`;
 
         // Cancel previous scheduled instance if any to avoid duplicates
@@ -253,6 +259,7 @@ class NotificationService {
             date: new Date(triggerTimeMs),
           },
         });
+        this.scheduledEventIds.add(scheduleKey);
         console.log(`⏰ Scheduled local 2h OS notification for "${event.title}" at ${new Date(triggerTimeMs).toLocaleString()}`);
       }
     } catch (err: any) {

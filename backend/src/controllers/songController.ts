@@ -25,7 +25,10 @@ export const getSongs = async (req: Request, res: Response, next: NextFunction):
       ];
     }
 
-    const songs = await Song.find(query).sort({ createdAt: -1 });
+    let songs = await Song.find(query).collation({ locale: 'te', strength: 1 }).sort({ title: 1 });
+    // In-memory multilingual sort fallback to guarantee pure alphabetical order for Telugu & English
+    songs.sort((a, b) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
+
     res.status(200).json({
       success: true,
       count: songs.length,

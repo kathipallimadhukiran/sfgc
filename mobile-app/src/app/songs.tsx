@@ -198,7 +198,7 @@ export default function SongsScreen() {
     }
 
     return matchesSearch && matchesLang && matchesFav && matchesLetter && matchesCategory;
-  });
+  }).sort((a, b) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
 
   const activeSlide = liveSession?.song?.lyrics?.[liveSession?.currentSlideIndex];
   const lyricLines = activeSlide?.text?.split('\n') || [];

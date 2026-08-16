@@ -18,25 +18,108 @@ class MongoService {
     return Boolean(MONGODB_DATA_API_URL && MONGODB_API_KEY);
   }
 
+  private readonly CHUNK_SIZE = 50;
+
   private getStorageKey(collection: string): string {
     return `@church_app_db_${collection}`;
   }
 
-  // Get all local collection items
+  private getMetaKey(collection: string): string {
+    return `@church_app_db_${collection}_meta`;
+  }
+
+  private getChunkKey(collection: string, index: number): string {
+    return `@church_app_db_${collection}_chunk_${index}`;
+  }
+
+  // Get all local collection items with chunked storage support
   async getLocalCollection(collection: string): Promise<any[]> {
     try {
-      const data = await AsyncStorage.getItem(this.getStorageKey(collection));
-      return data ? JSON.parse(data) : [];
+      // 1. Check if chunked metadata exists
+      const metaStr = await AsyncStorage.getItem(this.getMetaKey(collection));
+      if (metaStr) {
+        const meta = JSON.parse(metaStr);
+        const chunkCount = meta.chunks || 0;
+        if (chunkCount > 0) {
+          const chunkKeys = Array.from({ length: chunkCount }, (_, i) => this.getChunkKey(collection, i));
+          const chunkPairs = await AsyncStorage.multiGet(chunkKeys);
+          const allItems: any[] = [];
+          for (const [_, val] of chunkPairs) {
+            if (val) {
+              try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) {
+                  allItems.push(...parsed);
+                }
+              } catch (pErr) {}
+            }
+          }
+          return allItems;
+        }
+        return [];
+      }
+
+      // 2. Fallback to legacy single key if small
+      try {
+        const legacyData = await AsyncStorage.getItem(this.getStorageKey(collection));
+        if (legacyData) {
+          const parsed = JSON.parse(legacyData);
+          if (Array.isArray(parsed)) {
+            // Auto-migrate legacy to chunked format to avoid CursorWindow crashes
+            await this.setLocalCollection(collection, parsed);
+            return parsed;
+          }
+        }
+      } catch (legacyErr) {
+        // If legacy single row was > 2MB CursorWindow limit, clean it up
+        await AsyncStorage.removeItem(this.getStorageKey(collection)).catch(() => {});
+      }
+
+      return [];
     } catch (err) {
       console.warn(`Error reading local collection ${collection}:`, err);
       return [];
     }
   }
 
-  // Set all local collection items
+  // Set all local collection items with chunked storage to avoid Android CursorWindow limits
   async setLocalCollection(collection: string, items: any[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(this.getStorageKey(collection), JSON.stringify(items));
+      if (!Array.isArray(items) || items.length === 0) {
+        // Clear all chunks
+        const oldMeta = await AsyncStorage.getItem(this.getMetaKey(collection));
+        if (oldMeta) {
+          const { chunks } = JSON.parse(oldMeta);
+          const keysToRemove = Array.from({ length: chunks || 0 }, (_, i) => this.getChunkKey(collection, i));
+          keysToRemove.push(this.getMetaKey(collection));
+          keysToRemove.push(this.getStorageKey(collection));
+          await AsyncStorage.multiRemove(keysToRemove);
+        } else {
+          await AsyncStorage.removeItem(this.getStorageKey(collection));
+        }
+        return;
+      }
+
+      // Calculate chunks
+      const chunkCount = Math.ceil(items.length / this.CHUNK_SIZE);
+      const multiSetPairs: [string, string][] = [];
+
+      for (let i = 0; i < chunkCount; i++) {
+        const slice = items.slice(i * this.CHUNK_SIZE, (i + 1) * this.CHUNK_SIZE);
+        multiSetPairs.push([this.getChunkKey(collection, i), JSON.stringify(slice)]);
+      }
+
+      // Add metadata
+      multiSetPairs.push([
+        this.getMetaKey(collection),
+        JSON.stringify({ count: items.length, chunks: chunkCount, updatedAt: Date.now() }),
+      ]);
+
+      // Remove legacy single key to prevent CursorWindow overflow
+      await AsyncStorage.removeItem(this.getStorageKey(collection)).catch(() => {});
+
+      // Save all chunks atomically
+      await AsyncStorage.multiSet(multiSetPairs);
     } catch (err) {
       console.warn(`Error writing local collection ${collection}:`, err);
     }

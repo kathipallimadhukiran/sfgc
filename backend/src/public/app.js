@@ -518,7 +518,9 @@ class ChurchApp {
         fetch('/api/stream').then(r => r.json()),
       ]);
 
-      if (songsRes.success) this.songs = songsRes.songs;
+      if (songsRes.success) {
+        this.songs = (songsRes.songs || []).sort((a, b) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
+      }
       if (membersRes.success) this.members = membersRes.members;
       if (eventsRes.success) this.events = eventsRes.events;
       if (noticesRes.success) this.notices = noticesRes.notices;
@@ -678,6 +680,8 @@ class ChurchApp {
       `;
       return;
     }
+
+    filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
 
     list.innerHTML = filtered.map(song => {
       const isActive = this.activeSong?._id === song._id;

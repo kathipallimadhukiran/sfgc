@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Linking, Platform } from 'react-native';
+import { StyleSheet, View, Linking } from 'react-native';
 import { Portal, Modal, Title, Paragraph, Button, Text, Avatar } from 'react-native-paper';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
 
 let Updates: any = null;
@@ -28,7 +29,7 @@ export default function AppUpdateModal() {
     minVersion: '1.0.0',
     forceUpdate: false,
     downloadUrl: 'https://sfgc-church.onrender.com',
-    updateNotes: 'New version available with enhanced push notifications and live stream updates!',
+    updateNotes: 'New version available with enhanced features and live stream updates!',
   });
 
   const currentVersion = Constants.expoConfig?.version || '1.0.0';
@@ -39,7 +40,7 @@ export default function AppUpdateModal() {
 
   const checkForUpdates = async () => {
     try {
-      // 1. Check Expo OTA Updates if enabled
+      // 1. Check Expo OTA Updates if in production build
       if (Updates?.checkForUpdateAsync && !__DEV__) {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
@@ -58,8 +59,20 @@ export default function AppUpdateModal() {
         setUpdateConfig(cfg);
 
         // Compare currentVersion vs latestVersion (SemVer logic)
-        if (isVersionHigher(cfg.latestVersion, currentVersion)) {
-          setVisible(true);
+        const hasHigherVersion = isVersionHigher(cfg.latestVersion, currentVersion);
+
+        if (hasHigherVersion) {
+          if (cfg.forceUpdate) {
+            setVisible(true);
+          } else {
+            // Check if user already dismissed this specific version update
+            const dismissed = await AsyncStorage.getItem(`dismissed_update_${cfg.latestVersion}`);
+            if (!dismissed) {
+              setVisible(true);
+            }
+          }
+        } else {
+          setVisible(false);
         }
       }
     } catch (err) {
@@ -69,8 +82,9 @@ export default function AppUpdateModal() {
 
   // Helper to check if server version is higher than current installed version
   const isVersionHigher = (serverVer: string, localVer: string): boolean => {
-    const s = serverVer.split('.').map(Number);
-    const l = localVer.split('.').map(Number);
+    if (!serverVer || !localVer) return false;
+    const s = serverVer.split('.').map(n => parseInt(n, 10) || 0);
+    const l = localVer.split('.').map(n => parseInt(n, 10) || 0);
     for (let i = 0; i < Math.max(s.length, l.length); i++) {
       const sv = s[i] || 0;
       const lv = l[i] || 0;
@@ -78,6 +92,15 @@ export default function AppUpdateModal() {
       if (sv < lv) return false;
     }
     return false;
+  };
+
+  const handleDismiss = async () => {
+    try {
+      if (updateConfig?.latestVersion) {
+        await AsyncStorage.setItem(`dismissed_update_${updateConfig.latestVersion}`, 'true');
+      }
+    } catch (e) {}
+    setVisible(false);
   };
 
   const handleApplyUpdate = async () => {
@@ -106,7 +129,7 @@ export default function AppUpdateModal() {
       <Modal
         visible={visible}
         dismissable={!updateConfig.forceUpdate}
-        onDismiss={() => setVisible(false)}
+        onDismiss={handleDismiss}
         contentContainerStyle={styles.modalContent}
       >
         <View style={styles.headerIcon}>
@@ -126,7 +149,7 @@ export default function AppUpdateModal() {
               mode="outlined"
               style={styles.btnLater}
               textColor="#666666"
-              onPress={() => setVisible(false)}
+              onPress={handleDismiss}
               disabled={updating}
             >
               Later
