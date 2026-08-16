@@ -22,11 +22,20 @@ export interface EventItem {
 const COLLECTION = 'events';
 
 class EventsService {
-  private initialized = false;
+  private memoryCache: { data: EventItem[]; timestamp: number } | null = null;
+  private TTL_MS = 30000;
 
+  invalidateCache() {
+    this.memoryCache = null;
+  }
 
   // Get all events
-  async getEvents(): Promise<{ success: boolean; events: EventItem[] }> {
+  async getEvents(forceRefresh = false): Promise<{ success: boolean; events: EventItem[] }> {
+    const now = Date.now();
+    if (!forceRefresh && this.memoryCache && (now - this.memoryCache.timestamp < this.TTL_MS)) {
+      return { success: true, events: this.memoryCache.data };
+    }
+
     const parseEventTimestamp = (dateStr: any): number => {
       if (!dateStr) return 0;
       if (dateStr instanceof Date) return dateStr.getTime();
@@ -55,7 +64,8 @@ class EventsService {
           const tB = parseEventTimestamp(b.date);
           return tA - tB;
         });
-        await mongoService.setLocalCollection(COLLECTION, sortedEvents);
+        this.memoryCache = { data: sortedEvents, timestamp: Date.now() };
+        mongoService.setLocalCollection(COLLECTION, sortedEvents).catch(() => {});
         return { success: true, events: sortedEvents };
       }
     } catch (networkErr) {
@@ -76,6 +86,7 @@ class EventsService {
 
   // Add event
   async addEvent(eventData: Partial<EventItem>): Promise<{ success: boolean; event?: EventItem; message?: string }> {
+    this.invalidateCache();
     try {
       if (!eventData.title || !eventData.venue || !eventData.date) {
         return { success: false, message: 'Title, venue, and date are required.' };
@@ -111,6 +122,7 @@ class EventsService {
 
   // Update event
   async updateEvent(id: string, eventData: Partial<EventItem>): Promise<{ success: boolean; message?: string }> {
+    this.invalidateCache();
     try {
       try {
         const res = await apiClient.put(`/api/events/${id}`, eventData);
@@ -134,6 +146,7 @@ class EventsService {
 
   // Delete event
   async deleteEvent(id: string): Promise<{ success: boolean; message?: string }> {
+    this.invalidateCache();
     try {
       try {
         await apiClient.delete(`/api/events/${id}`);
@@ -149,6 +162,7 @@ class EventsService {
 
   // Toggle RSVP / Attendance
   async toggleRSVP(eventId: string, userId: string): Promise<{ success: boolean; isGoing: boolean }> {
+    this.invalidateCache();
     try {
       try {
         const res = await apiClient.post(`/api/events/${eventId}/rsvp`, { userId });

@@ -27,11 +27,22 @@ const COLLECTION = 'songs';
 const INITIAL_SEED_SONGS: SongItem[] = [];
 
 class SongsService {
-  private initialized = false;
+  private memoryCache: { data: SongItem[]; timestamp: number; key: string } | null = null;
+  private TTL_MS = 30000;
 
- 
-  // Get all songs: Fetch from Backend API with local fallback
-  async getSongs(language?: string, search?: string): Promise<{ success: boolean; songs: SongItem[] }> {
+  invalidateCache() {
+    this.memoryCache = null;
+  }
+
+  // Get all songs: Fetch from Backend API with local fallback & memory cache
+  async getSongs(language?: string, search?: string, forceRefresh = false): Promise<{ success: boolean; songs: SongItem[] }> {
+    const cacheKey = `${language || 'All'}_${search || ''}`;
+    const now = Date.now();
+
+    if (!forceRefresh && this.memoryCache && (now - this.memoryCache.timestamp < this.TTL_MS) && this.memoryCache.key === cacheKey) {
+      return { success: true, songs: this.memoryCache.data };
+    }
+
     try {
       // 1. Attempt backend fetch
       try {
@@ -43,8 +54,9 @@ class SongsService {
 
         const res = await apiClient.get(endpoint);
         if (res.success && Array.isArray(res.songs)) {
+          this.memoryCache = { data: res.songs, timestamp: Date.now(), key: cacheKey };
           // Sync with local collection using chunked storage for offline access
-          await mongoService.setLocalCollection(COLLECTION, res.songs);
+          mongoService.setLocalCollection(COLLECTION, res.songs).catch(() => {});
           AsyncStorage.removeItem('@church_app_db_songs').catch(() => {});
           return res;
         }
@@ -75,11 +87,11 @@ class SongsService {
 
       const songs = await mongoService.find(COLLECTION, {
         filter: query,
-        sort: { title: 1 }
+        sort: { createdAt: -1 }
       });
-      const realSongs = songs
-        .filter((s: any) => !String(s._id || s.id || '').startsWith('seed_'))
-        .sort((a: any, b: any) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
+      const realSongs = songs.filter(
+        (s: any) => !String(s._id || s.id || '').startsWith('seed_')
+      );
       return { success: true, songs: realSongs };
     } catch (err) {
       console.error('Error fetching songs:', err);
@@ -141,6 +153,7 @@ class SongsService {
       try {
         const res = await apiClient.post('/api/songs', newSong);
         if (res.success && res.song) {
+          this.invalidateCache();
           await mongoService.insertOne(COLLECTION, res.song);
           return res;
         }
@@ -157,6 +170,7 @@ class SongsService {
 
   // Update song
   async updateSong(id: string, songData: Partial<SongItem>): Promise<{ success: boolean; message?: string }> {
+    this.invalidateCache();
     try {
       try {
         const res = await apiClient.put(`/api/songs/${id}`, songData);
@@ -180,6 +194,7 @@ class SongsService {
 
   // Delete song
   async deleteSong(id: string): Promise<{ success: boolean; message?: string }> {
+    this.invalidateCache();
     try {
       try {
         await apiClient.delete(`/api/songs/${id}`);

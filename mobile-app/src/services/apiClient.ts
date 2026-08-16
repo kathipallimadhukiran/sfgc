@@ -23,15 +23,23 @@ const fetchWithTimeout = async (url: string, options: RequestInit = {}): Promise
   }
 };
 
+let cachedToken: string | null = null;
+
+export const setAuthTokenCache = (token: string | null) => {
+  cachedToken = token;
+};
+
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
   try {
-    const token = await AsyncStorage.getItem('userToken');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (cachedToken === null) {
+      cachedToken = await AsyncStorage.getItem('userToken');
+    }
+    if (cachedToken) {
+      headers['Authorization'] = `Bearer ${cachedToken}`;
     }
   } catch (e) {}
   return headers;

@@ -167,16 +167,20 @@ class NotificationService {
 
   async triggerNotification(title: string, body: string, data?: any, imageUrl?: string): Promise<void> {
     try {
+      const safeTitle = (String(title || 'Church Notification')).replace(/undefined/gi, '').trim() || 'Church Notification';
+      const safeBody = (String(body || 'Tap to view details in SFGC App')).replace(/undefined/gi, '').trim() || 'Tap to view details in SFGC App';
       const img = sanitizeImageUrl(imageUrl || data?.imageUrl || data?.image || data?.banner);
 
       const cleanData: Record<string, any> = {};
       if (data && typeof data === 'object') {
         Object.keys(data).forEach((key) => {
           const val = data[key];
-          if (typeof val === 'string' && val.length < 500 && !val.startsWith('data:')) {
-            cleanData[key] = val;
-          } else if (typeof val === 'number' || typeof val === 'boolean') {
-            cleanData[key] = val;
+          if (val !== undefined && val !== null) {
+            if (typeof val === 'string' && val.length < 500 && !val.startsWith('data:')) {
+              cleanData[key] = val;
+            } else if (typeof val === 'number' || typeof val === 'boolean') {
+              cleanData[key] = val;
+            }
           }
         });
       }
@@ -185,8 +189,8 @@ class NotificationService {
       if (Notifications?.scheduleNotificationAsync) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: (title || '').substring(0, 200),
-            body: (body || '').substring(0, 500),
+            title: safeTitle.substring(0, 200),
+            body: safeBody.substring(0, 500),
             data: cleanData,
             sound: 'default',
             priority: Notifications.AndroidNotificationPriority?.MAX || 'max',

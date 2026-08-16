@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, ScrollView, View, RefreshControl, Platform, Alert, Share, TextInput, TouchableOpacity, Image, Switch } from 'react-native';
+import { StyleSheet, ScrollView, View, RefreshControl, Platform, Alert, Share, TextInput, TouchableOpacity, Switch } from 'react-native';
+import { Image } from 'expo-image';
 import { Card, Title, Paragraph, Button, Text, Avatar, Chip, Badge, Divider, Portal, Modal, FAB, IconButton } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';

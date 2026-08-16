@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, View, FlatList, ScrollView, Platform, TouchableOpacity, TextInput, Alert, RefreshControl, KeyboardAvoidingView } from 'react-native';
 import { Searchbar, Card, Title, Text, Chip, List, Banner, IconButton, Divider, Portal, Modal, Button, FAB, HelperText } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useApp } from '@/context/AppContext';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { songsService } from '@/services/songsService';
+import { songsService, SongItem } from '@/services/songsService';
 import { VoiceSearchModal } from '@/components/VoiceSearchModal';
 
 const CATEGORIES = [
@@ -14,6 +14,108 @@ const CATEGORIES = [
   'Special Songs', 'Telugu', 'English', 'Good Friday', 'Offering',
   'Healing Prayer', 'Fasting Prayer', 'Revival', 'Communion', 'Baptism'
 ];
+
+interface SongListItemProps {
+  item: SongItem;
+  isFav: boolean;
+  isLive: boolean;
+  isTel: boolean;
+  canManageSongs: boolean;
+  theme: any;
+  translatedCategory: string;
+  onPress: () => void;
+  onToggleFav: () => void;
+  onAddToSetlist: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const SongListItem = React.memo(({
+  item,
+  isFav,
+  isLive,
+  isTel,
+  canManageSongs,
+  theme,
+  translatedCategory,
+  onPress,
+  onToggleFav,
+  onAddToSetlist,
+  onEdit,
+  onDelete,
+}: SongListItemProps) => (
+  <View style={[styles.songCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder }, isLive && styles.liveSongCard]}>
+    <TouchableOpacity 
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 6 }}
+    >
+      <View style={[styles.songIconBox, isLive && styles.liveSongIconBox]}>
+        <MaterialCommunityIcons 
+          name={isLive ? "radio-tower" : "music-clef-treble"} 
+          size={22} 
+          color={isLive ? "#ffffff" : theme.primary} 
+        />
+      </View>
+      <View style={styles.songDetails}>
+        <View style={styles.titleRow}>
+          <Text style={[styles.songTitle, { color: theme.text }]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {isLive && (
+            <View style={styles.liveTagBadge}>
+              <Text style={styles.liveTagText}>LIVE</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.songTagsRow}>
+          <Text style={[styles.songLangTag, { color: theme.textSecondary }]}>
+            {item.language === 'Telugu' ? (isTel ? 'తెలుగు' : 'Telugu') : (isTel ? 'ఇంగ్లీష్' : 'English')}
+          </Text>
+          <Text style={[styles.songDot, { color: theme.textSecondary }]}>•</Text>
+          <Text style={[styles.songCatTag, { color: theme.textSecondary }]} numberOfLines={1}>
+            {translatedCategory}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+
+    <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
+      <IconButton
+        icon={isFav ? 'heart' : 'heart-outline'}
+        iconColor={isFav ? '#e91e63' : theme.textSecondary}
+        size={19}
+        onPress={onToggleFav}
+        style={{ margin: 0, width: 30, height: 30 }}
+      />
+      {canManageSongs && (
+        <>
+          <IconButton
+            icon="playlist-plus"
+            iconColor={theme.primary}
+            size={18}
+            onPress={onAddToSetlist}
+            style={{ margin: 0, width: 30, height: 30 }}
+          />
+          <IconButton
+            icon="pencil"
+            iconColor={theme.primary}
+            size={17}
+            onPress={onEdit}
+            style={{ margin: 0, width: 30, height: 30 }}
+          />
+          <IconButton
+            icon="delete"
+            iconColor="#dc2626"
+            size={17}
+            onPress={onDelete}
+            style={{ margin: 0, width: 30, height: 30 }}
+          />
+        </>
+      )}
+    </View>
+  </View>
+));
 
 export default function SongsScreen() {
   const { songs, favorites, toggleFavorite, liveSession, refreshData, user, token, language,
@@ -198,7 +300,7 @@ export default function SongsScreen() {
     }
 
     return matchesSearch && matchesLang && matchesFav && matchesLetter && matchesCategory;
-  }).sort((a, b) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
+  });
 
   const activeSlide = liveSession?.song?.lyrics?.[liveSession?.currentSlideIndex];
   const lyricLines = activeSlide?.text?.split('\n') || [];
@@ -247,6 +349,34 @@ export default function SongsScreen() {
       ]
     );
   };
+
+  const keyExtractor = useCallback((item: SongItem, index: number) => item._id || item.id || `song_${index}`, []);
+
+  const renderSongItem = useCallback(({ item }: { item: SongItem }) => {
+    const songKey = item._id || item.id || '';
+    const isFav = favorites.includes(songKey);
+    const isLive = Boolean(liveSession && (liveSession.song?._id === songKey || liveSession.song?.id === songKey));
+
+    return (
+      <SongListItem
+        item={item}
+        isFav={isFav}
+        isLive={isLive}
+        isTel={isTel}
+        canManageSongs={Boolean(canManageSongs)}
+        theme={theme}
+        translatedCategory={getTranslatedCategory(item.category)}
+        onPress={() => router.push({ pathname: (isLive ? '/live-lyrics' : `/song/${songKey}`) as any, params: { returnTo: '/songs' } })}
+        onToggleFav={() => toggleFavorite(songKey)}
+        onAddToSetlist={() => {
+          addToSetlist(item);
+          setSetlistSnack(isTel ? `"${item.title}" జాబితాకు జోడించబడింది` : `"${item.title}" added to setlist`);
+        }}
+        onEdit={() => handleOpenEditModal(item)}
+        onDelete={() => handleDeleteSong(songKey, item.title)}
+      />
+    );
+  }, [favorites, liveSession, isTel, canManageSongs, theme, router, toggleFavorite, addToSetlist, getTranslatedCategory, handleOpenEditModal, handleDeleteSong]);
 
   return (
     <Portal.Host>
@@ -427,12 +557,15 @@ export default function SongsScreen() {
             onPress={() => {
               setSelectedCategory(null);
               setShowFavoritesOnly(false);
+              setSelectedLanguage(null);
+              setSelectedLetter(null);
+              setSearchQuery('');
             }}
             style={[
               styles.categoryPill,
               {
-                backgroundColor: (selectedCategory === null && !showFavoritesOnly) ? theme.primary : theme.backgroundElement,
-                borderColor: (selectedCategory === null && !showFavoritesOnly) ? theme.primary : theme.cardBorder,
+                backgroundColor: (selectedCategory === null && !showFavoritesOnly && selectedLanguage === null && selectedLetter === null && !searchQuery) ? theme.primary : theme.backgroundElement,
+                borderColor: (selectedCategory === null && !showFavoritesOnly && selectedLanguage === null && selectedLetter === null && !searchQuery) ? theme.primary : theme.cardBorder,
               }
             ]}
           >
@@ -440,8 +573,8 @@ export default function SongsScreen() {
               numberOfLines={1}
               style={[
                 styles.categoryPillText,
-                { color: (selectedCategory === null && !showFavoritesOnly) ? '#ffffff' : theme.text },
-                (selectedCategory === null && !showFavoritesOnly) && { fontWeight: 'bold' }
+                { color: (selectedCategory === null && !showFavoritesOnly && selectedLanguage === null && selectedLetter === null && !searchQuery) ? '#ffffff' : theme.text },
+                (selectedCategory === null && !showFavoritesOnly && selectedLanguage === null && selectedLetter === null && !searchQuery) && { fontWeight: 'bold' }
               ]}
             >
               {isTel ? 'అన్ని పాటలు' : 'All Songs'}
@@ -466,7 +599,7 @@ export default function SongsScreen() {
             ]}
           >
             <MaterialCommunityIcons 
-              name="heart-outline" 
+              name={showFavoritesOnly ? "heart" : "heart-outline"} 
               size={15} 
               color={showFavoritesOnly ? '#ffffff' : '#e91e63'} 
             />
@@ -559,7 +692,7 @@ export default function SongsScreen() {
         {/* Songs FlatList */}
         <FlatList
           data={filteredSongs}
-          keyExtractor={(item, index) => item._id || item.id || `song_${index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -568,88 +701,7 @@ export default function SongsScreen() {
           windowSize={7}
           removeClippedSubviews={Platform.OS === 'android'}
           updateCellsBatchingPeriod={50}
-          renderItem={({ item }) => {
-            const songKey = item._id || item.id || '';
-            const isFav = favorites.includes(songKey);
-            const isLive = liveSession && (liveSession.song?._id === songKey || liveSession.song?.id === songKey);
-            
-            return (
-              <View style={[styles.songCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder }, isLive && styles.liveSongCard]}>
-                <TouchableOpacity 
-                  activeOpacity={0.7}
-                  onPress={() => router.push({ pathname: (isLive ? '/live-lyrics' : `/song/${songKey}`) as any, params: { returnTo: '/songs' } })}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 6 }}
-                >
-                  <View style={[styles.songIconBox, isLive && styles.liveSongIconBox]}>
-                    <MaterialCommunityIcons 
-                      name={isLive ? "radio-tower" : "music-clef-treble"} 
-                      size={22} 
-                      color={isLive ? "#ffffff" : theme.primary} 
-                    />
-                  </View>
-                  <View style={styles.songDetails}>
-                    <View style={styles.titleRow}>
-                      <Text style={[styles.songTitle, { color: theme.text }]} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      {isLive && (
-                        <View style={styles.liveTagBadge}>
-                          <Text style={styles.liveTagText}>LIVE</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.songTagsRow}>
-                      <Text style={[styles.songLangTag, { color: theme.textSecondary }]}>
-                        {item.language === 'Telugu' ? (isTel ? 'తెలుగు' : 'Telugu') : (isTel ? 'ఇంగ్లీష్' : 'English')}
-                      </Text>
-                      <Text style={[styles.songDot, { color: theme.textSecondary }]}>•</Text>
-                      <Text style={[styles.songCatTag, { color: theme.textSecondary }]} numberOfLines={1}>
-                        {getTranslatedCategory(item.category)}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
-                  <IconButton
-                    icon={isFav ? 'heart' : 'heart-outline'}
-                    iconColor={isFav ? '#e91e63' : theme.textSecondary}
-                    size={19}
-                    onPress={() => toggleFavorite(songKey)}
-                    style={{ margin: 0, width: 30, height: 30 }}
-                  />
-                  {canManageSongs && (
-                    <>
-                      <IconButton
-                        icon="playlist-plus"
-                        iconColor={theme.primary}
-                        size={18}
-                        onPress={() => {
-                          addToSetlist(item);
-                          setSetlistSnack(isTel ? `"${item.title}" జాబితాకు జోడించబడింది` : `"${item.title}" added to setlist`);
-                        }}
-                        style={{ margin: 0, width: 30, height: 30 }}
-                      />
-                      <IconButton
-                        icon="pencil"
-                        iconColor={theme.primary}
-                        size={17}
-                        onPress={() => handleOpenEditModal(item)}
-                        style={{ margin: 0, width: 30, height: 30 }}
-                      />
-                      <IconButton
-                        icon="delete"
-                        iconColor="#dc2626"
-                        size={17}
-                        onPress={() => handleDeleteSong(songKey, item.title)}
-                        style={{ margin: 0, width: 30, height: 30 }}
-                      />
-                    </>
-                  )}
-                </View>
-              </View>
-            );
-          }}
+          renderItem={renderSongItem}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <MaterialCommunityIcons name="music-off" size={48} color="#ccc" />

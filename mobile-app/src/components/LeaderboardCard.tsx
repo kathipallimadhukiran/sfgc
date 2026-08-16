@@ -3,6 +3,7 @@ import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
+import { useApp } from '@/context/AppContext';
 import { biblePlanService, LeaderboardUser } from '@/services/biblePlanService';
 
 interface LeaderboardCardProps {
@@ -17,18 +18,20 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
   refreshTrigger = 0,
 }) => {
   const theme = useTheme();
+  const { user, themeMode } = useApp();
+  const isDark = themeMode === 'dark';
   const isTel = appLanguage === 'Telugu';
   const [loading, setLoading] = useState(true);
   const [leaders, setLeaders] = useState<LeaderboardUser[]>([]);
 
   useEffect(() => {
     loadLeaderboard();
-  }, [planId, refreshTrigger]);
+  }, [planId, refreshTrigger, user?.id]);
 
   const loadLeaderboard = async () => {
     setLoading(true);
     try {
-      const data = await biblePlanService.getLeaderboard(planId);
+      const data = await biblePlanService.getLeaderboard(planId, user?.id || 'guest_user', user?.name || 'Member');
       setLeaders(data);
     } catch (e) {
       console.log('Error loading leaderboard:', e);
@@ -42,6 +45,39 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
     if (rank === 2) return { icon: 'medal', color: '#94a3b8', label: '2nd' };
     if (rank === 3) return { icon: 'medal-outline', color: '#b45309', label: '3rd' };
     return { icon: null, color: theme.textSecondary, label: `#${rank}` };
+  };
+
+  const getRowStyle = (idx: number) => {
+    if (idx === 0) {
+      return {
+        bg: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fffbeb',
+        border: isDark ? '#b45309' : '#fde68a',
+        nameColor: isDark ? '#fef08a' : '#92400e',
+        subColor: isDark ? '#fde047' : '#b45309',
+      };
+    }
+    if (idx === 1) {
+      return {
+        bg: isDark ? 'rgba(148, 163, 184, 0.14)' : '#f8fafc',
+        border: isDark ? '#475569' : '#e2e8f0',
+        nameColor: theme.text,
+        subColor: theme.textSecondary,
+      };
+    }
+    if (idx === 2) {
+      return {
+        bg: isDark ? 'rgba(180, 83, 9, 0.14)' : '#fff7ed',
+        border: isDark ? '#78350f' : '#ffedd5',
+        nameColor: theme.text,
+        subColor: theme.textSecondary,
+      };
+    }
+    return {
+      bg: theme.backgroundSelected,
+      border: theme.cardBorder,
+      nameColor: theme.text,
+      subColor: theme.textSecondary,
+    };
   };
 
   return (
@@ -77,14 +113,15 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
         <View style={styles.listContainer}>
           {leaders.map((user, idx) => {
             const badge = getRankBadge(idx + 1);
+            const rowStyle = getRowStyle(idx);
             return (
               <View
                 key={user.userId || idx}
                 style={[
                   styles.rankRow,
                   {
-                    backgroundColor: idx === 0 ? '#fffbeb' : theme.backgroundSelected,
-                    borderColor: idx === 0 ? '#fde68a' : theme.cardBorder,
+                    backgroundColor: rowStyle.bg,
+                    borderColor: rowStyle.border,
                   },
                 ]}
               >
@@ -101,15 +138,15 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
 
                 {/* Member Info */}
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>
+                  <Text style={[styles.userName, { color: rowStyle.nameColor }]} numberOfLines={1}>
                     {user.userName}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 }}>
-                    <Text style={{ fontSize: 11, color: theme.textSecondary }}>
+                    <Text style={{ fontSize: 11, color: rowStyle.subColor }}>
                       🎯 {user.averageScore}% {isTel ? 'సగటు' : 'avg'}
                     </Text>
                     {user.averageTimeSeconds > 0 && (
-                      <Text style={{ fontSize: 11, color: theme.textSecondary }}>
+                      <Text style={{ fontSize: 11, color: rowStyle.subColor }}>
                         ⏱️ {user.averageTimeSeconds}s
                       </Text>
                     )}
@@ -117,9 +154,9 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
                 </View>
 
                 {/* Streak Pill */}
-                <View style={[styles.streakPill, { backgroundColor: '#fff3e0', borderColor: '#ff9800' }]}>
-                  <MaterialCommunityIcons name="fire" size={15} color="#e65100" />
-                  <Text style={styles.streakPillText}>
+                <View style={[styles.streakPill, { backgroundColor: isDark ? 'rgba(255, 152, 0, 0.2)' : '#fff3e0', borderColor: isDark ? '#f57c00' : '#ff9800' }]}>
+                  <MaterialCommunityIcons name="fire" size={15} color={isDark ? '#ff9800' : '#e65100'} />
+                  <Text style={[styles.streakPillText, { color: isDark ? '#ffbb33' : '#e65100' }]}>
                     {user.streak}
                   </Text>
                 </View>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar, Image, Linking } from 'react-native';
+import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { Card, Title, Paragraph, Button, Text, Avatar, IconButton, Portal, Modal, FAB } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
 import { useApp } from '@/context/AppContext';
@@ -214,9 +215,10 @@ export default function NotificationsScreen() {
 
         {todayNotices && todayNotices.length > 0 ? (
           todayNotices.map((notice) => {
+            const safeTitle = notice.title || 'Church Announcement';
             const rawUrlMatch = notice.description?.match(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/i);
             const extractedYoutubeUrl = notice.youtubeUrl || (Array.isArray(rawUrlMatch) ? rawUrlMatch[0] : '');
-            const isVideoNotif = notice.title?.includes('🎬') || notice.title?.toLowerCase().includes('video');
+            const isVideoNotif = safeTitle.includes('🎬') || safeTitle.toLowerCase().includes('video');
             const noticeImage = notice.image || notice.attachment || notice.banner || (notice.youtubeId ? `https://img.youtube.com/vi/${notice.youtubeId}/hqdefault.jpg` : '');
             const noticeId = notice._id || notice.id || '';
 
@@ -226,7 +228,7 @@ export default function NotificationsScreen() {
                   styles.card,
                   (isVideoNotif || extractedYoutubeUrl) && { borderColor: '#ef444450', borderWidth: 1 }
                 ]}
-                key={noticeId || notice.title}
+                key={noticeId || safeTitle}
                 onPress={() => {
                   markNoticeAsViewed(noticeId);
                   if (extractedYoutubeUrl) {
@@ -245,7 +247,7 @@ export default function NotificationsScreen() {
                   <View style={styles.iconContainer}>
                     <Avatar.Icon
                       size={42}
-                      icon={isVideoNotif ? 'youtube' : (notice.title.toLowerCase().includes('fellowship') ? 'account-group' : 'bell-ring')}
+                      icon={isVideoNotif ? 'youtube' : (safeTitle.toLowerCase().includes('fellowship') ? 'account-group' : 'bell-ring')}
                       style={{ backgroundColor: isVideoNotif ? '#fee2e2' : theme.accentBackground }}
                       color={isVideoNotif ? '#ef4444' : theme.primary}
                     />
@@ -253,7 +255,7 @@ export default function NotificationsScreen() {
                   <View style={styles.textContainer}>
                     <View style={styles.titleRow}>
                       <Title style={[styles.cardTitle, isVideoNotif && { color: '#dc2626' }]}>
-                        {isVideoNotif ? `🎬 కొత్త వీడియో • ${notice.title.replace('🎬 ', '')}` : notice.title}
+                        {isVideoNotif ? `🎬 కొత్త వీడియో • ${safeTitle.replace('🎬 ', '')}` : safeTitle}
                       </Title>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         {!isVideoNotif && (

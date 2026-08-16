@@ -4,6 +4,8 @@ import React, {
   useEffect,
   useContext,
   useRef,
+  useMemo,
+  useCallback,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
@@ -14,6 +16,7 @@ import { eventsService, EventItem } from '../services/eventsService';
 import { noticesService, NoticeItem } from '../services/noticesService';
 import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
+import { setAuthTokenCache } from '../services/apiClient';
 import { API_URL } from '../constants/config';
 import { router } from 'expo-router';
 
@@ -448,12 +451,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   // Login
   // --------------------------------------------------
 
-  const login = async (
+  const login = useCallback(async (
     userToken: string,
     userData: any
   ) => {
     setToken(userToken);
     setUser(userData);
+    setAuthTokenCache(userToken);
 
     await AsyncStorage.setItem(
       'userToken',
@@ -468,15 +472,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     notificationService.init(userToken).catch(() => {});
 
     await refreshData();
-  };
+  }, []);
 
   // --------------------------------------------------
   // Logout
   // --------------------------------------------------
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setToken(null);
     setUser(null);
+    setAuthTokenCache(null);
 
     await AsyncStorage.removeItem(
       'userToken'
@@ -493,13 +498,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     setLiveSession(null);
-  };
+  }, []);
 
   // --------------------------------------------------
   // Refresh data
   // --------------------------------------------------
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     try {
       const [
         songsRes,
@@ -531,7 +536,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         err
       );
     }
-  };
+  }, []);
 
   // --------------------------------------------------
   // Favorites
@@ -636,6 +641,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       newSocket.on('newNotice', (newNotice: NoticeItem) => {
+        if (!newNotice) return;
         setNotices((prev) => {
           if (prev.some((n) => (n._id || n.id) === (newNotice._id || newNotice.id))) {
             return prev;
@@ -645,14 +651,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Trigger System Notification
         notificationService.triggerNotification(
-          newNotice.title,
-          newNotice.description,
+          newNotice.title || '📢 New Announcement',
+          newNotice.description || 'Tap to read new church announcement details.',
           { type: 'NOTICE', id: newNotice._id || newNotice.id, imageUrl: newNotice.image },
           newNotice.image
         );
       });
 
       newSocket.on('newEvent', (newEvent: EventItem) => {
+        if (!newEvent) return;
         setEvents((prev) => {
           const id = newEvent._id || newEvent.id;
           const idx = prev.findIndex((e) => (e._id || e.id) === id);
@@ -663,7 +670,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           return [newEvent, ...prev];
         });
-        refreshData();
         notificationService.scheduleLocalEventReminder(newEvent);
 
         // Trigger System Notification (Single Notification with Banner)
@@ -672,10 +678,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         const eventDateStr = !isNaN(parsedDate.getTime())
           ? parsedDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
           : (newEvent.date || '');
+        const eventTitle = newEvent.title || 'Church Special Service';
+        const eventVenue = newEvent.venue || 'SFGC Sanctuary';
 
         notificationService.triggerNotification(
-          `🗓️ New Event: ${newEvent.title}`,
-          `📍 ${newEvent.venue}${newEvent.time ? ` at ${newEvent.time}` : ''}${eventDateStr ? ` | 📅 ${eventDateStr}` : ''}`,
+          `🗓️ New Event: ${eventTitle}`,
+          `📍 ${eventVenue}${newEvent.time ? ` at ${newEvent.time}` : ''}${eventDateStr ? ` | 📅 ${eventDateStr}` : ''}`,
           { type: 'EVENT', id: newEvent._id || newEvent.id, imageUrl: bannerUrl, banner: bannerUrl },
           bannerUrl
         );
@@ -691,12 +699,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         thumbnail: string;
         createdAt: string;
       }) => {
+        if (!payload) return;
+        const videoTitle = (payload.title || 'New Worship Video').replace(/^🎬\s*/, '');
+        const videoMsg = payload.message || 'Tap to watch latest YouTube worship video!';
+        const createdDate = payload.createdAt || new Date().toISOString();
+
         const newNoticeItem: NoticeItem = {
-          _id: payload.notificationId,
-          title: `🎬 ${payload.title}`,
-          description: payload.message,
-          date: payload.createdAt,
-          time: new Date(payload.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          _id: payload.notificationId || `notif_${Date.now()}`,
+          title: `🎬 ${videoTitle}`,
+          description: videoMsg,
+          date: createdDate,
+          time: new Date(createdDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           location: 'YouTube Sanctuary Media',
           image: payload.thumbnail,
         };
@@ -708,12 +721,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           return [newNoticeItem, ...prev];
         });
 
-        refreshData();
-
         // Trigger System Notification
         notificationService.triggerNotification(
-          `🎬 ${payload.title}`,
-          payload.message,
+          `🎬 ${videoTitle}`,
+          videoMsg,
           { type: 'VIDEO', videoId: payload.videoId, imageUrl: payload.thumbnail },
           payload.thumbnail
         );
@@ -815,7 +826,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       newSocket.on('new_promise_notification', (payload: any) => {
-        refreshData();
         notificationService.triggerNotification(
           `🌅 ${payload.title || "Today's Daily Promise"}`,
           `"${payload.verseTelugu}" - ${payload.referenceTelugu}`,
@@ -923,56 +933,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   // Provider
   // --------------------------------------------------
 
+  const contextValue = useMemo(
+    () => ({
+      user,
+      token,
+      login,
+      logout,
+      songs,
+      events,
+      notices,
+      dailyVerse: MOCK_VERSE,
+      favorites,
+      toggleFavorite,
+      liveSession,
+      joinLiveSession,
+      leaveLiveSession,
+      updateLiveYoutubeLink,
+      startLiveSession,
+      endLiveSession,
+      socket,
+      setlist,
+      addToSetlist,
+      removeFromSetlist,
+      reorderSetlist,
+      clearSetlist,
+      loading,
+      refreshData,
+      language,
+      setLanguage,
+      bibleLanguage,
+      setBibleLanguage,
+      t,
+      selectedBiblePlan,
+      setSelectedBiblePlan,
+      themeMode,
+      setThemeMode,
+    }),
+    [
+      user,
+      token,
+      login,
+      logout,
+      songs,
+      events,
+      notices,
+      favorites,
+      toggleFavorite,
+      liveSession,
+      joinLiveSession,
+      leaveLiveSession,
+      updateLiveYoutubeLink,
+      startLiveSession,
+      endLiveSession,
+      socket,
+      setlist,
+      addToSetlist,
+      removeFromSetlist,
+      reorderSetlist,
+      clearSetlist,
+      loading,
+      refreshData,
+      language,
+      setLanguage,
+      bibleLanguage,
+      setBibleLanguage,
+      t,
+      selectedBiblePlan,
+      setSelectedBiblePlan,
+      themeMode,
+      setThemeMode,
+    ]
+  );
+
   return (
-    <AppContext.Provider
-      value={{
-        user,
-        token,
-
-        login,
-        logout,
-
-        songs,
-        events,
-        notices,
-
-        dailyVerse: MOCK_VERSE,
-
-        favorites,
-        toggleFavorite,
-
-        liveSession,
-        joinLiveSession,
-        leaveLiveSession,
-        updateLiveYoutubeLink,
-        startLiveSession,
-        endLiveSession,
-        socket,
-
-        setlist,
-        addToSetlist,
-        removeFromSetlist,
-        reorderSetlist,
-        clearSetlist,
-
-        loading,
-        refreshData,
-
-        language,
-        setLanguage,
-
-        bibleLanguage,
-        setBibleLanguage,
-
-        t,
-
-        selectedBiblePlan,
-        setSelectedBiblePlan,
-
-        themeMode,
-        setThemeMode,
-      }}
-    >
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

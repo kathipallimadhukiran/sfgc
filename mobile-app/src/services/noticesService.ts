@@ -23,18 +23,27 @@ const COLLECTION = 'notices';
 const INITIAL_SEED_NOTICES: NoticeItem[] = [];
 
 class NoticesService {
-  private initialized = false;
+  private memoryCache: { data: NoticeItem[]; timestamp: number } | null = null;
+  private TTL_MS = 30000;
 
-
+  invalidateCache() {
+    this.memoryCache = null;
+  }
 
   // Get all notices
-  async getNotices(): Promise<{ success: boolean; notices: NoticeItem[] }> {
+  async getNotices(forceRefresh = false): Promise<{ success: boolean; notices: NoticeItem[] }> {
+    const now = Date.now();
+    if (!forceRefresh && this.memoryCache && (now - this.memoryCache.timestamp < this.TTL_MS)) {
+      return { success: true, notices: this.memoryCache.data };
+    }
+
     try {
       // 1. Attempt backend fetch
       try {
         const res = await apiClient.get('/api/notices');
         if (res.success && Array.isArray(res.notices)) {
-          await mongoService.setLocalCollection(COLLECTION, res.notices);
+          this.memoryCache = { data: res.notices, timestamp: Date.now() };
+          mongoService.setLocalCollection(COLLECTION, res.notices).catch(() => {});
           return res;
         }
       } catch (networkErr) {
@@ -56,6 +65,7 @@ class NoticesService {
 
   // Add notice
   async addNotice(noticeData: Partial<NoticeItem>): Promise<{ success: boolean; notice?: NoticeItem; message?: string }> {
+    this.invalidateCache();
     try {
       if (!noticeData.title || !noticeData.description) {
         return { success: false, message: 'Title and description are required.' };
@@ -89,6 +99,7 @@ class NoticesService {
 
   // Update notice
   async updateNotice(id: string, noticeData: Partial<NoticeItem>): Promise<{ success: boolean; message?: string }> {
+    this.invalidateCache();
     try {
       try {
         const res = await apiClient.put(`/api/notices/${id}`, noticeData);
@@ -112,6 +123,7 @@ class NoticesService {
 
   // Delete notice
   async deleteNotice(id: string): Promise<{ success: boolean; message?: string }> {
+    this.invalidateCache();
     try {
       try {
         await apiClient.delete(`/api/notices/${id}`);

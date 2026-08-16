@@ -122,8 +122,8 @@ class BiblePlanService {
         if (parsed.lastCompletedDate && parsed.streak > 0) {
           const now = new Date();
           const lastDate = new Date(parsed.lastCompletedDate);
-          const diffDays = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays > 1) {
+          const calDiff = Math.round(Math.abs(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate()).getTime()) / (1000 * 60 * 60 * 24));
+          if (calDiff > 1) {
             parsed.streak = 0;
             await AsyncStorage.setItem(userKey, JSON.stringify(parsed));
           }
@@ -429,7 +429,20 @@ class BiblePlanService {
       if (!currentProg.completedDays.includes(portion.day)) {
         currentProg.completedDays.push(portion.day);
       }
-      currentProg.streak += 1;
+      if (!currentProg.lastCompletedDate) {
+        currentProg.streak = 1;
+      } else {
+        const now = new Date();
+        const lastDate = new Date(currentProg.lastCompletedDate);
+        const calDiff = Math.round(Math.abs(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate()).getTime()) / (1000 * 60 * 60 * 24));
+        if (calDiff === 1) {
+          currentProg.streak += 1;
+        } else if (calDiff > 1) {
+          currentProg.streak = 1;
+        } else if (calDiff === 0 && currentProg.streak === 0) {
+          currentProg.streak = 1;
+        }
+      }
       if (currentProg.streak > currentProg.highestStreak) {
         currentProg.highestStreak = currentProg.streak;
       }
@@ -466,15 +479,61 @@ class BiblePlanService {
   }
 
   // Get Top Leaderboard
-  async getLeaderboard(planId: string = '1-year-canonical'): Promise<LeaderboardUser[]> {
+  async getLeaderboard(
+    planId: string = '1-year-canonical',
+    currentUserId?: string,
+    currentUserName?: string
+  ): Promise<LeaderboardUser[]> {
+    let leaders: LeaderboardUser[] = [];
     try {
       const resp = await axios.get(`${API_URL}/api/bible-plans/leaderboard?planId=${planId}`, { timeout: 5000 });
       if (resp.data && resp.data.data && Array.isArray(resp.data.data)) {
-        return resp.data.data;
+        leaders = resp.data.data;
       }
     } catch (e) {}
 
-    return [];
+    // Seamlessly integrate current user's local progress if available
+    try {
+      const userId = currentUserId || 'guest_user';
+      const localProg = await this.getUserProgress(userId, planId);
+      if (localProg && (localProg.completedDays.length > 0 || localProg.streak > 0)) {
+        const existingIdx = leaders.findIndex(l => l.userId === userId || (currentUserId && l.userId === currentUserId));
+        const localEntry: LeaderboardUser = {
+          rank: 0,
+          userId: userId,
+          userName: currentUserName || localProg.userName || 'Member',
+          streak: localProg.streak || 0,
+          highestStreak: localProg.highestStreak || 0,
+          averageScore: localProg.averageScore || 0,
+          completedDays: localProg.completedDays.length,
+          averageTimeSeconds: localProg.averageTimeSeconds || 0,
+        };
+
+        if (existingIdx >= 0) {
+          leaders[existingIdx] = {
+            ...leaders[existingIdx],
+            userName: currentUserName || leaders[existingIdx].userName,
+            streak: Math.max(leaders[existingIdx].streak || 0, localEntry.streak),
+            highestStreak: Math.max(leaders[existingIdx].highestStreak || 0, localEntry.highestStreak),
+            averageScore: localEntry.averageScore || leaders[existingIdx].averageScore,
+            completedDays: Math.max(leaders[existingIdx].completedDays || 0, localEntry.completedDays),
+          };
+        } else {
+          leaders.push(localEntry);
+        }
+      }
+    } catch (e) {}
+
+    // Sort leaders by streak desc, averageScore desc, completedDays desc, averageTime asc
+    leaders.sort((a, b) => {
+      if (b.streak !== a.streak) return b.streak - a.streak;
+      if (b.averageScore !== a.averageScore) return b.averageScore - a.averageScore;
+      if (b.completedDays !== a.completedDays) return b.completedDays - a.completedDays;
+      return (a.averageTimeSeconds || 0) - (b.averageTimeSeconds || 0);
+    });
+
+    // Assign 1-based rank numbers
+    return leaders.map((item, idx) => ({ ...item, rank: idx + 1 }));
   }
 
   // Get Daily Promise

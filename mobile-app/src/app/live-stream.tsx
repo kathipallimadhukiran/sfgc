@@ -13,7 +13,7 @@ import {
   StatusBar,
   RefreshControl,
 } from 'react-native';
-import { Text, Portal, Modal, Button, Divider } from 'react-native-paper';
+import { Text, Portal, Modal, Button, Divider, IconButton } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
 import { useApp } from '@/context/AppContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -30,61 +30,19 @@ const DEFAULT_CATEGORIES = [
   { id: 'special', labelEng: 'Special Services',    labelTel: 'ప్రత్యేక కార్యక్రమాలు',  icon: 'star' },
 ];
 
-// ─── Default Videos ────────────────────────────────────────────────────────────
-/* Video records are loaded from MongoDB.
-[
+const YOUTUBE_CHANNELS = [
   {
-    id: 'q72x53zRk_k',
-    titleTel: 'ఆదివారపు ఆరాధన - దేవుని వాక్య ధ్యానము | Sunday Worship Service',
-    titleEng: 'Sunday Worship Service - Holy Sermon & Message',
-    duration: '1:42:30',
-    viewsTel: '1.2వేల వీక్షణలు',
-    viewsEng: '1.2K views',
-    publishedTel: '2 రోజుల క్రితం',
-    publishedEng: '2 days ago',
-    thumbnail: 'https://img.youtube.com/vi/q72x53zRk_k/hqdefault.jpg',
-    categoryId: 'sunday',
-  },
-  {
-    id: 'hTj4e9v66_0',
-    titleTel: 'యేసుక్రీస్తు జననము - క్రిస్మస్ సందేశము | Special Christmas Message',
-    titleEng: 'The Birth of Jesus - Special Christmas Sermon',
-    duration: '58:15',
-    viewsTel: '840 వీక్షణలు',
-    viewsEng: '840 views',
-    publishedTel: '1 వారం క్రితం',
-    publishedEng: '1 week ago',
-    thumbnail: 'https://img.youtube.com/vi/hTj4e9v66_0/hqdefault.jpg',
-    categoryId: 'special',
-  },
-  {
-    id: 'Xg94b7fP2_o',
-    titleTel: 'ఉపవాస ప్రార్థన కూడిక | Friday Fasting Prayer Live',
-    titleEng: 'Friday Fasting Prayer Live Broadcast',
-    duration: '2:15:00',
-    viewsTel: '2.5వేల వీక్షణలు',
-    viewsEng: '2.5K views',
-    publishedTel: '3 వారాల క్రితం',
-    publishedEng: '3 weeks ago',
-    thumbnail: 'https://img.youtube.com/vi/Xg94b7fP2_o/hqdefault.jpg',
-    categoryId: 'fasting',
-  },
-  {
-    id: 'J2aO52tO9g0',
-    titleTel: 'యూత్ స్పెషల్ మీటింగ్ | Youth Awakening Conference 2025',
-    titleEng: 'Youth Awakening Conference 2025 - Special Meetup',
-    duration: '1:12:45',
-    viewsTel: '450 వీక్షణలు',
-    viewsEng: '450 views',
-    publishedTel: '1 నెల క్రితం',
-    publishedEng: '1 month ago',
-    thumbnail: 'https://img.youtube.com/vi/J2aO52tO9g0/hqdefault.jpg',
-    categoryId: 'youth',
-  },
+    id: 'sfgc',
+    nameTel: 'SFGC YouTube Channel',
+    nameEng: 'SFGC YouTube Channel',
+    url: 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw',
+    handleUrl: 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw',
+    descTel: 'దేవుని వాక్య సందేశాలు & ప్రసంగాలు',
+    descEng: 'Sermons & Messages',
+  }
 ];
-*/
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+
 const extractYoutubeId = (url: string): string | null => {
   if (!url) return null;
   const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -170,6 +128,9 @@ export default function LiveStreamScreen() {
   const [addVideoPreviewId, setAddVideoPreviewId] = useState<string | null>(null);
   const [savingVideo, setSavingVideo] = useState(false);
 
+  // Subscribe YouTube Channels modal
+  const [subscribeModalVisible, setSubscribeModalVisible] = useState(false);
+
   const loadVideos = async () => {
     setLoading(true);
     setFetchError(false);
@@ -180,27 +141,45 @@ export default function LiveStreamScreen() {
         return;
       }
 
-      const rawList = result.videos || [];
-      const sorted = [...rawList].sort((a, b) => {
-        const timeA = new Date(a.publishedAt || a.createdAt || 0).getTime();
-        const timeB = new Date(b.publishedAt || b.createdAt || 0).getTime();
-        return timeB - timeA; // Newest video FIRST
-      });
+      const getVideoTime = (v: any) => {
+        if (v.publishedAt) {
+          const t = new Date(v.publishedAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (v.createdAt) {
+          const t = new Date(v.createdAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (v._id && typeof v._id === 'string' && v._id.length === 24) {
+          const t = parseInt(v._id.substring(0, 8), 16) * 1000;
+          if (!isNaN(t) && t > 0) return t;
+        }
+        return 0;
+      };
 
-      setVideos(sorted.map(video => ({
-        dbId: video._id,
-        id: video.youtubeId,
-        titleEng: video.title,
-        titleTel: video.title,
-        duration: '--:--',
-        viewsEng: 'Recently added',
-        viewsTel: 'ఇప్పుడే జోడించారు',
-        publishedEng: (video.publishedAt || video.createdAt) ? new Date(video.publishedAt || video.createdAt!).toLocaleDateString() : 'Recently added',
-        publishedTel: (video.publishedAt || video.createdAt) ? new Date(video.publishedAt || video.createdAt!).toLocaleDateString('te-IN') : 'ఇప్పుడే జోడించారు',
-        thumbnail: video.thumbnail,
-        categoryId: video.categoryId,
-        createdAt: video.createdAt,
-      })));
+      const rawList = result.videos || [];
+      const sorted = [...rawList].sort((a, b) => getVideoTime(b) - getVideoTime(a));
+
+      setVideos(sorted.map(video => {
+        const rawDate = video.publishedAt || video.createdAt;
+        const validDate = rawDate ? new Date(rawDate) : null;
+        const isValid = validDate && !isNaN(validDate.getTime());
+
+        return {
+          dbId: video._id,
+          id: video.youtubeId,
+          titleEng: video.title,
+          titleTel: video.title,
+          duration: '--:--',
+          viewsEng: 'Official Broadcast',
+          viewsTel: 'సందేశం',
+          publishedEng: isValid ? validDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently added',
+          publishedTel: isValid ? validDate.toLocaleDateString('te-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'ఇప్పుడే జోడించారు',
+          thumbnail: video.thumbnail,
+          categoryId: video.categoryId,
+          createdAt: video.createdAt,
+        };
+      }));
     } catch (err) {
       setFetchError(true);
     } finally {
@@ -373,10 +352,6 @@ export default function LiveStreamScreen() {
 
           {/* ── Top Header Section ──────────────────────────────────────────────── */}
           <View style={styles.topSectionContainer}>
-            <Text style={[styles.topTitle, { color: theme.text, textAlign: 'center' }]}>
-              {isTel ? 'యూట్యూబ్ వీడియోలు' : 'YouTube Videos'}
-            </Text>
-
             {/* Subscribe to Channel Card */}
             <View style={[styles.subscribeCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -386,19 +361,20 @@ export default function LiveStreamScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.subscribeTitle, { color: theme.text }]}>YouTube</Text>
                   <Text style={[styles.subscribeSub, { color: subtleText }]}>
-                    {isTel ? 'మా యూట్యూబ్ ఛానెల్‌ని సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe to our YouTube channel'}
+                    {isTel ? 'మా యూట్యూబ్ ఛానెల్‌లను సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe to our official YouTube channels'}
                   </Text>
                 </View>
               </View>
+
               <TouchableOpacity
                 style={styles.subscribeBtn}
                 onPress={async () => {
-                  const channelHandle = 'https://www.youtube.com/@SFGCChurch';
-                  const searchQuery = 'https://www.youtube.com/results?search_query=SFGC+Church';
+                  const primaryUrl = 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw';
+                  const handleUrl = 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw';
                   try {
-                    await Linking.openURL(channelHandle);
+                    await Linking.openURL(primaryUrl);
                   } catch (e) {
-                    await Linking.openURL(searchQuery);
+                    Linking.openURL(handleUrl).catch(console.log);
                   }
                 }}
                 activeOpacity={0.88}
@@ -803,6 +779,96 @@ export default function LiveStreamScreen() {
               </View>
 
             </ScrollView>
+          </Modal>
+
+          {/* YouTube Channels Selector Modal */}
+          <Modal
+            visible={subscribeModalVisible}
+            onDismiss={() => setSubscribeModalVisible(false)}
+            contentContainerStyle={[
+              styles.modal,
+              { backgroundColor: cardBg, borderColor: dividerColor }
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="youtube" size={24} color="#ff0000" />
+                <Text style={[styles.modalTitle, { color: theme.text, fontSize: 16 }]}>
+                  {isTel ? 'మా యూట్యూబ్ ఛానెల్స్' : 'Official YouTube Channels'}
+                </Text>
+              </View>
+              <IconButton icon="close" size={20} iconColor={subtleText} onPress={() => setSubscribeModalVisible(false)} />
+            </View>
+
+            <Text style={{ fontSize: 12, color: subtleText, marginBottom: 16 }}>
+              {isTel ? 'సబ్‌స్క్రైబ్ చేయడానికి ఛానెల్‌ని ఎంచుకోండి:' : 'Select a channel below to subscribe on YouTube:'}
+            </Text>
+
+            <View style={{ gap: 12 }}>
+              {YOUTUBE_CHANNELS.map(ch => (
+                <View
+                  key={ch.id}
+                  style={{
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: dividerColor,
+                    backgroundColor: theme.backgroundSelected,
+                    padding: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.text }}>
+                      {isTel ? ch.nameTel : ch.nameEng}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: subtleText, marginTop: 2 }}>
+                      {isTel ? ch.descTel : ch.descEng}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#ff0000',
+                      paddingVertical: 7,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                    activeOpacity={0.85}
+                    onPress={async () => {
+                      try {
+                        await Linking.openURL(ch.url);
+                      } catch (e) {
+                        try {
+                          await Linking.openURL(ch.handleUrl);
+                        } catch (err) {
+                          console.log('Error opening YouTube:', err);
+                        }
+                      }
+                    }}
+                  >
+                    <MaterialCommunityIcons name="youtube" size={16} color="#ffffff" />
+                    <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '800' }}>
+                      {isTel ? 'సబ్‌స్క్రైబ్' : 'Subscribe'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            <Button
+              mode="outlined"
+              textColor={subtleText}
+              style={{ marginTop: 16, borderRadius: 10 }}
+              onPress={() => setSubscribeModalVisible(false)}
+            >
+              {isTel ? 'మూసివేయి' : 'Close'}
+            </Button>
           </Modal>
         </Portal>
 

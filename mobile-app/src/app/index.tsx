@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, ScrollView, View, Platform, Share, TouchableOpacity, Image, Modal, RefreshControl, FlatList, Dimensions, Linking, StatusBar, TextInput } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { StyleSheet, ScrollView, View, Platform, Share, TouchableOpacity, Modal, RefreshControl, FlatList, Dimensions, Linking, StatusBar, TextInput } from 'react-native';
+import { Image } from 'expo-image';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, Title, Paragraph, Button, Avatar, Text, ActivityIndicator } from 'react-native-paper';
@@ -14,100 +15,6 @@ import { DailyPortion } from '@/constants/defaultBiblePlans';
 import { LeaderboardCard } from '@/components/LeaderboardCard';
 import { liveVideosService } from '@/services/liveVideosService';
 
-/* Videos are loaded from the MongoDB-backed live video service.
-[
-  {
-    id: 'q72x53zRk_k',
-    titleTel: 'ఆదివారపు ఆరాధన - దేవుని వాక్య ధ్యానము | Sunday Worship Service',
-    titleEng: 'Sunday Worship Service - Holy Sermon & Message',
-    type: 'video',
-    duration: '1:42:30',
-    thumbnail: 'https://img.youtube.com/vi/q72x53zRk_k/hqdefault.jpg',
-    url: 'https://www.youtube.com/watch?v=q72x53zRk_k'
-  },
-  {
-    id: 'M7lc1UVf-VE',
-    titleTel: 'నేటి దేవుని వాగ్దానం #Shorts | Daily Promise Short',
-    titleEng: 'Daily God\'s Promise - Today\'s Verse #Shorts',
-    type: 'short',
-    duration: '0:45',
-    thumbnail: 'https://img.youtube.com/vi/M7lc1UVf-VE/hqdefault.jpg',
-    url: 'https://youtube.com/shorts/M7lc1UVf-VE'
-  },
-  {
-    id: 'hTj4e9v66_0',
-    titleTel: 'యేసుక్రీస్తు జననము - క్రిస్మస్ సందేశము | Special Christmas Message',
-    titleEng: 'The Birth of Jesus - Special Christmas Sermon',
-    type: 'video',
-    duration: '58:15',
-    thumbnail: 'https://img.youtube.com/vi/hTj4e9v66_0/hqdefault.jpg',
-    url: 'https://www.youtube.com/watch?v=hTj4e9v66_0'
-  },
-  {
-    id: '2g812Gy1bNg',
-    titleTel: 'యేసు నా నామమున అద్భుతము #Shorts | Miracle in Jesus Name',
-    titleEng: 'Miracles in the Name of Jesus #Shorts',
-    type: 'short',
-    duration: '0:55',
-    thumbnail: 'https://img.youtube.com/vi/2g812Gy1bNg/hqdefault.jpg',
-    url: 'https://youtube.com/shorts/2g812Gy1bNg'
-  },
-  {
-    id: 'Xg94b7fP2_o',
-    titleTel: 'ఉపవాస ప్రార్థన కూడిక | Friday Fasting Prayer Live',
-    titleEng: 'Friday Fasting Prayer Live Broadcast',
-    type: 'video',
-    duration: '2:15:00',
-    thumbnail: 'https://img.youtube.com/vi/Xg94b7fP2_o/hqdefault.jpg',
-    url: 'https://www.youtube.com/watch?v=Xg94b7fP2_o'
-  },
-  {
-    id: '3S9v_Z-c69s',
-    titleTel: 'క్రీస్తులో నూతన సృష్టి #Shorts | New Creation in Christ',
-    titleEng: 'A New Creation in Christ #Shorts',
-    type: 'short',
-    duration: '0:38',
-    thumbnail: 'https://img.youtube.com/vi/3S9v_Z-c69s/hqdefault.jpg',
-    url: 'https://youtube.com/shorts/3S9v_Z-c69s'
-  },
-  {
-    id: 'J2aO52tO9g0',
-    titleTel: 'యూత్ స్పెషల్ మీటింగ్ | Youth Awakening Conference 2025',
-    titleEng: 'Youth Awakening Conference 2025 - Special Meetup',
-    type: 'video',
-    duration: '1:12:45',
-    thumbnail: 'https://img.youtube.com/vi/J2aO52tO9g0/hqdefault.jpg',
-    url: 'https://www.youtube.com/watch?v=J2aO52tO9g0'
-  },
-  {
-    id: 'l31oP8M9F6k',
-    titleTel: 'ప్రార్థన యొక్క శక్తి #Shorts | Power of Prayer Short',
-    titleEng: 'The Power of Personal Prayer #Shorts',
-    type: 'short',
-    duration: '0:50',
-    thumbnail: 'https://img.youtube.com/vi/l31oP8M9F6k/hqdefault.jpg',
-    url: 'https://youtube.com/shorts/l31oP8M9F6k'
-  },
-  {
-    id: 'J_b0gT8M9F0',
-    titleTel: 'ప్రత్యేక గాయక బృందం గీతం | Special Choir Presentation 2026',
-    titleEng: 'Special Choir Presentation 2026 - Sanctuary Worship',
-    type: 'video',
-    duration: '8:40',
-    thumbnail: 'https://img.youtube.com/vi/J_b0gT8M9F0/hqdefault.jpg',
-    url: 'https://www.youtube.com/watch?v=J_b0gT8M9F0'
-  },
-  {
-    id: '4yV-W_c31f4',
-    titleTel: 'విశ్వాసము యొక్క విలువ #Shorts | Value of Faith Short',
-    titleEng: 'The Value of Genuine Faith #Shorts',
-    type: 'short',
-    duration: '0:42',
-    thumbnail: 'https://img.youtube.com/vi/4yV-W_c31f4/hqdefault.jpg',
-    url: 'https://youtube.com/shorts/4yV-W_c31f4'
-  }
-];
-*/
 
 interface HomeVideo {
   id: string;
@@ -119,10 +26,29 @@ interface HomeVideo {
   url: string;
 }
 
+const VideoCarouselItem = React.memo(({ item }: { item: HomeVideo }) => (
+  <TouchableOpacity
+    activeOpacity={0.9}
+    onPress={() => Linking.openURL(item.url)}
+    style={{ width: Dimensions.get('window').width - 32, height: 180, position: 'relative' }}
+  >
+    <Image
+      source={{ uri: item.thumbnail }}
+      style={{ width: '100%', height: '100%' }}
+      contentFit="cover"
+      transition={200}
+    />
+    <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -25 }, { translateY: -25 }], width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
+      <MaterialCommunityIcons name="play" size={32} color="#ffffff" style={{ marginLeft: 2 }} />
+    </View>
+  </TouchableOpacity>
+));
+
 export default function HomeScreen() {
-  const { user, dailyVerse, events, notices, liveSession, joinLiveSession, leaveLiveSession, language, bibleLanguage, t, selectedBiblePlan, setSelectedBiblePlan } = useApp();
+  const { user, dailyVerse, events, notices, liveSession, joinLiveSession, leaveLiveSession, language, bibleLanguage, t, selectedBiblePlan, setSelectedBiblePlan, themeMode } = useApp();
   const router = useRouter();
   const theme = useTheme();
+  const isDark = themeMode === 'dark';
   const isTel = language === 'Telugu';
   const isBibleTel = bibleLanguage === 'Telugu';
 
@@ -417,7 +343,25 @@ export default function HomeScreen() {
         const nowMs = Date.now();
         const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 
-        const filtered5Days = (result.videos || []).filter((v: any) => {
+        const getVideoTime = (v: any) => {
+          if (v.publishedAt) {
+            const t = new Date(v.publishedAt).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (v.createdAt) {
+            const t = new Date(v.createdAt).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (v._id && typeof v._id === 'string' && v._id.length === 24) {
+            const t = parseInt(v._id.substring(0, 8), 16) * 1000;
+            if (!isNaN(t) && t > 0) return t;
+          }
+          return 0;
+        };
+
+        const sortedVideos = [...(result.videos || [])].sort((a: any, b: any) => getVideoTime(b) - getVideoTime(a));
+
+        const filtered5Days = sortedVideos.filter((v: any) => {
           const pubDate = v.publishedAt || v.createdAt;
           if (!pubDate) return true;
           const pubMs = new Date(pubDate).getTime();
@@ -425,7 +369,7 @@ export default function HomeScreen() {
         }).slice(0, 5);
 
         // Fallback to top 5 if no videos in last 5 days
-        const targetVideos = filtered5Days.length > 0 ? filtered5Days : (result.videos || []).slice(0, 5);
+        const targetVideos = filtered5Days.length > 0 ? filtered5Days : sortedVideos.slice(0, 5);
 
         setRecentVideos(targetVideos.map((video: any) => {
           const cleanTitle = (video.title || 'Church Video')
@@ -691,24 +635,7 @@ export default function HomeScreen() {
               index,
             })}
             onMomentumScrollEnd={handleVideoScroll}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => Linking.openURL(item.url)}
-                style={{ width: Dimensions.get('window').width - 32, height: 180, position: 'relative' }}
-              >
-                {/* Thumbnail Image */}
-                <Image
-                  source={{ uri: item.thumbnail }}
-                  style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
-                />
-
-                {/* Overlay Play Icon */}
-                <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -25 }, { translateY: -25 }], width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
-                  <MaterialCommunityIcons name="play" size={32} color="#ffffff" style={{ marginLeft: 2 }} />
-                </View>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => <VideoCarouselItem item={item} />}
           />
 
           {/* Dots Indicator */}
@@ -806,9 +733,9 @@ export default function HomeScreen() {
                     </Text>
                     <Text style={{ fontSize: 11.5, color: isTodayCompleted ? '#2e7d32' : (hasCompletedQuizToday() ? '#0284c7' : theme.textSecondary), fontWeight: '600', marginTop: 3 }}>
                       {isTodayCompleted
-                        ? (isTel ? '🎉 అద్భుతం! నేటి పఠనం & క్విజ్ పూర్తయింది. రేపటి దినము రేపు ఉదయం అన్‌లాక్ అవుతుంది!' : '🎉 Great job! Today\'s reading & quiz completed. Tomorrow\'s portion unlocks tomorrow!')
+                        ? (isTel ? '🎉 అద్భుతం! నేటి పఠనం & క్విజ్ పూర్తయింది. రేపటి కోసం టెస్ట్ లాక్ చేయబడింది.' : '🎉 Great job! Today\'s reading & quiz completed. Test locked for tomorrow.')
                         : (hasCompletedQuizToday()
-                            ? (isTel ? '📖 నేటి పఠనం చదవడానికి సిద్ధంగా ఉంది. క్విజ్ రేపు అన్‌లాక్ అవుతుంది!' : '📖 Today\'s portion is ready for reading. The quiz will unlock tomorrow!')
+                            ? (isTel ? '📖 నేటి క్విజ్ పూర్తయింది. రేపటి కోసం టెస్ట్ లాక్ చేయబడింది!' : '📖 Today\'s quiz completed! Test locked for tomorrow.')
                             : (isTel ? '👉 వాక్యం చదవడానికి "వాక్యం చదవండి" అని నొక్కండి. చదివిన తర్వాత క్రింద "చదివాను" అని గుర్తించి క్విజ్ రాయండి.' : '👉 Tap "Go to Read" to read today\'s chapters in Bible, then mark as read to take quiz.'))}
                     </Text>
                   </View>
@@ -817,10 +744,10 @@ export default function HomeScreen() {
 
               {/* Action: Go to Read & Mark as Read Buttons / Locked Tomorrow Status */}
               {isTodayCompleted ? (
-                <View style={[styles.lockedTomorrowBanner, { backgroundColor: '#f0fdf4', borderColor: '#86efac' }]}>
-                  <MaterialCommunityIcons name="lock-clock" size={18} color="#16a34a" />
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#16a34a', flex: 1 }}>
-                    {isTel ? `🔒 దినము ${todayPortion.day + 1} రేపు ఉదయం 12:00 AMకు అన్‌లాక్ అవుతుంది` : `🔒 Next day unlocks tomorrow at 12:00 AM`}
+                <View style={[styles.lockedTomorrowBanner, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.18)' : '#f0fdf4', borderColor: isDark ? '#15803d' : '#86efac', paddingVertical: 12 }]}>
+                  <MaterialCommunityIcons name="lock-clock" size={20} color={isDark ? '#4ade80' : '#16a34a'} />
+                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: isDark ? '#4ade80' : '#16a34a', flex: 1 }}>
+                    {isTel ? `🔒 రేపటి కోసం టెస్ట్ లాక్ చేయబడింది` : `🔒 Test Locked for Tomorrow`}
                   </Text>
                 </View>
               ) : (
@@ -1732,13 +1659,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 6,
     borderRadius: 10,
-    gap: 8,
+    gap: 6,
+    overflow: 'hidden',
   },
   planBtnText: {
     color: '#ffffff',
-    fontSize: 13.5,
+    fontSize: 12.5,
     fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   lockedTomorrowBanner: {
     flexDirection: 'row',

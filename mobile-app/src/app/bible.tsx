@@ -816,16 +816,6 @@ export default function BibleScreen() {
                     <MaterialCommunityIcons name="chevron-right" size={20} color={theme.primary} />
                   </TouchableOpacity>
                 </View>
-
-                {/* Gesture Swipe Hint Badge */}
-                <View style={[styles.gestureSwipeHint, { backgroundColor: theme.backgroundSelected, borderColor: theme.cardBorder }]}>
-                  <MaterialCommunityIcons name="gesture-swipe-horizontal" size={16} color={theme.primary} />
-                  <Text style={[styles.gestureSwipeHintText, { color: theme.textSecondary }]}>
-                    {language === 'Telugu' 
-                      ? '👉 కుడివైపు స్లైడ్: మునుపటి అధ్యాయం  |  ఎడమవైపు స్లైడ్: తదుపరి అధ్యాయం 👈' 
-                      : '👉 Slide Right: Prev Chapter  |  Slide Left: Next Chapter 👈'}
-                  </Text>
-                </View>
               </View>
             )}
           </View>
@@ -898,20 +888,20 @@ export default function BibleScreen() {
               </Text>
               <Text style={{ fontSize: 11.5, color: userProgress?.completedDays?.includes(todayPortion.day) ? '#2e7d32' : (hasCompletedQuizToday() ? '#0284c7' : (userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : theme.textSecondary)), fontWeight: '600', marginTop: 3 }}>
                 {userProgress?.completedDays?.includes(todayPortion.day)
-                  ? (language === 'Telugu' ? '🎉 ఈ రోజు పఠనం & 10 ప్రశ్నల క్విజ్ పూర్తయింది! రేపు తదుపరి దినపు వాక్యము అన్‌లాక్ అవుతుంది.' : '🎉 Today\'s reading & 10-question quiz completed! Tomorrow\'s portion unlocks tomorrow.')
+                  ? (language === 'Telugu' ? '🎉 ఈ రోజు పఠనం & 10 ప్రశ్నల క్విజ్ పూర్తయింది! రేపటి దినము కోసం టెస్ట్ లాక్ చేయబడింది.' : '🎉 Today\'s reading & 10-question quiz completed! Test locked for tomorrow.')
                   : (hasCompletedQuizToday()
-                      ? (language === 'Telugu' ? '📖 నేటి పఠనం చదవడానికి సిద్ధంగా ఉంది. క్విజ్ రేపు అన్‌లాక్ అవుతుంది!' : '📖 Today\'s portion is ready for reading. The quiz will unlock tomorrow!')
+                      ? (language === 'Telugu' ? '📖 నేటి పఠనం చదివారు. టెస్ట్ రేపటి వరకు లాక్ చేయబడింది!' : '📖 Today\'s quiz completed! Test locked for tomorrow.')
                       : (userProgress?.readMarkedDays?.includes(todayPortion.day)
                           ? (language === 'Telugu' ? '📖 వాక్యం చదవబడింది! ఇప్పుడు క్రింది క్విజ్ ప్రారంభించండి.' : '📖 Reading completed! You can now start the quiz below.')
                           : (language === 'Telugu' ? '👉 మొదట వాక్యం చదివి "చదివాను" అని నొక్కండి, ఆపై క్విజ్ ప్రారంభించండి.' : '👉 Read passage, tap "Mark as Read", then start quiz.')))}
               </Text>
             </View>
 
-            {userProgress?.completedDays?.includes(todayPortion.day) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', gap: 8 }}>
-                <MaterialCommunityIcons name="lock-clock" size={18} color="#16a34a" />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#16a34a', flex: 1 }}>
-                  {language === 'Telugu' ? '🔒 దినము 2 రేపు ఉదయం 12:00 AMకు అన్‌లాక్ అవుతుంది' : '🔒 Next day unlocks tomorrow at 12:00 AM'}
+            {userProgress?.completedDays?.includes(todayPortion.day) || hasCompletedQuizToday() ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, backgroundColor: currentThemeMode === 'dark' ? 'rgba(34, 197, 94, 0.18)' : '#f0fdf4', borderWidth: 1, borderColor: currentThemeMode === 'dark' ? '#15803d' : '#86efac', gap: 8 }}>
+                <MaterialCommunityIcons name="lock-clock" size={20} color={currentThemeMode === 'dark' ? '#4ade80' : '#16a34a'} />
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: currentThemeMode === 'dark' ? '#4ade80' : '#16a34a' }}>
+                  {language === 'Telugu' ? '🔒 రేపటి కోసం టెస్ట్ లాక్ చేయబడింది' : '🔒 Test Locked for Tomorrow'}
                 </Text>
               </View>
             ) : (
@@ -921,8 +911,8 @@ export default function BibleScreen() {
                   style={[
                     styles.studyActionBtn,
                     {
-                      backgroundColor: userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#e0f2fe' : theme.primary,
-                      borderColor: userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : theme.primary,
+                      backgroundColor: userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? 'rgba(14, 165, 233, 0.2)' : '#e0f2fe') : theme.primary,
+                      borderColor: userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? '#38bdf8' : '#0284c7') : theme.primary,
                       borderWidth: 1,
                     }
                   ]}
@@ -934,94 +924,45 @@ export default function BibleScreen() {
                   <MaterialCommunityIcons 
                     name={userProgress?.readMarkedDays?.includes(todayPortion.day) ? 'checkbox-marked-circle' : 'book-check'} 
                     size={16} 
-                    color={userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : '#ffffff'} 
+                    color={userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? '#38bdf8' : '#0284c7') : '#ffffff'} 
                   />
-                  <Text style={[styles.studyActionBtnText, { color: userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : '#ffffff' }]}>
+                  <Text 
+                    style={[styles.studyActionBtnText, { color: userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? '#38bdf8' : '#0284c7') : '#ffffff' }]}
+                  >
                     {userProgress?.readMarkedDays?.includes(todayPortion.day) ? (language === 'Telugu' ? 'చదివాను ✅' : 'Read Marked ✅') : (language === 'Telugu' ? '1. చదివాను' : '1. Mark as Read')}
                   </Text>
                 </TouchableOpacity>
 
-                {hasCompletedQuizToday() ? (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    disabled={true}
-                    style={[
-                      styles.studyActionBtn,
-                      {
-                        backgroundColor: '#e5e7eb',
-                        borderColor: '#d1d5db',
-                        borderWidth: 1,
-                        opacity: 0.65,
-                      }
-                    ]}
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  disabled={!userProgress?.readMarkedDays?.includes(todayPortion.day)}
+                  style={[
+                    styles.studyActionBtn,
+                    {
+                      backgroundColor: !userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9') : theme.accentBackground,
+                      borderColor: !userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1') : theme.primary,
+                      borderWidth: 1.5,
+                    }
+                  ]}
+                  onPress={() => setQuizModalVisible(true)}
+                >
+                  <MaterialCommunityIcons
+                    name={!userProgress?.readMarkedDays?.includes(todayPortion.day) ? 'lock-outline' : 'help-circle-outline'}
+                    size={16}
+                    color={!userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? '#94a3b8' : '#64748b') : theme.primary}
+                  />
+                  <Text 
+                    style={[styles.studyActionBtnText, { color: !userProgress?.readMarkedDays?.includes(todayPortion.day) ? (currentThemeMode === 'dark' ? '#94a3b8' : '#64748b') : theme.primary }]}
                   >
-                    <MaterialCommunityIcons
-                      name="lock-clock"
-                      size={16}
-                      color="#9ca3af"
-                    />
-                    <Text style={[styles.studyActionBtnText, { color: '#9ca3af' }]}>
-                      {language === 'Telugu' ? 'క్విజ్ రేపు' : 'Quiz Locks Tomorrow'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    disabled={!userProgress?.readMarkedDays?.includes(todayPortion.day)}
-                    style={[
-                      styles.studyActionBtn,
-                      {
-                        backgroundColor: !userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#e5e7eb' : theme.accentBackground,
-                        borderColor: !userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#d1d5db' : theme.primary,
-                        borderWidth: 1.5,
-                        opacity: !userProgress?.readMarkedDays?.includes(todayPortion.day) ? 0.6 : 1,
-                      }
-                    ]}
-                    onPress={() => setQuizModalVisible(true)}
-                  >
-                    <MaterialCommunityIcons
-                      name={!userProgress?.readMarkedDays?.includes(todayPortion.day) ? 'lock-outline' : 'help-circle-outline'}
-                      size={16}
-                      color={!userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#9ca3af' : theme.primary}
-                    />
-                    <Text style={[styles.studyActionBtnText, { color: !userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#9ca3af' : theme.primary }]}>
-                      {language === 'Telugu' ? '2. క్విజ్ (10 Q)' : '2. Start Quiz'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                    {language === 'Telugu' ? '2. క్విజ్ (10 Q)' : '2. Start Quiz'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
         ))}
 
-        {/* Dynamic bilingual scripture quote card */}
-        <Card style={[styles.quoteCard, { backgroundColor: theme.backgroundElement, borderColor: theme.cardBorder, marginBottom: 20 }]}>
-          <Card.Content style={{ paddingVertical: 14 }}>
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
-              <MaterialCommunityIcons name="format-quote-open" size={28} color={theme.accentBackground} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ 
-                  fontSize: 15, 
-                  fontStyle: 'italic', 
-                  lineHeight: 22, 
-                  color: theme.text,
-                  fontWeight: '500',
-                  marginBottom: 6
-                }}>
-                  {quoteText}
-                </Text>
-                <Text style={{ 
-                  fontSize: 12, 
-                  fontWeight: 'bold', 
-                  color: theme.primary, 
-                  textAlign: 'right' 
-                }}>
-                  — {todayQuote.ref}
-                </Text>
-              </View>
-            </View>
-          </Card.Content>
-        </Card>
+      
 
         {/* Bible Study Reading Leaderboard Section */}
         <LeaderboardCard planId={selectedBiblePlan || '1-year-canonical'} appLanguage={language} refreshTrigger={leaderboardRefreshTrigger} />
@@ -1380,12 +1321,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 6,
     borderRadius: 10,
-    gap: 6,
+    gap: 4,
+    overflow: 'hidden',
   },
   studyActionBtnText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   lookupCard: {
