@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, ScrollView, View, Platform, Share, TouchableOpacity, Image, Modal, RefreshControl, FlatList, Dimensions, Linking, StatusBar } from 'react-native';
+import { StyleSheet, ScrollView, View, Platform, Share, TouchableOpacity, Image, Modal, RefreshControl, FlatList, Dimensions, Linking, StatusBar, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, Title, Paragraph, Button, Avatar, Text, ActivityIndicator } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';

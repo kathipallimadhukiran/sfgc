@@ -235,8 +235,8 @@ export const pushEventNotification = async (req: Request, res: Response, next: N
     );
 
     res.status(200).json({
-      success: true,
-      message: `Event notification pushed to all devices.`,
+      success: pushResult.success,
+      message: pushResult.message || `Event notification pushed to all devices.`,
       pushResult,
     });
   } catch (error) {

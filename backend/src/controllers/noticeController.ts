@@ -154,8 +154,8 @@ export const pushNoticeNotification = async (req: Request, res: Response, next: 
     );
 
     res.status(200).json({
-      success: true,
-      message: `Notice notification pushed to all devices.`,
+      success: pushResult.success,
+      message: pushResult.message || `Notice notification pushed to all devices.`,
       pushResult,
     });
   } catch (error) {

@@ -42,8 +42,8 @@ export const sendPushNotificationToAll = async (
     }
 
     if (tokens.length === 0) {
-      console.log('ℹ️ No registered mobile Expo push tokens found in database.');
-      return { success: false, sentCount: 0, message: 'No registered mobile devices found in database.' };
+      console.log('ℹ️ No registered physical mobile Expo push tokens in database. Broadcast sent via Socket.IO.');
+      return { success: true, sentCount: 0, message: 'Notification broadcasted via real-time sockets (No registered mobile push tokens yet).' };
     }
 
     const imageToSend = imageUrl || data.image || data.imageUrl || data.banner || '';
