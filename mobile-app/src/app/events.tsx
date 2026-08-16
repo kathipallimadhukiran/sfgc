@@ -616,18 +616,19 @@ export default function EventsScreen() {
                       mode="text" 
                       textColor={theme.primary}
                       onPress={() => handleShareEvent(evt)}
-                      style={{ borderRadius: 8 }}
+                      style={{ borderRadius: 8, marginHorizontal: 0 }}
+                      compact
                     >
-                      {isTel ? 'షేర్ చేయండి' : 'Share Poster'}
+                      {isTel ? 'షేర్' : 'Share'}
                     </Button>
                     
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.actionButtonsGroup}>
                       {canManageEvents && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 4 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 2 }}>
                           <IconButton
                             icon="bell-ring-outline"
                             iconColor="#6366f1"
-                            size={19}
+                            size={18}
                             onPress={async () => {
                               try {
                                 const response = await eventsService.pushEventNotification(eventKey);
@@ -644,14 +645,14 @@ export default function EventsScreen() {
                           <IconButton
                             icon="pencil-outline"
                             iconColor="#424242"
-                            size={19}
+                            size={18}
                             onPress={() => handleOpenEditModal(evt)}
                             style={{ margin: 0 }}
                           />
                           <IconButton
                             icon="delete-outline"
                             iconColor="#d32f2f"
-                            size={19}
+                            size={18}
                             onPress={() => handleDeleteEvent(eventKey, evt.title)}
                             style={{ margin: 0 }}
                           />
@@ -664,11 +665,13 @@ export default function EventsScreen() {
                           mode={hasRsvped ? "outlined" : "contained"} 
                           buttonColor={hasRsvped ? undefined : theme.primary}
                           textColor={hasRsvped ? theme.primary : "#fff"}
-                          style={{ borderColor: theme.primary, borderRadius: 8 }}
-                          contentStyle={{ paddingHorizontal: 4 }}
+                          style={{ borderColor: theme.primary, borderRadius: 8, marginHorizontal: 0 }}
+                          contentStyle={{ paddingHorizontal: 8, paddingVertical: 2 }}
+                          labelStyle={{ fontSize: 12, fontWeight: '700' }}
                           onPress={() => handleRSVP(eventKey)}
+                          compact
                         >
-                          {hasRsvped ? (isTel ? '✓ హాజరవుతున్నాను' : '✓ Going') : (isTel ? 'హాజరు నమోదు' : 'RSVP / Attend')}
+                          {hasRsvped ? (isTel ? '✓ వెళ్తున్నాను' : '✓ Going') : (isTel ? 'హాజరు నమోదు' : 'RSVP / Attend')}
                         </Button>
                       )}
                     </View>
@@ -1234,9 +1237,20 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: 8,
+    columnGap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
+  },
+  actionButtonsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
   },
   emptyContainer: {
     alignItems: 'center',

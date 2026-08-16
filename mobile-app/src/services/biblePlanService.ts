@@ -82,6 +82,18 @@ class BiblePlanService {
     return planId === '2-year-canonical' ? DEFAULT_2_YEAR_PLAN : DEFAULT_1_YEAR_PLAN;
   }
 
+  // Get all active reading plans (both built-in and dynamic admin plans)
+  async getAllPlans(): Promise<BiblePlanData[]> {
+    try {
+      const resp = await axios.get(`${API_URL}/api/bible-plans`, { timeout: 4000 });
+      if (resp.data && resp.data.data && Array.isArray(resp.data.data) && resp.data.data.length > 0) {
+        return resp.data.data;
+      }
+    } catch (e) {}
+
+    return [DEFAULT_1_YEAR_PLAN, DEFAULT_2_YEAR_PLAN];
+  }
+
   // Get user's progress, dates, and streak
   async getUserProgress(userId: string = 'guest_user', planId: string = '1-year-canonical'): Promise<UserProgressData> {
     const userKey = `${this.localProgressKey}_${userId}_${planId}`;

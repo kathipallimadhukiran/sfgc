@@ -18,6 +18,24 @@ const extractYoutubeId = (url: string): string | null => {
   return match && match[1] ? match[1] : null;
 };
 
+const fetchFullVideoTitle = async (youtubeId: string, fallbackTitle?: string): Promise<string> => {
+  try {
+    const oembedResp = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`);
+    if (oembedResp.ok) {
+      const data = await oembedResp.json();
+      if (data.title && typeof data.title === 'string' && data.title.trim()) {
+        return decodeXmlEntities(data.title.trim());
+      }
+    }
+  } catch (e) {}
+
+  if (fallbackTitle && !fallbackTitle.includes(`(${youtubeId})`)) {
+    return decodeXmlEntities(fallbackTitle.trim());
+  }
+
+  return 'Sanctuary Worship Service';
+};
+
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const rawVideos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1 });
@@ -360,10 +378,11 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
     for (const vItem of fetchedVideos) {
       const exists = await LiveVideo.findOne({ youtubeId: vItem.youtubeId });
       if (!exists) {
+        const cleanTitle = await fetchFullVideoTitle(vItem.youtubeId, vItem.title);
         const newVideo = await LiveVideo.create({
           youtubeId: vItem.youtubeId,
           youtubeUrl: `https://www.youtube.com/watch?v=${vItem.youtubeId}`,
-          title: vItem.title,
+          title: cleanTitle,
           categoryId: 'sunday',
           thumbnail: `https://img.youtube.com/vi/${vItem.youtubeId}/hqdefault.jpg`,
         });
@@ -372,8 +391,8 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
         // Create notice & broadcast socket push notification
         try {
           const notice = await Notice.create({
-            title: `🎬 ${vItem.title}`,
-            description: `New YouTube worship video published: "${vItem.title}". Tap to watch in YouTube Videos!`,
+            title: `🎬 ${cleanTitle}`,
+            description: `New YouTube worship video published: "${cleanTitle}". Tap to watch in YouTube Videos!`,
             date: new Date().toISOString(),
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             location: 'YouTube Sanctuary Media',
@@ -387,7 +406,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
               notificationId: notice._id.toString(),
               type: 'NEW_VIDEO',
               title: '🎬 New Worship Video Added',
-              message: `New YouTube video: "${vItem.title}"`,
+              message: `New YouTube video: "${cleanTitle}"`,
               videoId: newVideo._id.toString(),
               youtubeVideoId: vItem.youtubeId,
               thumbnail: newVideo.thumbnail,
@@ -396,9 +415,10 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
           }
 
           sendPushNotificationToAll(
-            `🎬 New Video: ${vItem.title}`,
+            `🎬 New Video: ${cleanTitle}`,
             `Tap to watch latest YouTube worship video!`,
-            { type: 'video', youtubeId: vItem.youtubeId }
+            { type: 'video', youtubeId: vItem.youtubeId, imageUrl: newVideo.thumbnail },
+            newVideo.thumbnail
           );
         } catch (nErr) {
           console.warn('Notice creation warning during YouTube channel sync:', nErr);
@@ -435,10 +455,11 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
     for (const vItem of fetchedVideos) {
       const exists = await LiveVideo.findOne({ youtubeId: vItem.youtubeId });
       if (!exists) {
+        const cleanTitle = await fetchFullVideoTitle(vItem.youtubeId, vItem.title);
         const newVideo = await LiveVideo.create({
           youtubeId: vItem.youtubeId,
           youtubeUrl: `https://www.youtube.com/watch?v=${vItem.youtubeId}`,
-          title: vItem.title,
+          title: cleanTitle,
           categoryId: 'sunday',
           thumbnail: `https://img.youtube.com/vi/${vItem.youtubeId}/hqdefault.jpg`,
         });
@@ -446,8 +467,8 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
 
         try {
           const notice = await Notice.create({
-            title: `🎬 ${vItem.title}`,
-            description: `New YouTube worship video published: "${vItem.title}". Tap to watch in YouTube Videos!`,
+            title: `🎬 ${cleanTitle}`,
+            description: `New YouTube worship video published: "${cleanTitle}". Tap to watch in YouTube Videos!`,
             date: new Date().toISOString(),
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             location: 'YouTube Sanctuary Media',
@@ -460,7 +481,7 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
               notificationId: notice._id.toString(),
               type: 'NEW_VIDEO',
               title: '🎬 New Worship Video Added',
-              message: `New YouTube video: "${vItem.title}"`,
+              message: `New YouTube video: "${cleanTitle}"`,
               videoId: newVideo._id.toString(),
               youtubeVideoId: vItem.youtubeId,
               thumbnail: newVideo.thumbnail,
@@ -469,9 +490,10 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
           }
 
           sendPushNotificationToAll(
-            `🎬 New Video: ${vItem.title}`,
+            `🎬 New Video: ${cleanTitle}`,
             `Tap to watch latest YouTube worship video!`,
-            { type: 'video', youtubeId: vItem.youtubeId }
+            { type: 'video', youtubeId: vItem.youtubeId, imageUrl: newVideo.thumbnail },
+            newVideo.thumbnail
           );
         } catch (nErr) {
           console.warn('Notice creation warning during auto-sync job:', nErr);

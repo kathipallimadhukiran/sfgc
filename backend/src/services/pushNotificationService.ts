@@ -11,6 +11,7 @@ export interface PushMessagePayload {
   priority?: 'default' | 'normal' | 'high';
   channelId?: string;
   attachments?: Array<{ url: string }>;
+  richContent?: { image: string };
   richMedia?: string;
   image?: string;
 }
@@ -70,12 +71,20 @@ export const sendPushNotificationToAll = async (
 
       if (imageToSend) {
         msg.attachments = [{ url: imageToSend }];
+        msg.richContent = { image: imageToSend };
         msg.image = imageToSend;
         msg.richMedia = imageToSend;
       }
 
       return msg;
     });
+
+    console.log("========== EVENT NOTIFICATION ==========");
+    console.log("Title:", title);
+    console.log("Body:", body);
+    console.log("Image URL:", imageToSend);
+    console.log("Payload:", JSON.stringify(messages[0] || {}, null, 2));
+    console.log("========================================");
 
     let lastExpoResponse: any = null;
 

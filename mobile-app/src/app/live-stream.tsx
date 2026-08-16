@@ -424,35 +424,6 @@ export default function LiveStreamScreen() {
             </TouchableOpacity>
           )}
 
-          {/* ── Category Chips Filter ────────────────────────────────────────── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipsScrollView}
-            contentContainerStyle={styles.chipsContainer}
-          >
-            {[{ id: 'all', labelEng: 'All', labelTel: 'అన్ని', icon: 'view-grid' }, ...categories].map(cat => {
-              const isActive = selectedCategoryFilter === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setSelectedCategoryFilter(cat.id)}
-                  style={[
-                    styles.chip,
-                    isActive
-                      ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                      : { backgroundColor: cardBg, borderColor: dividerColor }
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.chipText, { color: isActive ? '#ffffff' : subtleText, fontWeight: isActive ? '800' : '600' }]}>
-                    {isTel ? cat.labelTel : cat.labelEng}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
           {/* ── Section Header ───────────────────────────────────────────────── */}
           <View style={styles.recentHeader}>
             <View style={{ flex: 1 }}>

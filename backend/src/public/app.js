@@ -501,6 +501,7 @@ class ChurchApp {
       this.renderMembersTable();
       this.renderEventsTable();
       this.renderNoticesTable();
+      await this.loadDailyPromisesTable();
       await this.loadBiblePlanStats();
       await this.loadUserProgress();
       await this.loadOverviewPromise();
@@ -825,6 +826,13 @@ class ChurchApp {
         fullLyricsBox.value = joinedLyrics;
         this.onFullLyricsInputChange(joinedLyrics);
       }
+
+      const editorContainer = document.getElementById('slidesEditorContainer');
+      if (editorContainer && song.lyrics && song.lyrics.length > 0) {
+        editorContainer.innerHTML = '';
+        song.lyrics.forEach(l => this.addSlideInputBox(l.type || 'Verse 1', l.text || ''));
+        editorContainer.style.display = 'block';
+      }
     } else {
       if (hiddenId) hiddenId.value = '';
       if (title) title.innerText = 'Add New Worship Song';
@@ -897,14 +905,23 @@ class ChurchApp {
     });
   }
 
-  addSlideInputBox(typeVal = 'Verse', textVal = '') {
+  addSlideInputBox(typeVal = 'Verse 1', textVal = '') {
     const container = document.getElementById('slidesEditorContainer');
     const div = document.createElement('div');
-    div.className = 'form-group slide-box-editor mt-2';
+    div.className = 'form-group slide-box-editor mt-2 p-2 border-rounded';
+    div.style.background = '#f8fafc';
+    div.style.border = '1px solid #e2e8f0';
+    div.style.borderRadius = '8px';
     div.innerHTML = `
-      <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:6px;">
-        <input type="text" class="form-control slide-type-field" value="${typeVal}" placeholder="Slide Type (Verse 1, Chorus, etc)" style="flex:1;">
-        <button type="button" class="btn btn-sm btn-danger-action" onclick="this.parentElement.parentElement.remove()" title="Remove Slide"><i class="fa-solid fa-xmark"></i></button>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+        <input type="text" class="form-control slide-type-field" value="${typeVal}" placeholder="Slide Section Title (Verse 1, Chorus, Bridge, etc)" style="flex:1; font-weight:700;">
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm btn-outline" onclick="this.closest('.slide-box-editor').querySelector('.slide-type-field').value='Verse 1'">V1</button>
+          <button type="button" class="btn btn-sm btn-outline" onclick="this.closest('.slide-box-editor').querySelector('.slide-type-field').value='Chorus'">Chorus</button>
+          <button type="button" class="btn btn-sm btn-outline" onclick="this.closest('.slide-box-editor').querySelector('.slide-type-field').value='Bridge'">Bridge</button>
+          <button type="button" class="btn btn-sm btn-outline" onclick="this.closest('.slide-box-editor').querySelector('.slide-type-field').value='Pre-Chorus'">Pre-Chorus</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-danger-action" onclick="this.closest('.slide-box-editor').remove()" title="Remove Slide"><i class="fa-solid fa-trash"></i></button>
       </div>
       <textarea class="form-control slide-text-field" rows="3" placeholder="Enter lyric lines...">${textVal}</textarea>
     `;
@@ -2607,6 +2624,166 @@ class ChurchApp {
       }
     } catch (e) {
       console.log('Error loading Bible plan stats:', e);
+    }
+  }
+
+  populateDailyPromiseBookDropdown() {
+    const select = document.getElementById('dpBookSelect');
+    if (!select || select.options.length > 0) return;
+    
+    select.innerHTML = BIBLE_BOOKS_66.map((b, idx) => `
+      <option value="${b.eng}" data-tel="${b.tel}" data-chapters="${b.chapters}">
+        ${idx + 1}. ${b.tel} (${b.eng})
+      </option>
+    `).join('');
+    
+    this.handleDpBookChange();
+  }
+
+  handleDpBookChange() {
+    const bookSelect = document.getElementById('dpBookSelect');
+    const chapterSelect = document.getElementById('dpChapterSelect');
+    if (!bookSelect || !chapterSelect) return;
+
+    const opt = bookSelect.options[bookSelect.selectedIndex];
+    const maxCh = Number(opt?.dataset?.chapters) || 50;
+
+    let chHtml = '';
+    for (let c = 1; c <= maxCh; c++) {
+      chHtml += `<option value="${c}">అధ్యాయము ${c} / Chapter ${c}</option>`;
+    }
+    chapterSelect.innerHTML = chHtml;
+    this.populateDpVerseDropdowns();
+  }
+
+  populateDpVerseDropdowns() {
+    const startVerseSelect = document.getElementById('dpStartVerseSelect');
+    const endVerseSelect = document.getElementById('dpEndVerseSelect');
+    if (!startVerseSelect || !endVerseSelect) return;
+
+    let verseHtml = '';
+    for (let v = 1; v <= 176; v++) {
+      verseHtml += `<option value="${v}">వచనము ${v} / Verse ${v}</option>`;
+    }
+    startVerseSelect.innerHTML = verseHtml;
+    endVerseSelect.innerHTML = verseHtml;
+    startVerseSelect.value = '1';
+    endVerseSelect.value = '1';
+    this.handleDpRefChange();
+  }
+
+  handleDpRefChange() {
+    const bookSelect = document.getElementById('dpBookSelect');
+    const chapterSelect = document.getElementById('dpChapterSelect');
+    const startVerseSelect = document.getElementById('dpStartVerseSelect');
+    const endVerseSelect = document.getElementById('dpEndVerseSelect');
+
+    const refTelInput = document.getElementById('dpRefTel');
+    const refEngInput = document.getElementById('dpRefEng');
+    if (!bookSelect || !chapterSelect || !refTelInput || !refEngInput) return;
+
+    const opt = bookSelect.options[bookSelect.selectedIndex];
+    const engBook = opt?.value || 'Genesis';
+    const telBook = opt?.dataset?.tel || 'ఆదికాండము';
+    const ch = chapterSelect.value || '1';
+    const v1 = startVerseSelect?.value || '1';
+    const v2 = endVerseSelect?.value || v1;
+
+    const verseStr = v1 === v2 ? `${v1}` : `${v1}-${v2}`;
+    refTelInput.value = `${telBook} ${ch}:${verseStr}`;
+    refEngInput.value = `${engBook} ${ch}:${verseStr}`;
+  }
+
+  openDailyPromiseModal(promiseItem = null) {
+    this.populateDailyPromiseBookDropdown();
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    document.getElementById('dpDate').value = promiseItem ? promiseItem.date : todayStr;
+    document.getElementById('dpRefTel').value = promiseItem ? (promiseItem.referenceTelugu || '') : 'యిర్మీయా 29:11';
+    document.getElementById('dpRefEng').value = promiseItem ? (promiseItem.referenceEnglish || '') : 'Jeremiah 29:11';
+    document.getElementById('dpVerseTel').value = promiseItem ? (promiseItem.verseTelugu || '') : '';
+    document.getElementById('dpVerseEng').value = promiseItem ? (promiseItem.verseEnglish || '') : '';
+
+    document.getElementById('dailyPromiseModal').classList.add('active');
+  }
+
+  async saveDailyPromiseSubmit() {
+    const date = document.getElementById('dpDate').value;
+    const referenceTelugu = document.getElementById('dpRefTel').value.trim();
+    const referenceEnglish = document.getElementById('dpRefEng').value.trim();
+    const verseTelugu = document.getElementById('dpVerseTel').value.trim();
+    const verseEnglish = document.getElementById('dpVerseEng').value.trim();
+
+    if (!date || !referenceTelugu || !verseTelugu) {
+      this.showToast('Please fill in Date, Telugu Reference, and Telugu Verse.', 'error');
+      return;
+    }
+
+    this.setButtonLoading('btnSubmitDailyPromise', true, 'Saving Promise...');
+
+    try {
+      const res = await this.authFetch('/api/bible-plans/daily-promise', {
+        method: 'POST',
+        body: JSON.stringify({ date, referenceTelugu, referenceEnglish, verseTelugu, verseEnglish })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast('🌅 Daily God\'s Promise scheduled and broadcast successfully!', 'success');
+        this.closeModal('dailyPromiseModal');
+        await this.loadDailyPromisesTable();
+      } else {
+        this.showToast('Failed to schedule promise: ' + (data.message || 'Error'), 'error');
+      }
+    } catch (e) {
+      this.showToast('Schedule error: ' + e.message, 'error');
+    } finally {
+      this.setButtonLoading('btnSubmitDailyPromise', false, '', '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Broadcast Promise');
+    }
+  }
+
+  async loadDailyPromisesTable() {
+    const tbody = document.getElementById('dailyPromiseTableBody');
+    if (!tbody) return;
+
+    try {
+      const res = await fetch('/api/bible-plans/scheduled-promises');
+      const data = await res.json();
+      const list = (data.success && Array.isArray(data.data)) ? data.data : [];
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-3 text-muted">No custom daily promises scheduled. Default canonical promise pool is active.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(p => `
+        <tr>
+          <td><strong>${p.date}</strong></td>
+          <td>${p.referenceTelugu}</td>
+          <td>${p.referenceEnglish || '—'}</td>
+          <td><small class="text-muted">${(p.verseTelugu || '').substring(0, 60)}...</small></td>
+          <td>
+            <button class="btn btn-sm btn-danger-action" style="padding:4px 8px;" onclick="app.deleteDailyPromise('${p.date}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      console.log('Error loading daily promises table:', e);
+    }
+  }
+
+  async deleteDailyPromise(date) {
+    if (!confirm(`Delete scheduled promise for ${date}?`)) return;
+    try {
+      const res = await this.authFetch(`/api/bible-plans/daily-promise/${date}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast('Promise schedule deleted.', 'info');
+        await this.loadDailyPromisesTable();
+      }
+    } catch (e) {
+      this.showToast('Delete failed: ' + e.message, 'error');
     }
   }
 

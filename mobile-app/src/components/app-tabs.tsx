@@ -162,11 +162,11 @@ export default function AppTabs() {
             const isSelected = color === activeColor;
             return (
               <View style={{
-                width: 54,
-                height: 54,
-                borderRadius: 27,
+                width: 52,
+                height: 52,
+                borderRadius: 26,
                 overflow: 'hidden',
-                marginTop: -16,
+                marginTop: -26,
                 shadowColor: isSelected ? '#6366f1' : '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: isSelected ? 0.35 : 0.1,
@@ -174,7 +174,7 @@ export default function AppTabs() {
                 elevation: 5,
               }}>
                 <LinearGradient
-                  colors={isSelected ? ['#6366f1', '#ec4899'] : (isDark ? ['#27272a', '#27272a'] : ['#cbd5e1', '#cbd5e1'])}
+                  colors={isSelected ? ['#6366f1', '#ec4899'] : (isDark ? ['#27272a', '#27272a'] : ['#94a3b8', '#64748b'])}
                   style={{
                     flex: 1,
                     justifyContent: 'center',

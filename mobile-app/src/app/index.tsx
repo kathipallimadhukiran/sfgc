@@ -165,6 +165,14 @@ export default function HomeScreen() {
   const [selectedChapter, setSelectedChapter] = useState('');
   const [selectedVerseRange, setSelectedVerseRange] = useState('');
 
+  const [allAvailablePlans, setAllAvailablePlans] = useState<any[]>([]);
+
+  useEffect(() => {
+    biblePlanService.getAllPlans().then(plans => {
+      if (plans && plans.length > 0) setAllAvailablePlans(plans);
+    });
+  }, []);
+
   const setQuickDate = (offsetDays: number) => {
     const d = new Date();
     d.setDate(d.getDate() + offsetDays);
@@ -270,8 +278,20 @@ export default function HomeScreen() {
 
       liveVideosService.getVideos().then(result => {
         if (!isActive || !result.success) return;
-        const latest5 = (result.videos || []).slice(0, 5);
-        setRecentVideos(latest5.map(video => {
+        const nowMs = Date.now();
+        const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+
+        const filtered5Days = (result.videos || []).filter((v: any) => {
+          const pubDate = v.publishedAt || v.createdAt;
+          if (!pubDate) return true;
+          const pubMs = new Date(pubDate).getTime();
+          return (nowMs - pubMs) <= FIVE_DAYS_MS;
+        }).slice(0, 5);
+
+        // Fallback to top 5 if no videos in last 5 days
+        const targetVideos = filtered5Days.length > 0 ? filtered5Days : (result.videos || []).slice(0, 5);
+
+        setRecentVideos(targetVideos.map((video: any) => {
           const cleanTitle = (video.title || 'Church Video')
             .replace(/#\w+/g, '')
             .replace(/\s+/g, ' ')
@@ -546,13 +566,6 @@ export default function HomeScreen() {
                 {/* Overlay Play Icon */}
                 <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -25 }, { translateY: -25 }], width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
                   <MaterialCommunityIcons name="play" size={32} color="#ffffff" style={{ marginLeft: 2 }} />
-                </View>
-
-                {/* Bottom Title Bar */}
-                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.75)', paddingVertical: 10, paddingHorizontal: 12 }}>
-                  <Text style={{ color: '#ffffff', fontSize: 12.5, fontWeight: '700' }} numberOfLines={1}>
-                    {isTel ? item.titleTel : item.titleEng}
-                  </Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -886,45 +899,31 @@ export default function HomeScreen() {
                 {isTel ? 'మీ జీవనశైలికి సరిపోయే వేగాన్ని ఎంచుకోండి:' : 'Select a pace that suits your lifestyle:'}
               </Text>
 
-              {/* Option 1 Year */}
-              <TouchableOpacity
-                style={[styles.planOptionCard, { borderColor: theme.cardBorder }]}
-                onPress={async () => {
-                  await setSelectedBiblePlan('1-year-canonical');
-                  await AsyncStorage.setItem('hasShownPlanPrompt', 'true');
-                  setModalStep('success');
-                }}
-              >
-                <MaterialCommunityIcons name="numeric-1-circle" size={28} color={theme.primary} style={{ marginRight: 12 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.planOptionTitle, { color: theme.text }]}>
-                    {isTel ? '1 సంవత్సర సమగ్ర ప్రణాళిక' : '1-Year Complete Plan'}
-                  </Text>
-                  <Text style={[styles.planOptionSub, { color: theme.textSecondary }]}>
-                    {isTel ? '365 రోజులలో బైబిల్ అంతా పూర్తి చేయండి.' : 'Complete the entire Bible in 365 days.'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Option 2 Year */}
-              <TouchableOpacity
-                style={[styles.planOptionCard, { borderColor: theme.cardBorder, marginTop: 10 }]}
-                onPress={async () => {
-                  await setSelectedBiblePlan('2-year-canonical');
-                  await AsyncStorage.setItem('hasShownPlanPrompt', 'true');
-                  setModalStep('success');
-                }}
-              >
-                <MaterialCommunityIcons name="numeric-2-circle" size={28} color={theme.secondary} style={{ marginRight: 12 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.planOptionTitle, { color: theme.text }]}>
-                    {isTel ? '2 సంవత్సరాల సులభమైన ప్రణాళిక' : '2-Year Relaxed Plan'}
-                  </Text>
-                  <Text style={[styles.planOptionSub, { color: theme.textSecondary }]}>
-                    {isTel ? 'రోజుకు 1-2 అధ్యాయాలు చదువుతూ ముగించండి.' : 'Read 1-2 chapters daily at a relaxed pace.'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              {/* Dynamic Admin-Configured Bible Plans */}
+              {(allAvailablePlans && allAvailablePlans.length > 0 ? allAvailablePlans : [
+                { planId: '1-year-canonical', titleTelugu: '1 సంవత్సర సమగ్ర ప్రణాళిక', titleEnglish: '1-Year Complete Plan', durationDays: 365 },
+                { planId: '2-year-canonical', titleTelugu: '2 సంవత్సరాల సులభమైన ప్రణాళిక', titleEnglish: '2-Year Relaxed Plan', durationDays: 730 }
+              ]).map((p: any, pIdx: number) => (
+                <TouchableOpacity
+                  key={p.planId || pIdx}
+                  style={[styles.planOptionCard, { borderColor: theme.cardBorder, marginTop: pIdx > 0 ? 10 : 0 }]}
+                  onPress={async () => {
+                    await setSelectedBiblePlan(p.planId);
+                    await AsyncStorage.setItem('hasShownPlanPrompt', 'true');
+                    setModalStep('success');
+                  }}
+                >
+                  <MaterialCommunityIcons name="book-open-page-variant" size={26} color={pIdx % 2 === 0 ? theme.primary : theme.secondary} style={{ marginRight: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.planOptionTitle, { color: theme.text }]}>
+                      {isTel ? (p.titleTelugu || p.titleEnglish) : (p.titleEnglish || p.titleTelugu)}
+                    </Text>
+                    <Text style={[styles.planOptionSub, { color: theme.textSecondary }]}>
+                      {isTel ? `${p.durationDays || 365} రోజులలో పఠన ప్రణాళికను పూర్తి చేయండి.` : `Complete reading portion in ${p.durationDays || 365} days.`}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
 
               <TouchableOpacity
                 style={[styles.modalBtnTextOnly, { marginTop: 16 }]}

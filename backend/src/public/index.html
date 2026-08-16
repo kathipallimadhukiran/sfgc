@@ -669,6 +669,35 @@
 
       <!-- TAB 8: BIBLE READING PLANS & MEMBER STATS -->
       <section id="tab-bibleplans" class="tab-pane">
+        <!-- Daily God's Promise Scheduler Card -->
+        <div class="glass-card mb-4">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-sun text-amber"></i> Daily God's Promise Scheduler</h3>
+              <p class="subtitle-text">Schedule daily scripture promises with calendar date picker, book dropdowns, and automatic Telugu/English reference conversion.</p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="app.openDailyPromiseModal()">
+              <i class="fa-solid fa-plus"></i> Schedule Daily Promise
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Schedule Date</th>
+                  <th>Telugu Reference</th>
+                  <th>English Reference</th>
+                  <th>Telugu Promise Verse</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="dailyPromiseTableBody">
+                <tr><td colspan="5" class="text-center py-3 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading scheduled promises...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Advanced Configuration Portal Bar -->
         <div class="glass-card mb-4 portal-card">
           <div class="portal-card-header">
@@ -1236,6 +1265,83 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="app.closeModal('noticeModal')">Cancel</button>
         <button type="submit" class="btn btn-primary" id="btnSubmitNotice">Post Notice</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Modal 8: Daily Promise Scheduler Modal -->
+  <div id="dailyPromiseModal" class="modal-overlay">
+    <form class="modal-box modal-lg" autocomplete="off" onsubmit="event.preventDefault(); app.saveDailyPromiseSubmit();">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-sun text-amber"></i> Schedule Daily God's Promise</h3>
+        <button type="button" class="modal-close" onclick="app.closeModal('dailyPromiseModal')">&times;</button>
+      </div>
+      <div class="modal-body form-body">
+        <!-- Date Selector -->
+        <div class="form-group">
+          <label>Schedule Date *</label>
+          <input type="date" id="dpDate" class="form-control" required>
+        </div>
+
+        <!-- Book & Reference Dropdowns -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Select Bible Book (గ్రాంథిక పుస్తకము) *</label>
+            <select id="dpBookSelect" class="form-select" onchange="app.handleDpBookChange()">
+              <!-- Options populated dynamically from BIBLE_BOOKS_66 -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Select Chapter (అధ్యాయము) *</label>
+            <select id="dpChapterSelect" class="form-select" onchange="app.handleDpRefChange()">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Start Verse (ప్రారంభ వచనము)</label>
+            <select id="dpStartVerseSelect" class="form-select" onchange="app.handleDpRefChange()">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>End Verse (ముగింపు వచనము)</label>
+            <select id="dpEndVerseSelect" class="form-select" onchange="app.handleDpRefChange()">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Reference Preview Inputs -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Telugu Reference (తెలుగు రిఫరెన్స్) *</label>
+            <input type="text" id="dpRefTel" class="form-control" placeholder="e.g. యిర్మీయా 29:11" required>
+          </div>
+          <div class="form-group">
+            <label>English Reference (English Reference) *</label>
+            <input type="text" id="dpRefEng" class="form-control" placeholder="e.g. Jeremiah 29:11" required>
+          </div>
+        </div>
+
+        <!-- Telugu & English Verse Content -->
+        <div class="form-group">
+          <label>Telugu God's Promise Verse (తెలుగు వాగ్దాన వాక్యము) *</label>
+          <textarea id="dpVerseTel" class="form-control" rows="3" placeholder="ఉదాహరణ: నేను మీ విషయమై తలంచియున్న తలంపులను నేనెరుగుదును..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>English Verse Translation (Optional)</label>
+          <textarea id="dpVerseEng" class="form-control" rows="3" placeholder="e.g. For I know the plans I have for you, declares the Lord..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="app.closeModal('dailyPromiseModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitDailyPromise">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Save & Broadcast Promise
+        </button>
       </div>
     </form>
   </div>

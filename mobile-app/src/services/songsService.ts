@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mongoService } from './mongoService';
 import { apiClient } from './apiClient';
 
@@ -42,15 +43,31 @@ class SongsService {
 
         const res = await apiClient.get(endpoint);
         if (res.success && Array.isArray(res.songs)) {
-          // Sync with local collection
+          // Sync with local collection & AsyncStorage for instant offline access
           await mongoService.setLocalCollection(COLLECTION, res.songs);
+          try {
+            await AsyncStorage.setItem('@church_app_db_songs', JSON.stringify(res.songs));
+          } catch (e) {}
           return res;
         }
       } catch (networkErr) {
-        console.log('Backend songs API unreachable, loading from local DB');
+        console.log('Backend songs API unreachable, loading from local DB & AsyncStorage');
       }
 
-      // 2. Local Fallback
+      // 2. Local Fallback (AsyncStorage & Local DB)
+      try {
+        const cachedSongs = await AsyncStorage.getItem('@church_app_db_songs');
+        if (cachedSongs) {
+          const parsed = JSON.parse(cachedSongs);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const filtered = (language && language !== 'All')
+              ? parsed.filter((s: any) => s.language === language)
+              : parsed;
+            return { success: true, songs: filtered };
+          }
+        }
+      } catch (e) {}
+
       const query: any = {};
       if (language && language !== 'All') query.language = language;
 

@@ -6,25 +6,49 @@ import { useApp } from '@/context/AppContext';
 import { useRouter } from 'expo-router';
 import { noticesService } from '@/services/noticesService';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export default function NotificationsScreen() {
   const { notices, refreshData, loading, user, token, startLiveSession } = useApp();
   const [refreshing, setRefreshing] = useState(false);
+  const [viewedNoticeTimestamps, setViewedNoticeTimestamps] = useState<Record<string, number>>({});
   const router = useRouter();
   const theme = useTheme();
 
+  // Load viewed notice timestamps from storage
+  React.useEffect(() => {
+    const loadViewed = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@viewed_notices_timestamps');
+        if (stored) setViewedNoticeTimestamps(JSON.parse(stored));
+      } catch (e) {}
+    };
+    loadViewed();
+  }, []);
+
+  const markNoticeAsViewed = async (id: string) => {
+    if (!id) return;
+    const now = Date.now();
+    const updated = { ...viewedNoticeTimestamps, [id]: now };
+    setViewedNoticeTimestamps(updated);
+    try {
+      await AsyncStorage.setItem('@viewed_notices_timestamps', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
   const todayNotices = useMemo(() => {
+    const nowMs = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
     return (notices || []).filter((notice) => {
-      const dStr = notice.date || notice.createdAt;
-      if (!dStr) return true;
-      const d = new Date(dStr);
-      const now = new Date();
-      return (
-        d.getFullYear() === now.getFullYear() &&
-        d.getMonth() === now.getMonth() &&
-        d.getDate() === now.getDate()
-      );
+      const noticeId = notice._id || notice.id || '';
+      const viewedTime = viewedNoticeTimestamps[noticeId];
+      if (viewedTime && nowMs - viewedTime > TWENTY_FOUR_HOURS) {
+        return false; // Auto-expire notice 24 hours after user views it
+      }
+      return true;
     });
-  }, [notices]);
+  }, [notices, viewedNoticeTimestamps]);
 
   const handleBroadcastNotice = (notice: any) => {
     const noticeTitle = notice.title || 'Church Announcement';
@@ -204,6 +228,7 @@ export default function NotificationsScreen() {
                 ]}
                 key={noticeId || notice.title}
                 onPress={() => {
+                  markNoticeAsViewed(noticeId);
                   if (extractedYoutubeUrl) {
                     Linking.openURL(extractedYoutubeUrl).catch(() => router.push('/live-stream'));
                   } else if (isVideoNotif) {
@@ -500,8 +525,10 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
     marginTop: 8,
-    gap: 16,
+    gap: 8,
   },
   metaText: {
     fontSize: 11.5,

@@ -673,6 +673,12 @@ export const getDailyPromise = async (req: Request, res: Response): Promise<void
           referenceEnglish: "Psalms 23:1-2"
         },
         {
+          verseTelugu: "నేను మీ విషయమై తలంచియున్న తలంపులను నేనెరుగుదును; అవి రాబోవు కాలమందు మీకు నిరీక్షణ కలుగునట్లు సమాధానకరమైన తలంపులేగాని హానికరమైనవి కావు.",
+          verseEnglish: "For I know the thoughts that I think toward you, saith the Lord, thoughts of peace, and not of evil, to give you an expected end.",
+          referenceTelugu: "యిర్మీయా 29:11",
+          referenceEnglish: "Jeremiah 29:11"
+        },
+        {
           verseTelugu: "నీవు నడుచు మార్గమంతటిలో నిన్ను కాపాడుటకు ఆయన తన దూతలకు నిన్నుగూర్చి ఆజ్ఞాపించును.",
           verseEnglish: "For He shall give His angels charge over thee, to keep thee in all thy ways.",
           referenceTelugu: "కీర్తనలు 91:11",
@@ -695,6 +701,30 @@ export const getDailyPromise = async (req: Request, res: Response): Promise<void
           verseEnglish: "The Lord thy God in the midst of thee is mighty; He will save.",
           referenceTelugu: "జెఫన్యా 3:17",
           referenceEnglish: "Zephaniah 3:17"
+        },
+        {
+          verseTelugu: "నా దేవుడు తన ఐశ్వర్యము చొప్పున క్రీస్తుయేసు నందు మహిమలో మీ ప్రతి అవసరమును తీర్చును.",
+          verseEnglish: "But my God shall supply all your need according to His riches in glory by Christ Jesus.",
+          referenceTelugu: "ఫిలిప్పీయులకు 4:19",
+          referenceEnglish: "Philippians 4:19"
+        },
+        {
+          verseTelugu: "యెహోవా కొరకు ఎదురుచూచువారు నూతన బలము పొందుదురు; వారు పక్షులవలె రెక్కలు చాపి పైకి ఎగురుదురు.",
+          verseEnglish: "But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles.",
+          referenceTelugu: "యెషయా 40:31",
+          referenceEnglish: "Isaiah 40:31"
+        },
+        {
+          verseTelugu: "ప్రయాసపడి భారము మోసుకొనుచున్న సమస్త జనులారా, నా యొద్దకు రండి, నేను మీకు విశ్రాంతి కలుగజేతును.",
+          verseEnglish: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
+          referenceTelugu: "మత్తయి 11:28",
+          referenceEnglish: "Matthew 11:28"
+        },
+        {
+          verseTelugu: "దేవుడు మనకు ఆశ్రయమును బలమునై యున్నాడు, ఆపత్కాలములో ఆయన నమ్మదగిన సహాయకుడు.",
+          verseEnglish: "God is our refuge and strength, a very present help in trouble.",
+          referenceTelugu: "కీర్తనలు 46:1",
+          referenceEnglish: "Psalms 46:1"
         }
       ];
 
