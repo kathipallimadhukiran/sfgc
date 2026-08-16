@@ -751,121 +751,62 @@ export const getDailyPromise = async (req: Request, res: Response): Promise<void
 // POST /api/bible-plans/daily-promise
 export const setDailyPromise = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { date, verseTelugu, verseEnglish, referenceTelugu, referenceEnglish } = req.body;
-    const todayStr = date || new Date().toISOString().split('T')[0];
+    const { 
+      date, 
+      bookId, 
+      bookTelugu, 
+      bookEnglish, 
+      chapter, 
+      verse, 
+      verseTelugu, 
+      verseEnglish, 
+      referenceTelugu, 
+      referenceEnglish 
+    } = req.body;
+    
+    const targetDate = date ? date.trim() : new Date().toISOString().split('T')[0];
 
     if (!verseTelugu || !referenceTelugu) {
-      res.status(400).json({ success: false, message: 'verseTelugu and referenceTelugu are required' });
+      res.status(400).json({ success: false, message: 'Verse text and reference are required' });
       return;
     }
 
-    // Auto-generate English verse and reference via AI if not supplied
-    let finalVerseEng = verseEnglish ? verseEnglish.trim() : '';
-    let finalRefEng = referenceEnglish ? referenceEnglish.trim() : '';
-
-    if (!finalVerseEng || !finalRefEng) {
-      const groqKey = process.env.GROQ_API_KEY;
-      const openAiKey = process.env.OPENAI_API_KEY;
-
-      if (groqKey || openAiKey) {
-        try {
-          const prompt = `Translate this Telugu Bible verse into clear English (KJV/NIV style):
-Verse: "${verseTelugu}"
-Reference: "${referenceTelugu}"
-
-Output ONLY a valid JSON object:
-{ "verseEnglish": "...", "referenceEnglish": "..." }
-No markdown, no preface.`;
-
-          let text = '';
-          if (groqKey) {
-            const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }),
-            });
-            const d = await resp.json();
-            text = d.choices?.[0]?.message?.content || '';
-          } else if (openAiKey) {
-            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${openAiKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }),
-            });
-            const d = await resp.json();
-            text = d.choices?.[0]?.message?.content || '';
-          }
-
-          if (text) {
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              if (!finalVerseEng && parsed.verseEnglish) finalVerseEng = parsed.verseEnglish;
-              if (!finalRefEng && parsed.referenceEnglish) finalRefEng = parsed.referenceEnglish;
-            }
-          }
-        } catch (aiErr) {
-          console.log('AI Translation for promise skipped:', aiErr);
-        }
-      }
-    }
-
     const promise = await DailyPromise.findOneAndUpdate(
-      { date: todayStr },
+      { date: targetDate },
       {
-        date: todayStr,
-        verseTelugu,
-        verseEnglish: finalVerseEng,
-        referenceTelugu,
-        referenceEnglish: finalRefEng,
+        date: targetDate,
+        bookId: bookId || '',
+        bookTelugu: bookTelugu || '',
+        bookEnglish: bookEnglish || '',
+        chapter: chapter ? Number(chapter) : 1,
+        verse: verse ? Number(verse) : 1,
+        verseTelugu: verseTelugu.trim(),
+        verseEnglish: verseEnglish ? verseEnglish.trim() : '',
+        referenceTelugu: referenceTelugu.trim(),
+        referenceEnglish: referenceEnglish ? referenceEnglish.trim() : '',
+        status: 'scheduled',
         addedBy: 'admin',
       },
       { upsert: true, new: true }
     );
 
-    // Auto-post Church Notification / Announcement to all mobile members
-    let newNotice = null;
-    try {
-      newNotice = await Notice.create({
-        title: `🌅 నేటి వాగ్దానం (Daily Promise)`,
-        description: `📖 "${verseTelugu.trim()}" - ${referenceTelugu.trim()}${verseEnglish ? `\n\n"${verseEnglish.trim()}" - ${referenceEnglish || ''}` : ''}`,
-        date: new Date().toISOString(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        location: 'Daily Scripture Verse',
-        isPinned: false,
-      });
-    } catch (noticeErr) {
-      console.log('Notice creation for Daily Promise ignored:', noticeErr);
-    }
-
-    // Broadcast real-time socket events
-    const io = (req as any).app?.get('io');
-    if (io) {
-      io.emit('new_promise_notification', {
-        title: '🌅 Today\'s Daily Promise',
-        verseTelugu,
-        referenceTelugu,
-        verseEnglish,
-        referenceEnglish,
-        promise,
-      });
-      if (newNotice) {
-        io.emit('newNotice', newNotice);
-      }
-    }
-
-    res.status(200).json({ success: true, message: 'Daily Promise updated successfully', data: promise });
+    // ABSOLUTELY NO immediate notification or socket emit on save!
+    res.status(200).json({ 
+      success: true, 
+      message: `Promise scheduled successfully for ${targetDate}. Notification will be sent at 5:00 AM on the scheduled date.`, 
+      data: promise 
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Failed to set daily promise', error: error.message });
   }
 };
 
 // GET /api/bible-plans/scheduled-promises
-// Get all scheduled daily promises (up to next 14 days)
+// Get all scheduled daily promises
 export const getScheduledPromises = async (req: Request, res: Response): Promise<void> => {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
-    const promises = await DailyPromise.find({ date: { $gte: todayStr } }).sort({ date: 1 }).limit(14);
+    const promises = await DailyPromise.find({ date: { $gte: todayStr } }).sort({ date: 1 });
     res.status(200).json({ success: true, data: promises });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Failed to fetch scheduled promises', error: error.message });

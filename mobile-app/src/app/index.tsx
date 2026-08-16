@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, ScrollView, View, Platform, Share, TouchableOpacity, Image, Modal, RefreshControl, FlatList, Dimensions, Linking, StatusBar, TextInput } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, Title, Paragraph, Button, Avatar, Text, ActivityIndicator } from 'react-native-paper';
 import { useApp } from '@/context/AppContext';
@@ -8,6 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { biblePlanService, UserProgressData, DailyPromiseData } from '@/services/biblePlanService';
+import { bibleService } from '@/services/bibleService';
 import { DailyPortion } from '@/constants/defaultBiblePlans';
 import { LeaderboardCard } from '@/components/LeaderboardCard';
 import { liveVideosService } from '@/services/liveVideosService';
@@ -185,9 +187,20 @@ export default function HomeScreen() {
     { nameTel: 'ప్రకటన', nameEng: 'Revelation' }
   ];
 
-  const [selectedBook, setSelectedBook] = useState<any>(null);
-  const [selectedChapter, setSelectedChapter] = useState('');
-  const [selectedVerseRange, setSelectedVerseRange] = useState('');
+  // Canonical Bible Book selection state using bibleService
+  const allBibleBooks = bibleService.getBooks();
+  
+  const [selectedBook, setSelectedBook] = useState<any>(allBibleBooks[18] || allBibleBooks[0]); // Default to Psalms (index 18)
+  const [selectedChapter, setSelectedChapter] = useState('23');
+  const [selectedVerse, setSelectedVerse] = useState('1');
+  const [availableChapters, setAvailableChapters] = useState<number[]>(Array.from({ length: 150 }, (_, i) => i + 1));
+  const [availableVerses, setAvailableVerses] = useState<number[]>(Array.from({ length: 30 }, (_, i) => i + 1));
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [bookModalOpen, setBookModalOpen] = useState(false);
+  const [chapterModalOpen, setChapterModalOpen] = useState(false);
+  const [verseModalOpen, setVerseModalOpen] = useState(false);
+  const [bookSearchText, setBookSearchText] = useState('');
 
   const [allAvailablePlans, setAllAvailablePlans] = useState<any[]>([]);
 
@@ -197,19 +210,68 @@ export default function HomeScreen() {
     });
   }, []);
 
-  const setQuickDate = (offsetDays: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
-    setPromiseDate(d.toISOString().split('T')[0]);
+  // Update dynamic chapters & verses when book, chapter or verse changes
+  const loadPassageForSelection = async (bookObj: any, chVal: string | number, vVal: string | number) => {
+    const targetBook = bookObj || selectedBook || allBibleBooks[0];
+    const maxCh = bibleService.getChapterCount(targetBook.english);
+    
+    // Build chapter list for dropdown
+    const chList = Array.from({ length: maxCh }, (_, i) => i + 1);
+    setAvailableChapters(chList);
+
+    const validCh = Math.min(Math.max(1, Number(chVal) || 1), maxCh);
+
+    // Fetch passage from bundled offline Bible dataset
+    const passage = await bibleService.getPassage(targetBook.english, validCh.toString());
+    const totalVerses = Math.max(passage.tel.length, passage.eng.length, 1);
+    
+    // Build verse list for dropdown
+    const vList = Array.from({ length: totalVerses }, (_, i) => i + 1);
+    setAvailableVerses(vList);
+
+    const validVerseNum = Math.min(Math.max(1, Number(vVal) || 1), totalVerses);
+
+    setSelectedBook(targetBook);
+    setSelectedChapter(validCh.toString());
+    setSelectedVerse(validVerseNum.toString());
+
+    // Update canonical reference strings
+    const rTel = `${targetBook.telugu} ${validCh}:${validVerseNum}`;
+    const rEng = `${targetBook.english} ${validCh}:${validVerseNum}`;
+    setRefTel(rTel);
+    setRefEng(rEng);
+
+    // Extract exact verse text from Bible dataset for both Telugu & English
+    const telVerseObj = passage.tel.find(v => Number(v.verse) === validVerseNum);
+    const engVerseObj = passage.eng.find(v => Number(v.verse) === validVerseNum);
+
+    if (telVerseObj && telVerseObj.text) {
+      setPromiseTel(telVerseObj.text.trim());
+    } else {
+      setPromiseTel('');
+    }
+
+    if (engVerseObj && engVerseObj.text) {
+      setPromiseEng(engVerseObj.text.trim());
+    } else {
+      setPromiseEng('');
+    }
   };
 
-  const applyBookChapterReference = (bookObj: any, chStr?: string, vStr?: string) => {
-    setSelectedBook(bookObj);
-    const ch = chStr !== undefined ? chStr : (selectedChapter.trim() || '1');
-    const vVal = vStr !== undefined ? vStr : selectedVerseRange.trim();
-    const v = vVal ? `:${vVal}` : ':1';
-    setRefTel(`${bookObj.nameTel} ${ch}${v}`);
-    setRefEng(`${bookObj.nameEng} ${ch}${v}`);
+  const handleBookSelect = (bookObj: any) => {
+    loadPassageForSelection(bookObj, 1, 1);
+    setBookModalOpen(false);
+    setBookSearchText('');
+  };
+
+  const handleChapterSelect = (chNum: number) => {
+    loadPassageForSelection(selectedBook, chNum, 1);
+    setChapterModalOpen(false);
+  };
+
+  const handleVerseSelect = (vNum: number) => {
+    loadPassageForSelection(selectedBook, selectedChapter, vNum);
+    setVerseModalOpen(false);
   };
 
   const handleEditScheduledPromise = (item: any) => {
@@ -218,16 +280,27 @@ export default function HomeScreen() {
     setPromiseEng(item.verseEnglish || '');
     setRefTel(item.referenceTelugu || '');
     setRefEng(item.referenceEnglish || '');
+
+    // Restore Book, Chapter, Verse dropdowns
+    if (item.bookEnglish || item.referenceEnglish) {
+      const bookName = item.bookEnglish || (item.referenceEnglish ? item.referenceEnglish.split(' ')[0] : 'Psalms');
+      const foundBook = bibleService.getBook(bookName);
+      const ch = item.chapter ? item.chapter.toString() : (item.referenceEnglish ? (item.referenceEnglish.match(/\d+:/)?.[0]?.replace(':', '') || '1') : '1');
+      const v = item.verse ? item.verse.toString() : (item.referenceEnglish ? (item.referenceEnglish.match(/:\d+/)?.[0]?.replace(':', '') || '1') : '1');
+      
+      setSelectedBook(foundBook);
+      setSelectedChapter(ch);
+      setSelectedVerse(v);
+      const maxCh = bibleService.getChapterCount(foundBook.english);
+      setAvailableChapters(Array.from({ length: maxCh }, (_, i) => i + 1));
+    }
   };
 
   const openPromiseManager = async () => {
-    setPromiseTel(dailyPromise?.verseTelugu || '');
-    setPromiseEng(dailyPromise?.verseEnglish || '');
-    setRefTel(dailyPromise?.referenceTelugu || '');
-    setRefEng(dailyPromise?.referenceEnglish || '');
-    setPromiseDate(new Date().toISOString().split('T')[0]);
     setPromiseModalVisible(true);
     fetchScheduledPromisesList();
+    loadPassageForSelection(selectedBook || allBibleBooks[18], selectedChapter || '23', selectedVerse || '1');
+    setPromiseDate(new Date().toISOString().split('T')[0]);
   };
 
   const fetchScheduledPromisesList = async () => {
@@ -239,30 +312,26 @@ export default function HomeScreen() {
 
   const handleSaveDailyPromise = async () => {
     if (!promiseTel.trim() || !refTel.trim()) {
-      alert('Please select a Book/Chapter and enter Telugu Verse text.');
+      alert('Please select a valid Bible reference and ensure Telugu verse text is present.');
       return;
     }
     setSavingPromise(true);
     try {
-      let engVerse = promiseEng.trim();
-      let engRef = refEng.trim();
-
-      if (!engVerse || !engRef) {
-        const tr = await biblePlanService.translateVerse(promiseTel.trim(), refTel.trim());
-        if (tr.verseEnglish) engVerse = tr.verseEnglish;
-        if (tr.referenceEnglish) engRef = tr.referenceEnglish;
-      }
-
       const res = await biblePlanService.saveDailyPromise({
         date: promiseDate,
+        bookId: selectedBook?.english || '',
+        bookTelugu: selectedBook?.telugu || '',
+        bookEnglish: selectedBook?.english || '',
+        chapter: Number(selectedChapter) || 1,
+        verse: Number(selectedVerse) || 1,
         verseTelugu: promiseTel.trim(),
-        verseEnglish: engVerse,
+        verseEnglish: promiseEng.trim(),
         referenceTelugu: refTel.trim(),
-        referenceEnglish: engRef,
+        referenceEnglish: refEng.trim(),
       });
 
       if (res.success) {
-        alert('🎉 Daily Promise saved & scheduled successfully!');
+        alert(`Promise scheduled successfully for ${promiseDate}.\nNotification will be sent at 5:00 AM on the scheduled date.`);
         await loadDailyPromise();
         await fetchScheduledPromisesList();
       } else {
@@ -1076,157 +1145,168 @@ export default function HomeScreen() {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Calendar Date Selection */}
+            {/* 1. Schedule Date Picker Selection */}
             <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 4 }}>
-              📅 Schedule Calendar Date (YYYY-MM-DD) *
+              Schedule Date
             </Text>
-            {Platform.OS === 'web' ? (
-              <input
-                type="date"
-                value={promiseDate}
-                onChange={(e) => setPromiseDate(e.target.value)}
-                style={{
-                  padding: 8,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: theme.cardBorder,
-                  backgroundColor: theme.background,
-                  color: theme.text,
-                  fontSize: 14,
-                  width: '100%',
-                  marginTop: 4,
-                  outlineStyle: 'none',
-                } as any}
-              />
-            ) : (
-              <TextInput
-                value={promiseDate}
-                onChangeText={setPromiseDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#757575"
-                style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.primary,
+                backgroundColor: theme.primary + '12',
+                marginTop: 6,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <MaterialCommunityIcons name="calendar-month" size={22} color={theme.primary} />
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text }}>
+                  {promiseDate}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-down" size={20} color={theme.primary} />
+            </TouchableOpacity>
+
+            {/* Native DateTimePicker popup when showDatePicker is true */}
+            {showDatePicker && (
+              <DateTimePicker
+                value={new Date(promiseDate + 'T00:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event: any, selectedDate?: Date) => {
+                  setShowDatePicker(Platform.OS === 'ios');
+                  if (selectedDate) {
+                    setPromiseDate(selectedDate.toISOString().split('T')[0]);
+                  }
+                }}
               />
             )}
 
-            {/* Quick Date Chips */}
-            <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              <TouchableOpacity onPress={() => setQuickDate(0)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: promiseDate === new Date().toISOString().split('T')[0] ? theme.primary : theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
-                <Text style={{ fontSize: 11, fontWeight: 'bold', color: promiseDate === new Date().toISOString().split('T')[0] ? '#fff' : theme.text }}>
-                  Today
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setQuickDate(1)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
-                <Text style={{ fontSize: 11, color: theme.text }}>Tomorrow</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setQuickDate(2)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
-                <Text style={{ fontSize: 11, color: theme.text }}>+2 Days</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setQuickDate(3)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
-                <Text style={{ fontSize: 11, color: theme.text }}>+3 Days</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setQuickDate(7)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: theme.backgroundSelected, borderWidth: 1, borderColor: theme.cardBorder }}>
-                <Text style={{ fontSize: 11, color: theme.text }}>+7 Days</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Book & Chapter Reference Helper */}
-            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 12 }}>
-              📖 Select Book & Chapter (గ్రంథం & అధ్యాయం)
+            {/* 2. Dropdown Selectors for Book, Chapter & Verse */}
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 14 }}>
+              Book, Chapter & Verse Selection *
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                {BIBLE_BOOKS_66.map((b) => (
-                  <TouchableOpacity
-                    key={b.nameEng}
-                    onPress={() => applyBookChapterReference(b)}
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderColor: selectedBook?.nameEng === b.nameEng ? theme.primary : theme.cardBorder,
-                      backgroundColor: selectedBook?.nameEng === b.nameEng ? theme.primary + '20' : theme.background,
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: selectedBook?.nameEng === b.nameEng ? theme.primary : theme.text }}>
-                      {b.nameTel} ({b.nameEng})
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
 
-            {/* Chapter & Verse Inputs */}
+            {/* Book Selector Dropdown Button */}
+            <TouchableOpacity
+              onPress={() => setBookModalOpen(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 12,
+                paddingVertical: 11,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.cardBorder,
+                backgroundColor: theme.background,
+                marginTop: 6,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="book-open-page-variant" size={20} color={theme.primary} />
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.text }}>
+                  {selectedBook ? `${selectedBook.telugu} / ${selectedBook.english}` : 'Select Book'}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-down" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+
+            {/* Chapter & Verse Dropdowns Row */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Chapter No (అధ్యాయం)</Text>
-                <TextInput
-                  value={selectedChapter}
-                  onChangeText={(val) => { setSelectedChapter(val); if (selectedBook) applyBookChapterReference(selectedBook, val); }}
-                  placeholder="e.g. 23"
-                  keyboardType="numeric"
-                  placeholderTextColor="#757575"
-                  style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Verse Range (వచనములు)</Text>
-                <TextInput
-                  value={selectedVerseRange}
-                  onChangeText={(val) => { setSelectedVerseRange(val); if (selectedBook) applyBookChapterReference(selectedBook, undefined, val); }}
-                  placeholder="e.g. 1-2"
-                  placeholderTextColor="#757575"
-                  style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
-                />
-              </View>
+              {/* Chapter Dropdown Button */}
+              <TouchableOpacity
+                onPress={() => setChapterModalOpen(true)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 12,
+                  paddingVertical: 11,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.cardBorder,
+                  backgroundColor: theme.background,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="numeric" size={18} color={theme.primary} />
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.text }}>
+                    Chapter: {selectedChapter || '1'}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-down" size={18} color={theme.textSecondary} />
+              </TouchableOpacity>
+
+              {/* Verse Dropdown Button */}
+              <TouchableOpacity
+                onPress={() => setVerseModalOpen(true)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 12,
+                  paddingVertical: 11,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.cardBorder,
+                  backgroundColor: theme.background,
+                }}
+              >
+                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="format-list-bulleted" size={18} color={theme.primary} />
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.text }}>
+                    Verse: {selectedVerse || '1'}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-down" size={18} color={theme.textSecondary} />
+              </TouchableOpacity>
             </View>
 
-            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 12 }}>
-              Telugu Verse (తెలుగు వాగ్దానం) *
+            {/* Reference Source of Truth Display */}
+            <View style={{ marginVertical: 10, padding: 10, borderRadius: 10, backgroundColor: theme.primary + '10', borderWidth: 1, borderColor: theme.primary + '30' }}>
+              <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.primary }}>
+                📖 Reference:
+              </Text>
+              <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.text, marginTop: 2 }}>
+                {refTel || 'కీర్తనలు 23:1'} ({refEng || 'Psalms 23:1'})
+              </Text>
+            </View>
+
+            {/* 3. Telugu Verse Input Area */}
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 4 }}>
+              Telugu Verse *
             </Text>
             <TextInput
               value={promiseTel}
               onChangeText={setPromiseTel}
-              placeholder="e.g. యెహోవా నా కాపరి; నాకు లేమి కలుగదు..."
+              placeholder="Telugu verse text..."
               placeholderTextColor="#757575"
               multiline
               numberOfLines={3}
-              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 70, textAlignVertical: 'top' }]}
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 75, textAlignVertical: 'top' }]}
             />
 
+            {/* 4. English Verse Input Area */}
             <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
-              Telugu Reference (ఆధారము) *
-            </Text>
-            <TextInput
-              value={refTel}
-              onChangeText={setRefTel}
-              placeholder="e.g. కీర్తనలు 23:1-2"
-              placeholderTextColor="#757575"
-              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
-            />
-
-            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
-              English Verse (Optional)
+              English Verse *
             </Text>
             <TextInput
               value={promiseEng}
               onChangeText={setPromiseEng}
-              placeholder="e.g. The Lord is my shepherd..."
+              placeholder="English verse text..."
               placeholderTextColor="#757575"
               multiline
-              numberOfLines={2}
-              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 60, textAlignVertical: 'top' }]}
-            />
-
-            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 8 }}>
-              English Reference (Optional)
-            </Text>
-            <TextInput
-              value={refEng}
-              onChangeText={setRefEng}
-              placeholder="e.g. Psalms 23:1-2"
-              placeholderTextColor="#757575"
-              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder }]}
+              numberOfLines={3}
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 75, textAlignVertical: 'top' }]}
             />
 
             <TouchableOpacity
@@ -1235,34 +1315,39 @@ export default function HomeScreen() {
               disabled={savingPromise}
             >
               <Text style={styles.modalBtnTextPrimary}>
-                {savingPromise ? 'Saving...' : '💾 Save & Schedule Promise'}
+                {savingPromise ? 'Saving & Scheduling Promise...' : '💾 Save & Schedule Promise'}
               </Text>
             </TouchableOpacity>
 
-            {/* Scheduled Promises List (Next 7 Days) */}
+            {/* Scheduled Promises List */}
             <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text, marginTop: 20, marginBottom: 8 }}>
-              🗓️ Scheduled Promises Calendar (Next 7 Days)
+              🗓️ Scheduled Promises
             </Text>
 
             {scheduledPromisesList && scheduledPromisesList.length > 0 ? (
               scheduledPromisesList.map((item) => (
-                <View key={item._id || item.date} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.cardBorder, marginBottom: 6, backgroundColor: theme.background }}>
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.primary }}>
+                <View key={item._id || item.date} style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.cardBorder, marginBottom: 8, backgroundColor: theme.background }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.primary }}>
                       📅 {item.date}
                     </Text>
-                    <Text style={{ fontSize: 12, color: theme.text }} numberOfLines={1}>
-                      "{item.verseTelugu}" - {item.referenceTelugu}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <TouchableOpacity onPress={() => handleEditScheduledPromise(item)} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                        <MaterialCommunityIcons name="pencil-outline" size={16} color={theme.primary} />
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.primary }}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteScheduledPromise(item.date)} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                        <MaterialCommunityIcons name="delete-outline" size={16} color="#ef4444" />
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#ef4444' }}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <TouchableOpacity onPress={() => handleEditScheduledPromise(item)} style={{ padding: 4 }}>
-                      <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteScheduledPromise(item.date)} style={{ padding: 4 }}>
-                      <MaterialCommunityIcons name="delete-outline" size={20} color="#ef4444" />
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.text, marginBottom: 2 }}>
+                    📖 {item.referenceTelugu} ({item.referenceEnglish})
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.textSecondary }} numberOfLines={2}>
+                    "{item.verseTelugu}"
+                  </Text>
                 </View>
               ))
             ) : (
@@ -1270,6 +1355,127 @@ export default function HomeScreen() {
                 No future promises scheduled yet.
               </Text>
             )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+
+    {/* ── Book Dropdown Selection Modal ── */}
+    <Modal visible={bookModalOpen} transparent animationType="slide" onRequestClose={() => setBookModalOpen(false)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+        <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, padding: 16, maxHeight: '80%' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.text }}>📖 Select Bible Book</Text>
+            <TouchableOpacity onPress={() => setBookModalOpen(false)}>
+              <MaterialCommunityIcons name="close" size={22} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            placeholder="Search book... (e.g. కీర్తనలు / Psalms)"
+            placeholderTextColor="#757575"
+            value={bookSearchText}
+            onChangeText={setBookSearchText}
+            style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, marginBottom: 10 }]}
+          />
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {allBibleBooks.filter(b => b.telugu.includes(bookSearchText) || b.english.toLowerCase().includes(bookSearchText.toLowerCase())).map((b) => (
+              <TouchableOpacity
+                key={b.english}
+                onPress={() => handleBookSelect(b)}
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderRadius: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.cardBorder,
+                  backgroundColor: selectedBook?.english === b.english ? theme.primary + '20' : 'transparent',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: selectedBook?.english === b.english ? theme.primary : theme.text }}>
+                  {b.telugu}
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textSecondary }}>{b.english}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+
+    {/* ── Chapter Dropdown Selection Modal ── */}
+    <Modal visible={chapterModalOpen} transparent animationType="slide" onRequestClose={() => setChapterModalOpen(false)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+        <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, padding: 16, maxHeight: '75%' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.text }}>🔢 Select Chapter ({selectedBook?.telugu} / {selectedBook?.english})</Text>
+            <TouchableOpacity onPress={() => setChapterModalOpen(false)}>
+              <MaterialCommunityIcons name="close" size={22} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {availableChapters.map((ch) => (
+                <TouchableOpacity
+                  key={ch}
+                  onPress={() => handleChapterSelect(ch)}
+                  style={{
+                    width: 52,
+                    height: 44,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: Number(selectedChapter) === ch ? theme.primary : theme.cardBorder,
+                    backgroundColor: Number(selectedChapter) === ch ? theme.primary : theme.background,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: 'bold', color: Number(selectedChapter) === ch ? '#ffffff' : theme.text }}>
+                    {ch}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+
+    {/* ── Verse Selection Modal ── */}
+    <Modal visible={verseModalOpen} transparent animationType="slide" onRequestClose={() => setVerseModalOpen(false)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+        <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, padding: 16, maxHeight: '75%' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.text }}>📜 Select Verse ({selectedBook?.telugu} {selectedChapter})</Text>
+            <TouchableOpacity onPress={() => setVerseModalOpen(false)}>
+              <MaterialCommunityIcons name="close" size={22} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {availableVerses.map((v) => (
+                <TouchableOpacity
+                  key={v}
+                  onPress={() => handleVerseSelect(v)}
+                  style={{
+                    width: 52,
+                    height: 44,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: Number(selectedVerse) === v ? theme.primary : theme.cardBorder,
+                    backgroundColor: Number(selectedVerse) === v ? theme.primary : theme.background,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: 'bold', color: Number(selectedVerse) === v ? '#ffffff' : theme.text }}>
+                    {v}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
         </View>
       </View>
