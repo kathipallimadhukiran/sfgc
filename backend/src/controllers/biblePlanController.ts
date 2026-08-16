@@ -759,14 +759,65 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
       return;
     }
 
+    // Auto-generate English verse and reference via AI if not supplied
+    let finalVerseEng = verseEnglish ? verseEnglish.trim() : '';
+    let finalRefEng = referenceEnglish ? referenceEnglish.trim() : '';
+
+    if (!finalVerseEng || !finalRefEng) {
+      const groqKey = process.env.GROQ_API_KEY;
+      const openAiKey = process.env.OPENAI_API_KEY;
+
+      if (groqKey || openAiKey) {
+        try {
+          const prompt = `Translate this Telugu Bible verse into clear English (KJV/NIV style):
+Verse: "${verseTelugu}"
+Reference: "${referenceTelugu}"
+
+Output ONLY a valid JSON object:
+{ "verseEnglish": "...", "referenceEnglish": "..." }
+No markdown, no preface.`;
+
+          let text = '';
+          if (groqKey) {
+            const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }),
+            });
+            const d = await resp.json();
+            text = d.choices?.[0]?.message?.content || '';
+          } else if (openAiKey) {
+            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${openAiKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }),
+            });
+            const d = await resp.json();
+            text = d.choices?.[0]?.message?.content || '';
+          }
+
+          if (text) {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (!finalVerseEng && parsed.verseEnglish) finalVerseEng = parsed.verseEnglish;
+              if (!finalRefEng && parsed.referenceEnglish) finalRefEng = parsed.referenceEnglish;
+            }
+          }
+        } catch (aiErr) {
+          console.log('AI Translation for promise skipped:', aiErr);
+        }
+      }
+    }
+
     const promise = await DailyPromise.findOneAndUpdate(
       { date: todayStr },
       {
         date: todayStr,
         verseTelugu,
-        verseEnglish: verseEnglish || '',
+        verseEnglish: finalVerseEng,
         referenceTelugu,
-        referenceEnglish: referenceEnglish || '',
+        referenceEnglish: finalRefEng,
         addedBy: 'admin',
       },
       { upsert: true, new: true }
@@ -958,6 +1009,67 @@ export const updatePublicPlan = async (req: Request, res: Response): Promise<voi
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Failed to update public plan', error: error.message });
+  }
+};
+
+// POST /api/bible-plans/translate-verse
+export const translateVerse = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { verseTelugu, referenceTelugu } = req.body;
+    if (!verseTelugu) {
+      res.status(400).json({ success: false, message: 'verseTelugu is required' });
+      return;
+    }
+
+    const groqKey = process.env.GROQ_API_KEY;
+    const openAiKey = process.env.OPENAI_API_KEY;
+
+    let verseEnglish = '';
+    let referenceEnglish = referenceTelugu || '';
+
+    if (groqKey || openAiKey) {
+      try {
+        const prompt = `Translate this Telugu Bible verse into clear, inspiring English (KJV/NIV style):
+Telugu Verse: "${verseTelugu}"
+Telugu Reference: "${referenceTelugu || ''}"
+
+Return ONLY a JSON object:
+{ "verseEnglish": "...", "referenceEnglish": "..." }
+No markdown, no preface.`;
+
+        let text = '';
+        if (groqKey) {
+          const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }),
+          });
+          const d = await resp.json();
+          text = d.choices?.[0]?.message?.content || '';
+        } else if (openAiKey) {
+          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${openAiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }),
+          });
+          const d = await resp.json();
+          text = d.choices?.[0]?.message?.content || '';
+        }
+
+        if (text) {
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.verseEnglish) verseEnglish = parsed.verseEnglish;
+            if (parsed.referenceEnglish) referenceEnglish = parsed.referenceEnglish;
+          }
+        }
+      } catch (e) {}
+    }
+
+    res.status(200).json({ success: true, data: { verseEnglish, referenceEnglish } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 

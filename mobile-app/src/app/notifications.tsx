@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar, Image } from 'react-native';
+import { StyleSheet, ScrollView, View, RefreshControl, Share, TextInput, Alert, Platform, StatusBar, Image, Linking } from 'react-native';
 import { Card, Title, Paragraph, Button, Text, Avatar, IconButton, Portal, Modal, FAB } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
 import { useApp } from '@/context/AppContext';

@@ -11,6 +11,9 @@ export interface NoticeItem {
   location?: string;
   image?: string;
   attachment?: string;
+  banner?: string;
+  youtubeUrl?: string;
+  youtubeId?: string;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -148,17 +148,41 @@ export default function HomeScreen() {
   const [scheduledPromisesList, setScheduledPromisesList] = useState<any[]>([]);
   const [savingPromise, setSavingPromise] = useState(false);
 
-  const BIBLE_BOOKS_QUICK = [
-    { nameTel: 'కీర్తనలు', nameEng: 'Psalms' },
-    { nameTel: 'యెషయా', nameEng: 'Isaiah' },
-    { nameTel: 'ఆదికాండము', nameEng: 'Genesis' },
-    { nameTel: 'మత్తయి', nameEng: 'Matthew' },
-    { nameTel: 'యోహాను', nameEng: 'John' },
-    { nameTel: 'రోమీయులకు', nameEng: 'Romans' },
-    { nameTel: 'ఫిలిప్పీయులకు', nameEng: 'Philippians' },
-    { nameTel: 'సామెతలు', nameEng: 'Proverbs' },
-    { nameTel: 'జెకర్యా', nameEng: 'Zechariah' },
-    { nameTel: 'ప్రకటన', nameEng: 'Revelation' },
+  const BIBLE_BOOKS_66 = [
+    { nameTel: 'ఆదికాండము', nameEng: 'Genesis' }, { nameTel: 'నిర్గమకాండము', nameEng: 'Exodus' },
+    { nameTel: 'లేవీయకాండము', nameEng: 'Leviticus' }, { nameTel: 'సంఖ్యాకాండము', nameEng: 'Numbers' },
+    { nameTel: 'ద్వితీయోపదేశకాండము', nameEng: 'Deuteronomy' }, { nameTel: 'యెహోషువ', nameEng: 'Joshua' },
+    { nameTel: 'న్యాయాధిపతులు', nameEng: 'Judges' }, { nameTel: 'రూతు', nameEng: 'Ruth' },
+    { nameTel: '1 సమూయేలు', nameEng: '1 Samuel' }, { nameTel: '2 సమూయేలు', nameEng: '2 Samuel' },
+    { nameTel: '1 రాజులు', nameEng: '1 Kings' }, { nameTel: '2 రాజులు', nameEng: '2 Kings' },
+    { nameTel: '1 దినవృత్తాంతములు', nameEng: '1 Chronicles' }, { nameTel: '2 దినవృత్తాంతములు', nameEng: '2 Chronicles' },
+    { nameTel: 'ఎజ్రా', nameEng: 'Ezra' }, { nameTel: 'నెహెమ్యా', nameEng: 'Nehemiah' },
+    { nameTel: 'ఎస్తేరు', nameEng: 'Esther' }, { nameTel: 'యోబు', nameEng: 'Job' },
+    { nameTel: 'కీర్తనలు', nameEng: 'Psalms' }, { nameTel: 'సామెతలు', nameEng: 'Proverbs' },
+    { nameTel: 'ప్రసంగి', nameEng: 'Ecclesiastes' }, { nameTel: 'పరమగీతము', nameEng: 'Song of Solomon' },
+    { nameTel: 'యెషయా', nameEng: 'Isaiah' }, { nameTel: 'యిర్మీయా', nameEng: 'Jeremiah' },
+    { nameTel: 'విలాపవాక్యములు', nameEng: 'Lamentations' }, { nameTel: 'యెహెజ్కేలు', nameEng: 'Ezekiel' },
+    { nameTel: 'దానియేలు', nameEng: 'Daniel' }, { nameTel: 'హోషేయ', nameEng: 'Hosea' },
+    { nameTel: 'యోవేలు', nameEng: 'Joel' }, { nameTel: 'ఆమోసు', nameEng: 'Amos' },
+    { nameTel: 'ఓబద్యా', nameEng: 'Obadiah' }, { nameTel: 'యోనా', nameEng: 'Jonah' },
+    { nameTel: 'మీకా', nameEng: 'Micah' }, { nameTel: 'నహూము', nameEng: 'Nahum' },
+    { nameTel: 'హబక్కూకు', nameEng: 'Habakkuk' }, { nameTel: 'జెఫన్యా', nameEng: 'Zephaniah' },
+    { nameTel: 'హగ్గయి', nameEng: 'Haggai' }, { nameTel: 'జెకర్యా', nameEng: 'Zechariah' },
+    { nameTel: 'మలాకీ', nameEng: 'Malachi' },
+    { nameTel: 'మత్తయి', nameEng: 'Matthew' }, { nameTel: 'మార్కు', nameEng: 'Mark' },
+    { nameTel: 'లూకా', nameEng: 'Luke' }, { nameTel: 'యోహాను', nameEng: 'John' },
+    { nameTel: 'అపోస్తుల కార్యములు', nameEng: 'Acts' }, { nameTel: 'రోమీయులకు', nameEng: 'Romans' },
+    { nameTel: '1 కొరింథీయులకు', nameEng: '1 Corinthians' }, { nameTel: '2 కొరింథీయులకు', nameEng: '2 Corinthians' },
+    { nameTel: 'గలతీయులకు', nameEng: 'Galatians' }, { nameTel: 'ఎఫెసీయులకు', nameEng: 'Ephesians' },
+    { nameTel: 'ఫిలిప్పీయులకు', nameEng: 'Philippians' }, { nameTel: 'కొలస్సీయులకు', nameEng: 'Colossians' },
+    { nameTel: '1 దెస్సలొనీకయులకు', nameEng: '1 Thessalonians' }, { nameTel: '2 దెస్సలొనీకయులకు', nameEng: '2 Thessalonians' },
+    { nameTel: '1 తిమోతికి', nameEng: '1 Timothy' }, { nameTel: '2 తిమోతికి', nameEng: '2 Timothy' },
+    { nameTel: 'తీతుకు', nameEng: 'Titus' }, { nameTel: 'ఫిలేమోనుకు', nameEng: 'Philemon' },
+    { nameTel: 'హెబ్రీయులకు', nameEng: 'Hebrews' }, { nameTel: 'యాకోబు', nameEng: 'James' },
+    { nameTel: '1 పేతురు', nameEng: '1 Peter' }, { nameTel: '2 పేతురు', nameEng: '2 Peter' },
+    { nameTel: '1 యోహాను', nameEng: '1 John' }, { nameTel: '2 యోహాను', nameEng: '2 John' },
+    { nameTel: '3 యోహాను', nameEng: '3 John' }, { nameTel: 'యూదా', nameEng: 'Jude' },
+    { nameTel: 'ప్రకటన', nameEng: 'Revelation' }
   ];
 
   const [selectedBook, setSelectedBook] = useState<any>(null);
@@ -215,17 +239,26 @@ export default function HomeScreen() {
 
   const handleSaveDailyPromise = async () => {
     if (!promiseTel.trim() || !refTel.trim()) {
-      alert('Please fill in Telugu Verse and Reference.');
+      alert('Please select a Book/Chapter and enter Telugu Verse text.');
       return;
     }
     setSavingPromise(true);
     try {
+      let engVerse = promiseEng.trim();
+      let engRef = refEng.trim();
+
+      if (!engVerse || !engRef) {
+        const tr = await biblePlanService.translateVerse(promiseTel.trim(), refTel.trim());
+        if (tr.verseEnglish) engVerse = tr.verseEnglish;
+        if (tr.referenceEnglish) engRef = tr.referenceEnglish;
+      }
+
       const res = await biblePlanService.saveDailyPromise({
         date: promiseDate,
         verseTelugu: promiseTel.trim(),
-        verseEnglish: promiseEng.trim(),
+        verseEnglish: engVerse,
         referenceTelugu: refTel.trim(),
-        referenceEnglish: refEng.trim(),
+        referenceEnglish: engRef,
       });
 
       if (res.success) {
@@ -1102,7 +1135,7 @@ export default function HomeScreen() {
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
               <View style={{ flexDirection: 'row', gap: 6 }}>
-                {BIBLE_BOOKS_QUICK.map((b) => (
+                {BIBLE_BOOKS_66.map((b) => (
                   <TouchableOpacity
                     key={b.nameEng}
                     onPress={() => applyBookChapterReference(b)}

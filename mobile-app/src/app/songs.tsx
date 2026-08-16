@@ -200,15 +200,18 @@ export default function SongsScreen() {
   };
 
   const handleOpenEditModal = (song: any) => {
-    setEditingId(song._id);
+    setEditingId(song._id || song.id);
     setNewTitle(song.title);
-    setNewLang(song.language);
-    setNewCat(song.category);
+    setNewLang(song.language || 'Telugu');
+    setNewCat(song.category || 'Worship Songs');
     setNewYoutube(song.youtubeLink || '');
     setNewChords(song.chords || '');
     
-    // Format lyrics from slides back to double-newline text block
-    const lyricsText = song.lyrics?.map((s: any) => s.text).join('\n\n');
+    // Format lyrics from slides back to text with [Section Title] headers
+    const lyricsText = (song.lyrics || []).map((s: any) => {
+      const typeStr = s.type ? `[${s.type}]\n` : '';
+      return `${typeStr}${s.text || ''}`;
+    }).join('\n\n');
     setNewLyrics(lyricsText || '');
     
     setAddModalVisible(true);
@@ -249,23 +252,33 @@ export default function SongsScreen() {
     
     setSubmitting(true);
     try {
-      // Split by double-newline, filter empty blocks, detect slide types
-      const rawBlocks = newLyrics.split(/\n\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
+      // Split by double-newline, filter empty blocks, detect custom bracket tags [Verse 1] or prefixes
+      const rawBlocks = newLyrics.split(/\n\s*\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
       let verseCount = 0;
       const slides = rawBlocks.map((block: string) => {
-        const lc = block.toLowerCase();
-        let type: string;
+        let type = 'Verse';
         let text = block;
-        if (lc.startsWith('chorus:')) {
-          type = 'Chorus'; text = block.replace(/^chorus:?\s*/i, '').trim();
-        } else if (lc.startsWith('bridge:')) {
-          type = 'Bridge'; text = block.replace(/^bridge:?\s*/i, '').trim();
-        } else if (lc.startsWith('pre-chorus:') || lc.startsWith('prechorus:')) {
-          type = 'Pre-Chorus'; text = block.replace(/^pre-?chorus:?\s*/i, '').trim();
-        } else if (lc.startsWith('outro:')) {
-          type = 'Outro'; text = block.replace(/^outro:?\s*/i, '').trim();
+
+        const headerMatch = block.match(/^\[([^\]]+)\]\s*\n?/);
+        if (headerMatch && headerMatch[1]) {
+          type = headerMatch[1].trim();
+          text = block.replace(/^\[([^\]]+)\]\s*\n?/, '').trim();
         } else {
-          verseCount++; type = `Verse ${verseCount}`;
+          const lc = block.toLowerCase();
+          if (lc.startsWith('chorus:')) {
+            type = 'Chorus'; text = block.replace(/^chorus:?\s*/i, '').trim();
+          } else if (lc.startsWith('bridge:')) {
+            type = 'Bridge'; text = block.replace(/^bridge:?\s*/i, '').trim();
+          } else if (lc.startsWith('pre-chorus:') || lc.startsWith('prechorus:')) {
+            type = 'Pre-Chorus'; text = block.replace(/^pre-?chorus:?\s*/i, '').trim();
+          } else if (lc.startsWith('outro:')) {
+            type = 'Outro'; text = block.replace(/^outro:?\s*/i, '').trim();
+          } else if (lc.startsWith('intro:')) {
+            type = 'Intro'; text = block.replace(/^intro:?\s*/i, '').trim();
+          } else {
+            verseCount++;
+            type = `Verse ${verseCount}`;
+          }
         }
         return { type, text };
       }).filter((s: any) => s.text.length > 0);
@@ -789,45 +802,86 @@ export default function SongsScreen() {
                 </Text>
               </View>
 
+              {/* Section Header Quick Chips */}
+              <Text style={[styles.inputLabel, { marginTop: 10 }]}>{isTel ? 'త్వరిత విభాగాలు (Quick Section Headers):' : 'Quick Section Headers:'}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 4 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {['Verse 1', 'Verse 2', 'Verse 3', 'Chorus', 'Bridge', 'Pre-Chorus', 'Intro', 'Outro'].map((sec) => (
+                    <TouchableOpacity
+                      key={sec}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 14,
+                        backgroundColor: theme.primary + '18',
+                        borderWidth: 1,
+                        borderColor: theme.primary + '40',
+                      }}
+                      onPress={() => {
+                        const prefix = newLyrics.trim().length === 0 ? `[${sec}]\n` : `\n\n[${sec}]\n`;
+                        setNewLyrics(prev => prev + prefix);
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.primary }}>
+                        + [{sec}]
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+
               <TextInput
                 placeholder={
                   isTel
-                    ? 'Verse 1 మొదటి పంక్తి\nVerse 1 రెండవ పంక్తి\n\nchorus:\nకోరస్ మొదటి పంక్తి\nకోరస్ రెండవ పంక్తి\n\nVerse 2 మొదటి పంక్తి'
-                    : 'Line 1 of verse 1\nLine 2 of verse 1\n\nchorus:\nChorus line 1\nChorus line 2\n\nLine 1 of verse 2'
+                    ? '[Verse 1]\nమొదటి పంక్తి\nరెండవ పంక్తి\n\n[Chorus]\nకోరస్ మొదటి పంక్తి\nకోరస్ రెండవ పంక్తి\n\n[Verse 2]\nరెండవ వర్సు పంక్తి'
+                    : '[Verse 1]\nLine 1 of verse 1\nLine 2 of verse 1\n\n[Chorus]\nChorus line 1\nChorus line 2\n\n[Verse 2]\nLine 1 of verse 2'
                 }
                 placeholderTextColor="#bbb"
                 value={newLyrics}
-                onChangeText={setNewLyrics}
-                multiline
-                style={styles.lyricsTextarea}
+                onChangeText={(t) => setNewLyrics(t)}
+                multiline={true}
+                numberOfLines={10}
+                style={[styles.lyricsTextarea, { minHeight: 180 }]}
                 textAlignVertical="top"
-                scrollEnabled={false}
+                autoCorrect={false}
+                autoCapitalize="sentences"
+                selectionColor={theme.primary}
               />
 
               {/* Slide preview when lyrics present */}
               {newLyrics.trim().length > 0 && (() => {
-                const rawBlocks = newLyrics.split(/\n\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
+                const rawBlocks = newLyrics.split(/\n\s*\n+/).map((b: string) => b.trim()).filter((b: string) => b.length > 0);
                 return rawBlocks.length > 0 ? (
                   <View style={styles.slidePreviewBox}>
                     <Text style={styles.slidePreviewTitle}>
-                      {isTel ? '📋 స్లయిడ్ ప్రివ్యూ' : '📋 Slide Preview'}
+                      {isTel ? '📋 స్లయిడ్ ప్రివ్యూ' : '📋 Live Slide Preview'}
                     </Text>
                     {rawBlocks.map((block: string, i: number) => {
-                      const lc = block.toLowerCase();
                       let label = `Verse ${i + 1}`;
                       let displayText = block;
-                      if (lc.startsWith('chorus:')) { label = 'Chorus'; displayText = block.replace(/^chorus:?\s*/i, ''); }
-                      else if (lc.startsWith('bridge:')) { label = 'Bridge'; displayText = block.replace(/^bridge:?\s*/i, ''); }
-                      else if (lc.startsWith('outro:')) { label = 'Outro'; displayText = block.replace(/^outro:?\s*/i, ''); }
+
+                      const headerMatch = block.match(/^\[([^\]]+)\]\s*\n?/);
+                      if (headerMatch && headerMatch[1]) {
+                        label = headerMatch[1].trim();
+                        displayText = block.replace(/^\[([^\]]+)\]\s*\n?/, '').trim();
+                      } else {
+                        const lc = block.toLowerCase();
+                        if (lc.startsWith('chorus:')) { label = 'Chorus'; displayText = block.replace(/^chorus:?\s*/i, ''); }
+                        else if (lc.startsWith('bridge:')) { label = 'Bridge'; displayText = block.replace(/^bridge:?\s*/i, ''); }
+                        else if (lc.startsWith('pre-chorus:') || lc.startsWith('prechorus:')) { label = 'Pre-Chorus'; displayText = block.replace(/^pre-?chorus:?\s*/i, ''); }
+                        else if (lc.startsWith('outro:')) { label = 'Outro'; displayText = block.replace(/^outro:?\s*/i, ''); }
+                        else if (lc.startsWith('intro:')) { label = 'Intro'; displayText = block.replace(/^intro:?\s*/i, ''); }
+                      }
+
                       return (
                         <View key={i} style={styles.slidePreviewItem}>
                           <View style={styles.slidePreviewHeader}>
-                            <View style={styles.slidePreviewBadge}>
+                            <View style={[styles.slidePreviewBadge, { backgroundColor: label.toLowerCase().includes('chorus') ? '#ec4899' : (label.toLowerCase().includes('bridge') ? '#8b5cf6' : theme.primary) }]}>
                               <Text style={styles.slidePreviewBadgeText}>{label.toUpperCase()}</Text>
                             </View>
                             <Text style={styles.slidePreviewIndex}>#{i + 1}</Text>
                           </View>
-                          <Text style={styles.slidePreviewText} numberOfLines={3}>{displayText.trim()}</Text>
+                          <Text style={styles.slidePreviewText} numberOfLines={4}>{displayText.trim()}</Text>
                         </View>
                       );
                     })}

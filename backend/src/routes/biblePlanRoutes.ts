@@ -15,6 +15,7 @@ import {
   adminUpdatePlan,
   getPublicPlan,
   updatePublicPlan,
+  translateVerse,
 } from '../controllers/biblePlanController';
 
 import { authenticate } from '../middleware/auth';
@@ -31,6 +32,7 @@ router.post('/submit-quiz', authenticate, submitQuizAttempt);
 router.get('/leaderboard', getLeaderboard);
 router.get('/daily-promise', getDailyPromise);
 router.post('/daily-promise', setDailyPromise);
+router.post('/translate-verse', translateVerse);
 router.get('/scheduled-promises', getScheduledPromises);
 router.delete('/daily-promise/:date', deleteDailyPromise);
 

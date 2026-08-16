@@ -486,11 +486,77 @@ class BiblePlanService {
       }
     } catch (e) {}
 
+    const defaultTeluguPromises = [
+      {
+        verseTelugu: "యెహోవా నా కాపరి; నాకు లేమి కలుగదు. ఆయన పచ్చికగల చోట్లను నన్ను పరుండజేయుచున్నాడు.",
+        verseEnglish: "The Lord is my shepherd; I shall not want. He maketh me to lie down in green pastures.",
+        referenceTelugu: "కీర్తనలు 23:1-2",
+        referenceEnglish: "Psalms 23:1-2"
+      },
+      {
+        verseTelugu: "నేను మీ విషయమై తలంచియున్న తలంపులను నేనెరుగుదును; అవి రాబోవు కాలమందు మీకు నిరీక్షణ కలుగునట్లు సమాధానకరమైన తలంపులేగాని హానికరమైనవి కావు.",
+        verseEnglish: "For I know the thoughts that I think toward you, saith the Lord, thoughts of peace, and not of evil, to give you an expected end.",
+        referenceTelugu: "యిర్మీయా 29:11",
+        referenceEnglish: "Jeremiah 29:11"
+      },
+      {
+        verseTelugu: "నీవు నడుచు మార్గమంతటిలో నిన్ను కాపాడుటకు ఆయన తన దూతలకు నిన్నుగూర్చి ఆజ్ఞాపించును.",
+        verseEnglish: "For He shall give His angels charge over thee, to keep thee in all thy ways.",
+        referenceTelugu: "కీర్తనలు 91:11",
+        referenceEnglish: "Psalms 91:11"
+      },
+      {
+        verseTelugu: "నేను నిన్ను విడువను, నిన్ను ఎడబాయను; నిబ్బరము కలిగి ధైర్యముగా ఉండుము.",
+        verseEnglish: "I will not fail thee, nor forsake thee. Be strong and of a good courage.",
+        referenceTelugu: "యెహోషువ 1:5-6",
+        referenceEnglish: "Joshua 1:5-6"
+      },
+      {
+        verseTelugu: "భయపడకుము నేను నీకు తోడైయున్నాను; దిగులుపడకుము నేను నీ దేవుడనై యున్నాను; నేను నిన్ను బలపరతును.",
+        verseEnglish: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee.",
+        referenceTelugu: "యెషయా 41:10",
+        referenceEnglish: "Isaiah 41:10"
+      },
+      {
+        verseTelugu: "మీ దేవుడైన యెహోవా మీ మధ్య ఉన్నాడు, ఆయన రక్షించుటకు సమర్థుడైన శూరుడు.",
+        verseEnglish: "The Lord thy God in the midst of thee is mighty; He will save.",
+        referenceTelugu: "జెఫన్యా 3:17",
+        referenceEnglish: "Zephaniah 3:17"
+      },
+      {
+        verseTelugu: "నా దేవుడు తన ఐశ్వర్యము చొప్పున క్రీస్తుయేసు నందు మహిమలో మీ ప్రతి అవసరమును తీర్చును.",
+        verseEnglish: "But my God shall supply all your need according to His riches in glory by Christ Jesus.",
+        referenceTelugu: "ఫిలిప్పీయులకు 4:19",
+        referenceEnglish: "Philippians 4:19"
+      },
+      {
+        verseTelugu: "యెహోవా కొరకు ఎదురుచూచువారు నూతన బలము పొందుదురు; వారు పక్షులవలె రెక్కలు చాపి పైకి ఎగురుదురు.",
+        verseEnglish: "But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles.",
+        referenceTelugu: "యెషయా 40:31",
+        referenceEnglish: "Isaiah 40:31"
+      },
+      {
+        verseTelugu: "ప్రయాసపడి భారము మోసుకొనుచున్న సమస్త జనులారా, నా యొద్దకు రండి, నేను మీకు విశ్రాంతి కలుగజేతును.",
+        verseEnglish: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
+        referenceTelugu: "మత్తయి 11:28",
+        referenceEnglish: "Matthew 11:28"
+      },
+      {
+        verseTelugu: "దేవుడు మనకు ఆశ్రయమును బలమునై యున్నాడు, ఆపత్కాలములో ఆయన నమ్మదగిన సహాయకుడు.",
+        verseEnglish: "God is our refuge and strength, a very present help in trouble.",
+        referenceTelugu: "కీర్తనలు 46:1",
+        referenceEnglish: "Psalms 46:1"
+      }
+    ];
+
+    const idx = new Date().getDate() % defaultTeluguPromises.length;
+    const selected = defaultTeluguPromises[idx];
+
     return {
-      verseTelugu: "యెహోవా నా కాపరి; నాకు లేమి కలుగదు. ఆయన పచ్చికగల చోట్లను నన్ను పరుండజేయుచున్నాడు.",
-      verseEnglish: "The Lord is my shepherd; I shall not want. He maketh me to lie down in green pastures.",
-      referenceTelugu: "కీర్తనలు 23:1-2",
-      referenceEnglish: "Psalms 23:1-2",
+      verseTelugu: selected.verseTelugu,
+      verseEnglish: selected.verseEnglish,
+      referenceTelugu: selected.referenceTelugu,
+      referenceEnglish: selected.referenceEnglish,
       addedBy: 'ai',
     };
   }
@@ -520,6 +586,17 @@ class BiblePlanService {
       }
     } catch (e) {}
     return [];
+  }
+
+  // Translate Telugu verse to English
+  async translateVerse(verseTelugu: string, referenceTelugu?: string): Promise<{ verseEnglish: string; referenceEnglish: string }> {
+    try {
+      const resp = await axios.post(`${API_URL}/api/bible-plans/translate-verse`, { verseTelugu, referenceTelugu }, { timeout: 6000 });
+      if (resp.data && resp.data.data) {
+        return resp.data.data;
+      }
+    } catch (e) {}
+    return { verseEnglish: '', referenceEnglish: referenceTelugu || '' };
   }
 
   // Delete Scheduled Daily Promise

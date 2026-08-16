@@ -180,7 +180,14 @@ export default function LiveStreamScreen() {
         return;
       }
 
-      setVideos(result.videos.map(video => ({
+      const rawList = result.videos || [];
+      const sorted = [...rawList].sort((a, b) => {
+        const timeA = new Date(a.publishedAt || a.createdAt || 0).getTime();
+        const timeB = new Date(b.publishedAt || b.createdAt || 0).getTime();
+        return timeB - timeA; // Newest video FIRST
+      });
+
+      setVideos(sorted.map(video => ({
         dbId: video._id,
         id: video.youtubeId,
         titleEng: video.title,
@@ -188,8 +195,8 @@ export default function LiveStreamScreen() {
         duration: '--:--',
         viewsEng: 'Recently added',
         viewsTel: 'ఇప్పుడే జోడించారు',
-        publishedEng: video.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'Recently added',
-        publishedTel: video.createdAt ? new Date(video.createdAt).toLocaleDateString('te-IN') : 'ఇప్పుడే జోడించారు',
+        publishedEng: (video.publishedAt || video.createdAt) ? new Date(video.publishedAt || video.createdAt!).toLocaleDateString() : 'Recently added',
+        publishedTel: (video.publishedAt || video.createdAt) ? new Date(video.publishedAt || video.createdAt!).toLocaleDateString('te-IN') : 'ఇప్పుడే జోడించారు',
         thumbnail: video.thumbnail,
         categoryId: video.categoryId,
         createdAt: video.createdAt,
@@ -364,21 +371,47 @@ export default function LiveStreamScreen() {
           }
         >
 
-          {/* ── Top Hero Section ──────────────────────────────────────────────── */}
+          {/* ── Top Header Section ──────────────────────────────────────────────── */}
           <View style={styles.topSectionContainer}>
-            <View style={styles.topTitleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.topTitle, { color: theme.text }]}>
-                  {isTel ? 'యూట్యూబ్ వీడియోలు' : 'YouTube Videos'}
-                </Text>
-                <Text style={[styles.topSubtitle, { color: subtleText }]}>
-                  {isTel ? 'తాజా క్రైస్తవ ఆరాధనా వీడియోలు' : 'Latest Christian Worship Videos'}
-                </Text>
+            <Text style={[styles.topTitle, { color: theme.text, textAlign: 'center' }]}>
+              {isTel ? 'యూట్యూబ్ వీడియోలు' : 'YouTube Videos'}
+            </Text>
+
+            {/* Subscribe to Channel Card */}
+            <View style={[styles.subscribeCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <View style={styles.ytRedBadge}>
+                  <MaterialCommunityIcons name="youtube" size={22} color="#ffffff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.subscribeTitle, { color: theme.text }]}>YouTube</Text>
+                  <Text style={[styles.subscribeSub, { color: subtleText }]}>
+                    {isTel ? 'మా యూట్యూబ్ ఛానెల్‌ని సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe to our YouTube channel'}
+                  </Text>
+                </View>
               </View>
+              <TouchableOpacity
+                style={styles.subscribeBtn}
+                onPress={async () => {
+                  const channelHandle = 'https://www.youtube.com/@SFGCChurch';
+                  const searchQuery = 'https://www.youtube.com/results?search_query=SFGC+Church';
+                  try {
+                    await Linking.openURL(channelHandle);
+                  } catch (e) {
+                    await Linking.openURL(searchQuery);
+                  }
+                }}
+                activeOpacity={0.88}
+              >
+                <MaterialCommunityIcons name="youtube" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                <Text style={styles.subscribeBtnText}>
+                  {isTel ? 'సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Rounded Search Bar */}
-            <View style={[styles.searchBox, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+            <View style={[styles.searchBox, { backgroundColor: cardBg, borderColor: dividerColor, marginTop: 12 }]}>
               <MaterialCommunityIcons name="magnify" size={20} color={subtleText} />
               <RNTextInput
                 value={videoSearch}
@@ -401,7 +434,7 @@ export default function LiveStreamScreen() {
             <TouchableOpacity
               activeOpacity={0.92}
               onPress={() => openInYouTube(liveVideoId)}
-              style={[styles.liveBannerWrapper, { marginHorizontal: 16, marginTop: 12, marginBottom: 16 }]}
+              style={[styles.liveBannerWrapper, { marginHorizontal: 16, marginTop: 4, marginBottom: 16 }]}
             >
               <Image
                 source={{ uri: `https://img.youtube.com/vi/${liveVideoId}/hqdefault.jpg` }}
@@ -497,41 +530,30 @@ export default function LiveStreamScreen() {
               )}
             </View>
           ) : (
-            /* ── Recent Video Cards List ─────────────────────────────────────── */
-            filteredVideos.map(item => {
+            /* ── Recent Video Cards List (Matching User Mock Exactly) ───────────────── */
+            filteredVideos.map((item, idx) => {
               const title = isTel ? item.titleTel : item.titleEng;
+              const dateStr = item.createdAt 
+                ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                : '16 Aug 2026';
+
               return (
-                <View key={item.id} style={[styles.videoCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+                <View key={item.id || idx} style={[styles.videoCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
                   
-                  {/* YouTube Thumbnail with Centered Play Overlay */}
+                  {/* Thumbnail Box with Duration Badge in Bottom-Right Corner */}
                   <TouchableOpacity activeOpacity={0.92} onPress={() => openInYouTube(item.id)} style={styles.thumbnailBox}>
                     <Image source={{ uri: item.thumbnail }} style={styles.thumbnailImage} resizeMode="cover" />
-                    
-                    {/* Dark gradient overlay */}
                     <View style={styles.thumbnailShade} />
 
-                    {/* YouTube badge corner icon */}
-                    <View style={styles.youtubeCornerBadge}>
-                      <MaterialCommunityIcons name="youtube" size={16} color="#ffffff" />
-                    </View>
-
-                    {/* Play Button Overlay */}
-                    <View style={styles.playOverlay}>
-                      <View style={styles.playCircle}>
-                        <MaterialCommunityIcons name="play" size={26} color="#ffffff" />
-                      </View>
+                    {/* Duration Badge Bottom-Right Corner */}
+                    <View style={styles.durationBadge}>
+                      <Text style={styles.durationText}>{item.duration && item.duration !== '--:--' ? item.duration : 'LIVE'}</Text>
                     </View>
                   </TouchableOpacity>
 
                   {/* Video Details */}
                   <View style={styles.videoInfo}>
                     
-                    {/* YouTube Source Indicator */}
-                    <View style={styles.youtubeBadgeRow}>
-                      <MaterialCommunityIcons name="youtube" size={14} color="#ff0000" />
-                      <Text style={styles.youtubeBadgeText}>YouTube</Text>
-                    </View>
-
                     {/* Title */}
                     <TouchableOpacity activeOpacity={0.8} onPress={() => openInYouTube(item.id)}>
                       <Text style={[styles.videoTitle, { color: theme.text }]} numberOfLines={2}>
@@ -539,41 +561,35 @@ export default function LiveStreamScreen() {
                       </Text>
                     </TouchableOpacity>
 
-                    {/* Added Date/Time */}
-                    <View style={styles.videoMetaRow}>
-                      <View style={[styles.metaDot, { backgroundColor: theme.primary }]} />
-                      <Text style={[styles.videoMeta, { color: subtleText }]} numberOfLines={1}>
-                        {isTel ? item.viewsTel : item.viewsEng}
-                      </Text>
-                    </View>
+                    {/* Publishing Date */}
+                    <Text style={[styles.videoDateText, { color: subtleText }]}>
+                      {dateStr}
+                    </Text>
 
-                    {/* Action Buttons */}
-                    <View style={styles.videoActions}>
-                      {/* Watch Button */}
+                    {/* Action Bar: [ ↗ Share ] and [ ▶ Watch ] */}
+                    <View style={styles.videoActionsRow}>
                       <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: '#ff000015', borderColor: '#ff000030' }]}
-                        onPress={() => openInYouTube(item.id)}
-                        activeOpacity={0.8}
-                      >
-                        <MaterialCommunityIcons name="play-circle-outline" size={16} color="#ff0000" />
-                        <Text style={[styles.actionBtnText, { color: '#ff0000' }]}>
-                          {isTel ? 'చూడండి' : 'Watch'}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {/* Share Button */}
-                      <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: theme.accentBackground, borderColor: theme.primary + '40' }]}
+                        style={[styles.actionBtnOutline, { borderColor: theme.cardBorder }]}
                         onPress={() => shareVideo(item.id, title)}
                         activeOpacity={0.8}
                       >
-                        <MaterialCommunityIcons name="share-variant-outline" size={16} color={theme.primary} />
-                        <Text style={[styles.actionBtnText, { color: theme.primary }]}>
+                        <MaterialCommunityIcons name="export-variant" size={15} color={theme.text} />
+                        <Text style={[styles.actionBtnOutlineText, { color: theme.text }]}>
                           {isTel ? 'షేర్' : 'Share'}
                         </Text>
                       </TouchableOpacity>
 
-                      {/* Delete Button (Admin Only) */}
+                      <TouchableOpacity
+                        style={[styles.actionBtnFilled, { backgroundColor: '#ef4444' }]}
+                        onPress={() => openInYouTube(item.id)}
+                        activeOpacity={0.8}
+                      >
+                        <MaterialCommunityIcons name="play" size={16} color="#ffffff" />
+                        <Text style={styles.actionBtnFilledText}>
+                          {isTel ? 'చూడండి' : 'Watch'}
+                        </Text>
+                      </TouchableOpacity>
+
                       {isAdmin && (
                         <TouchableOpacity
                           style={[styles.actionDeleteBtn, { backgroundColor: '#ef444415', borderColor: '#ef444440' }]}
@@ -880,6 +896,24 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   chipText: { fontSize: 12 },
 
+  // Subscribe Card
+  subscribeCard: {
+    padding: 14, borderRadius: 16, borderWidth: 1,
+    marginTop: 12, marginBottom: 4,
+  },
+  ytRedBadge: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#ff0000', justifyContent: 'center', alignItems: 'center',
+  },
+  subscribeTitle: { fontSize: 16, fontWeight: '800' },
+  subscribeSub: { fontSize: 12, marginTop: 1 },
+  subscribeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#ff0000', borderRadius: 12,
+    paddingVertical: 9, marginTop: 4,
+  },
+  subscribeBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
+
   // Recent Header
   recentHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 },
   sectionTitle: { fontSize: 18, fontWeight: '800' },
@@ -905,38 +939,34 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.15)',
   },
-  youtubeCornerBadge: {
-    position: 'absolute', top: 10, left: 10,
-    width: 28, height: 22, borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center', alignItems: 'center',
+
+  // Duration Badge
+  durationBadge: {
+    position: 'absolute', bottom: 8, right: 8,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 6,
+    zIndex: 10,
   },
-  playOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  playCircle: {
-    width: 50, height: 50, borderRadius: 25,
-    backgroundColor: '#ff0000',
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 5,
-  },
-  videoInfo: { padding: 14, gap: 8 },
-  youtubeBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  youtubeBadgeText: { fontSize: 11, fontWeight: '800', color: '#ff0000' },
+  durationText: { color: '#ffffff', fontSize: 11, fontWeight: '800' },
+
+  // Video Info & Actions
+  videoInfo: { padding: 14, gap: 6 },
   videoTitle: { fontSize: 15, fontWeight: '800', lineHeight: 21 },
-  videoMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaDot: { width: 5, height: 5, borderRadius: 2.5 },
-  videoMeta: { fontSize: 11, fontWeight: '600' },
-  videoActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  actionBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 10, borderWidth: 1, minWidth: 84,
+  videoDateText: { fontSize: 12, fontWeight: '600', marginVertical: 2 },
+  videoActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
+  actionBtnOutline: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 9, borderRadius: 10, borderWidth: 1,
   },
-  actionBtnText: { fontSize: 12, fontWeight: '800' },
+  actionBtnOutlineText: { fontSize: 13, fontWeight: '700' },
+  actionBtnFilled: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 9, borderRadius: 10,
+  },
+  actionBtnFilledText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
   actionDeleteBtn: {
-    width: 36, height: 36, borderRadius: 10, borderWidth: 1,
+    width: 38, height: 38, borderRadius: 10, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
 

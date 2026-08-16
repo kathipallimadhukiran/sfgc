@@ -3,7 +3,7 @@ import {
   StyleSheet, View, Platform, useWindowDimensions,
   TouchableOpacity, FlatList, TextInput,
   Animated, StatusBar, ScrollView, Alert, Modal as RNModal,
-  Linking, Clipboard, Share
+  Linking, Clipboard, Share, Image
 } from 'react-native';
 import { Text, Portal, Modal, Button, Divider } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
