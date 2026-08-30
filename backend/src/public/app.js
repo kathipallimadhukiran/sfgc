@@ -2006,6 +2006,20 @@ class ChurchApp {
     }
   }
 
+  async sendTestPushNotification() {
+    try {
+      this.showToast('🚀 Sending test push notification to all registered mobile devices...', 'info');
+      const res = await this.authFetch('/api/notices/test-push', { method: 'POST' });
+      if (res.success) {
+        this.showToast(`✅ ${res.message || 'Test push notification sent!'}`, 'success');
+      } else {
+        this.showToast('⚠️ Test push failed: ' + (res.message || 'Error'), 'error');
+      }
+    } catch (e) {
+      this.showToast('❌ Test push error: ' + e.message, 'error');
+    }
+  }
+
   // STREAM METHODS
   updateStreamPreview(url) {
     const iframe = document.getElementById('streamPreviewIframe');
