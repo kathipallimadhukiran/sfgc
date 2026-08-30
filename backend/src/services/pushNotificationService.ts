@@ -26,6 +26,9 @@ export const sendPushNotificationToAll = async (
   imageUrl?: string
 ): Promise<{ success: boolean; sentCount: number; message: string; expoResponse?: any }> => {
   try {
+    const safeTitle = (String(title || 'SFGC Announcement')).replace(/undefined/gi, '').trim() || 'SFGC Announcement';
+    const safeBody = (String(body || 'Tap to view details in SFGC App')).replace(/undefined/gi, '').trim() || 'Tap to view details in SFGC App';
+
     // 1. Gather tokens from logged in Users
     const userTokens = await User.find({ pushToken: { $exists: true, $ne: '' } }).distinct('pushToken');
     
@@ -61,8 +64,8 @@ export const sendPushNotificationToAll = async (
       const msg: PushMessagePayload = {
         to: token,
         sound: 'default',
-        title,
-        body,
+        title: safeTitle,
+        body: safeBody,
         data: { ...data, image: imageToSend, imageUrl: imageToSend, banner: imageToSend, timestamp: new Date().toISOString() },
         badge: 1,
         priority: 'high',

@@ -10,16 +10,35 @@ import { getConnectedDisplaysList } from '../sockets/liveLyricsSocket';
 export const getCastInfo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const interfaces = os.networkInterfaces();
-    const localIps: string[] = [];
+    const physicalIps: string[] = [];
+    const fallbackIps: string[] = [];
+    const virtualKeywords = ['vethernet', 'virtualbox', 'vmware', 'wsl', 'docker', 'zerotier', 'host-only', 'loopback', 'hyper-v', 'npcap', 'vpn'];
 
     for (const name of Object.keys(interfaces)) {
+      const lowerName = name.toLowerCase();
+      const isVirtual = virtualKeywords.some((keyword) => lowerName.includes(keyword));
+
       for (const iface of interfaces[name] || []) {
         if (iface.family === 'IPv4' && !iface.internal) {
-          localIps.push(iface.address);
+          if (!isVirtual) {
+            physicalIps.push(iface.address);
+          } else {
+            fallbackIps.push(iface.address);
+          }
         }
       }
     }
 
+    // Sort physical IPs prioritizing 192.168.x.x and 10.x.x.x
+    physicalIps.sort((a, b) => {
+      const isA = a.startsWith('192.168.') || a.startsWith('10.');
+      const isB = b.startsWith('192.168.') || b.startsWith('10.');
+      if (isA && !isB) return -1;
+      if (!isA && isB) return 1;
+      return 0;
+    });
+
+    const localIps = Array.from(new Set([...physicalIps, ...fallbackIps]));
     const hostIp = localIps[0] || 'localhost';
     const port = config.port || 5000;
     const tvWebUrl = `http://${hostIp}:${port}/tv.html`;

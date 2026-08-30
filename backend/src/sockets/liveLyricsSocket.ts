@@ -59,11 +59,16 @@ export const setupLiveLyricsSocket = (io: SocketIOServer) => {
 
     // Register active Smart TV or projection screen
     socket.on('registerDisplay', (payload: { name?: string; type?: string; ip?: string }) => {
+      const rawHandshakeIp = socket.handshake.address?.replace(/^.*:/, '') || '';
+      const clientIp = (rawHandshakeIp && rawHandshakeIp !== '127.0.0.1' && rawHandshakeIp !== '1')
+        ? rawHandshakeIp
+        : (payload.ip || 'Local Network');
+
       const dev: DisplayDevice = {
         id: socket.id,
         name: payload.name || `Smart TV (${socket.id.substring(0, 5)})`,
         type: payload.type || 'Smart TV Web Cast',
-        ip: payload.ip || (socket.handshake.address?.replace('::ffff:', '') || 'Local Network'),
+        ip: clientIp,
         connectedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       connectedDisplays.set(socket.id, dev);

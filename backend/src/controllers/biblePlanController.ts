@@ -5,6 +5,13 @@ import { BiblePlan, UserPlanProgress } from '../models/biblePlanModel';
 import { DailyPromise } from '../models/DailyPromise';
 import { Notice } from '../models/Notice';
 
+// Helper function to compute exact calendar day difference (ignores hours/minutes/seconds)
+const getCalendarDayDiff = (d1: Date, d2: Date): number => {
+  const date1 = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+  const date2 = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+  return Math.round(Math.abs(date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24));
+};
+
 // Helper function to shuffle options randomly so correct answer is NOT always Option A (0)
 const shuffleQuestion = (q: any) => {
   const indices = [0, 1, 2, 3];
@@ -296,12 +303,12 @@ export const getUserPlanProgress = async (req: Request, res: Response): Promise<
       await progress.save();
     }
 
-    // Check if streak was broken (if more than 1 day missed)
+// Check if streak was broken (if more than 1 day missed)
     if (progress.lastCompletedDate && progress.streak > 0) {
       const now = new Date();
       const lastDate = new Date(progress.lastCompletedDate);
-      const diffDays = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays > 1) {
+      const calDiff = getCalendarDayDiff(lastDate, now);
+      if (calDiff > 1) {
         progress.streak = 0;
         await progress.save();
       }
@@ -562,10 +569,12 @@ export const submitQuizAttempt = async (req: Request, res: Response): Promise<vo
         progress.streak = 1;
       } else {
         const lastDate = new Date(progress.lastCompletedDate);
-        const diffDays = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays <= 1) {
+        const calDiff = getCalendarDayDiff(lastDate, now);
+        if (calDiff === 1) {
           progress.streak += 1;
-        } else {
+        } else if (calDiff > 1) {
+          progress.streak = 1;
+        } else if (calDiff === 0 && progress.streak === 0) {
           progress.streak = 1;
         }
       }
@@ -612,10 +621,22 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
   try {
     const { planId = '1-year-canonical', limit = 20 } = req.query;
 
+    const now = new Date();
+    const allProgress = await UserPlanProgress.find({ planId: String(planId) });
+    for (const p of allProgress) {
+      if (p.lastCompletedDate && p.streak > 0) {
+        const calDiff = getCalendarDayDiff(new Date(p.lastCompletedDate), now);
+        if (calDiff > 1) {
+          p.streak = 0;
+          await p.save();
+        }
+      }
+    }
+
     const leaders = await UserPlanProgress.find({ planId: String(planId) })
       .sort({ streak: -1, averageScore: -1, completedDays: -1, averageTimeSeconds: 1 })
       .limit(Number(limit))
-      .select('userId userName planId currentDay completedDays streak highestStreak averageScore averageTimeSeconds updatedAt');
+      .select('userId userName planId currentDay completedDays streak highestStreak averageScore averageTimeSeconds updatedAt lastCompletedDate');
 
     // Fetch all members from User collection to resolve exact user full names
     const allUsers = await User.find().select('name email mobileNumber role');
@@ -637,7 +658,7 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       if (!exactName || genericRoles.includes(exactName.toLowerCase().trim())) {
         exactName = item.userName && !genericRoles.includes(item.userName.toLowerCase().trim())
           ? item.userName
-          : (allUsers[idx % allUsers.length]?.name || `Beloved Member`);
+          : 'Member';
       }
 
       return {

@@ -5,7 +5,7 @@ import { Song } from '../models/Song';
 // @desc    Get all songs with optional search and language filter
 export const getSongs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { search, language, category } = req.query;
+    const { search, language, category, includeLyrics } = req.query;
 
     const query: any = {};
     if (language && language !== 'All') {
@@ -25,10 +25,11 @@ export const getSongs = async (req: Request, res: Response, next: NextFunction):
       ];
     }
 
-    let songs = await Song.find(query).collation({ locale: 'te', strength: 1 }).sort({ title: 1 });
-    // In-memory multilingual sort fallback to guarantee pure alphabetical order for Telugu & English
-    songs.sort((a, b) => (a.title || '').localeCompare(b.title || '', ['te', 'en'], { sensitivity: 'base' }));
-
+    const songQuery = Song.find(query).sort({ createdAt: -1 });
+    if (includeLyrics !== 'true') {
+      songQuery.select('-chords');
+    }
+    const songs = await songQuery;
     res.status(200).json({
       success: true,
       count: songs.length,
@@ -43,15 +44,15 @@ export const getSongs = async (req: Request, res: Response, next: NextFunction):
 // @desc    Get single song details
 export const getSongById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const song = await Song.findById(req.params.id);
+    const song = await Song.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { viewsCount: 1 } },
+      { new: true }
+    );
     if (!song) {
       res.status(404).json({ success: false, message: 'Song not found.' });
       return;
     }
-
-    // Increment view count
-    song.viewsCount = (song.viewsCount || 0) + 1;
-    await song.save();
 
     res.status(200).json({ success: true, song });
   } catch (error) {

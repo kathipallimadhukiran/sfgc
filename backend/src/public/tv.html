@@ -115,10 +115,20 @@
 
       socket.on('connect', () => {
         socket.emit('joinSession');
+        
+        let tvDeviceName = 'Smart TV Display';
+        const ua = navigator.userAgent;
+        if (/webOS|Web0S/i.test(ua)) tvDeviceName = 'LG webOS Smart TV';
+        else if (/Tizen/i.test(ua)) tvDeviceName = 'Samsung Tizen Smart TV';
+        else if (/Android TV|ADT-1/i.test(ua)) tvDeviceName = 'Android Smart TV';
+        else if (/FireTV|AFTS|AFTB|AFTT|AFTM/i.test(ua)) tvDeviceName = 'Amazon Fire TV';
+        else if (/Roku/i.test(ua)) tvDeviceName = 'Roku TV';
+        else if (/AppleTV|Apple TV/i.test(ua)) tvDeviceName = 'Apple TV';
+        else if (/Chrome/i.test(ua)) tvDeviceName = 'Smart TV / Browser (' + window.location.hostname + ')';
+
         socket.emit('registerDisplay', {
-          name: 'Smart TV Display (' + window.location.hostname + ')',
+          name: tvDeviceName,
           type: 'Smart TV Web Cast',
-          ip: window.location.hostname
         });
       });
 

@@ -90,6 +90,8 @@ const UserSchema = new Schema<IUser>({
   }
 });
 
+UserSchema.index({ mobileNumber: 1 });
+
 // Encrypt password before save
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) {

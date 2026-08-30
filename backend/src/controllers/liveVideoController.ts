@@ -38,7 +38,7 @@ const fetchFullVideoTitle = async (youtubeId: string, fallbackTitle?: string): P
 
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const rawVideos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1 });
+    const rawVideos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1, _id: -1 });
     const liveState = await LiveState.findOne({ key: 'active_session' });
 
     const formattedVideos = rawVideos.map(v => ({
@@ -243,10 +243,11 @@ const resolveChannelId = async (input: string): Promise<string | null> => {
 interface ExtractedVideo {
   youtubeId: string;
   title: string;
+  publishedAt?: Date;
 }
 
 const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVideo[]> => {
-  const foundVideosMap = new Map<string, string>();
+  const foundVideosMap = new Map<string, { title: string; publishedAt?: Date }>();
 
   // Engine 1: YouTube Public RSS Feed with Cache Busting
   try {
@@ -261,11 +262,17 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
         const entryStr = entryMatches[i];
         const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
         const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
+        const pubMatch = entryStr.match(/<published>(.*?)<\/published>/);
         if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
           const yId = videoIdMatch[1].trim();
           const vTitle = decodeXmlEntities(titleMatch[1]);
+          let pubDate: Date | undefined = undefined;
+          if (pubMatch && pubMatch[1]) {
+            const parsedP = new Date(pubMatch[1]);
+            if (!isNaN(parsedP.getTime())) pubDate = parsedP;
+          }
           if (yId.length === 11) {
-            foundVideosMap.set(yId, vTitle);
+            foundVideosMap.set(yId, { title: vTitle, publishedAt: pubDate });
           }
         }
       }
@@ -313,8 +320,9 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
             }
 
             const vTitle = decodeXmlEntities(rawTitle);
-            if (yId.length === 11 && (!foundVideosMap.has(yId) || foundVideosMap.get(yId)?.includes('('))) {
-              foundVideosMap.set(yId, vTitle);
+            const existing = foundVideosMap.get(yId);
+            if (yId.length === 11 && (!existing || existing.title.includes('('))) {
+              foundVideosMap.set(yId, { title: vTitle, publishedAt: existing?.publishedAt });
             }
           }
         }
@@ -325,7 +333,7 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
           for (const vm of videoIdMatches) {
             const yId = vm.replace(/"videoId":"|"/g, '').trim();
             if (yId.length === 11 && !foundVideosMap.has(yId)) {
-              foundVideosMap.set(yId, `Sanctuary Worship Service (${yId})`);
+              foundVideosMap.set(yId, { title: `Sanctuary Worship Service (${yId})` });
             }
           }
         }
@@ -336,8 +344,8 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
   }
 
   const results: ExtractedVideo[] = [];
-  foundVideosMap.forEach((title, youtubeId) => {
-    results.push({ youtubeId, title });
+  foundVideosMap.forEach((data, youtubeId) => {
+    results.push({ youtubeId, title: data.title, publishedAt: data.publishedAt });
   });
 
   return results;
@@ -385,6 +393,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
           title: cleanTitle,
           categoryId: 'sunday',
           thumbnail: `https://img.youtube.com/vi/${vItem.youtubeId}/hqdefault.jpg`,
+          publishedAt: vItem.publishedAt || new Date(),
         });
         importedCount++;
 
@@ -426,7 +435,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
       }
     }
 
-    const videos = await LiveVideo.find().sort({ createdAt: -1 });
+    const videos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1, _id: -1 });
 
     res.status(200).json({
       success: true,
@@ -462,6 +471,7 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
           title: cleanTitle,
           categoryId: 'sunday',
           thumbnail: `https://img.youtube.com/vi/${vItem.youtubeId}/hqdefault.jpg`,
+          publishedAt: vItem.publishedAt || new Date(),
         });
         importedCount++;
 

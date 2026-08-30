@@ -26,4 +26,7 @@ const NoticeSchema = new Schema<INotice>({
   timestamps: true,
 });
 
+NoticeSchema.index({ createdAt: -1 });
+NoticeSchema.index({ isPinned: -1, createdAt: -1 });
+
 export const Notice = mongoose.model<INotice>('Notice', NoticeSchema);

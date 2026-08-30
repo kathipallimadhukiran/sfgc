@@ -10,6 +10,7 @@ import voiceRoutes from './voiceRoutes';
 import biblePlanRoutes from './biblePlanRoutes';
 import departmentRoutes from './departmentRoutes';
 import configRoutes from './configRoutes';
+import notificationRoutes from './notificationRoutes';
 
 const router = Router();
 
@@ -36,5 +37,6 @@ router.use('/voice', voiceRoutes);
 router.use('/bible-plans', biblePlanRoutes);
 router.use('/departments', departmentRoutes);
 router.use('/config', configRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;
