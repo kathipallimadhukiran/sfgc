@@ -1,0 +1,28 @@
+name: 🌅 5:00 AM Daily Promise Alarm Clock
+
+on:
+  schedule:
+    # 5:00 AM IST Daily (23:30 UTC previous day)
+    - cron: '30 23 * * *'
+  workflow_dispatch: # Manual 1-click test button
+
+jobs:
+  daily-promise-trigger:
+    name: 🕊️ Trigger 5:00 AM Daily Promise Notification
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📡 Call /api/notifications/daily-promise
+        run: |
+          RENDER_URL="${{ secrets.RENDER_BACKEND_URL }}"
+          if [ -z "$RENDER_URL" ]; then
+            RENDER_URL="https://sfgc-church-backend.onrender.com"
+          fi
+
+          echo "🚀 Waking up Render for 5:00 AM Daily Promise at ${RENDER_URL}..."
+          
+          curl -s -X POST "${RENDER_URL}/api/notifications/daily-promise" \
+            -H "Content-Type: application/json" \
+            -d '{"source": "github_actions_5am_daily_promise"}' \
+            --max-time 60
+          
+          echo -e "\n✅ Daily Promise alarm triggered!"
