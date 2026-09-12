@@ -38,79 +38,146 @@ const shuffleQuestion = (q: any) => {
 };
 
 // Generate 10 dynamic passage quiz questions with AI covering every chapter
-const generateQuizForPassage = async (book: string, bookTelugu: string, startCh: number, endCh: number, attempt: number) => {
+export const generateQuizForPassage = async (book: string, bookTelugu: string, startCh: number, endCh: number, attempt: number) => {
   const groqKey = process.env.GROQ_API_KEY;
   const openAiKey = process.env.OPENAI_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   const chaptersList = [];
   for (let c = startCh; c <= endCh; c++) {
     chaptersList.push(c);
   }
   const chaptersStr = chaptersList.join(', ');
+  const randomSeed = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
-  if (groqKey || openAiKey) {
-    try {
-      const prompt = `You are a biblical scholar and language expert.
-Generate exactly 10 distinct, highly accurate multiple-choice quiz questions (Attempt #${attempt}) in both Telugu and English for testing daily Bible reading comprehension of ${book} (${bookTelugu}) chapters ${startCh} to ${endCh}.
-IMPORTANT RULES:
-1. Cover every single chapter in the reading (${chaptersStr}) evenly across the 10 questions.
-2. Ensure 100% theological accuracy, correct facts, and 0 spelling/grammatical errors in both Telugu and English.
-3. Every question MUST have exactly 4 options. Randomly distribute correct answers across A (0), B (1), C (2), and D (3). DO NOT always put the correct answer at index 0!
-4. Provide a clear, spiritually enriching explanation with scripture reference in both Telugu and English.
+  const prompt = `You are a biblical scholar, theologian, and bilingual quiz creator.
+Generate exactly 10 distinct, highly accurate multiple-choice quiz questions (Attempt #${attempt}, Seed: ${randomSeed}) in both Telugu and English for testing daily Bible reading comprehension of ${book} (${bookTelugu}) chapters ${startCh} to ${endCh}.
+
+CRITICAL REQUIREMENTS:
+1. Every question MUST directly test key events, verses, people, commands, genealogies, or spiritual lessons from ${book} (${bookTelugu}) chapters ${startCh} to ${endCh} (${chaptersStr}).
+2. Ensure 100% theological and factual accuracy, zero spelling errors, and correct Telugu & English terminology.
+3. Every question MUST have exactly 4 options. Distribute the correct answer index randomly across A (0), B (1), C (2), and D (3). DO NOT put the correct answer at index 0 for all questions.
+4. Provide a clear, spiritually enriching explanation with exact scripture reference in both Telugu and English (e.g. "${bookTelugu} ${startCh}:1" / "${book} ${startCh}:1").
+5. Make questions unique and non-repetitive!
 
 Output ONLY a valid JSON array of 10 objects with this exact structure:
 [
   {
     "id": 1,
     "chapter": ${startCh},
-    "questionTelugu": "స్పష్టమైన తెలుగు ప్రశ్న",
+    "questionTelugu": "తెలుగులో స్పష్టమైన ప్రశ్న",
     "questionEnglish": "Clear English question",
     "optionsTelugu": ["ఆప్షన్ A", "ఆప్షన్ B", "ఆప్షన్ C", "ఆప్షన్ D"],
     "optionsEnglish": ["Option A", "Option B", "Option C", "Option D"],
     "correctIndex": 2,
-    "explanationTelugu": "సమాధానం యొక్క వివరణ మరియు రిఫరెన్స్",
-    "explanationEnglish": "Answer explanation and scripture reference"
+    "explanationTelugu": "సమాధానము యొక్క వివరణ మరియు రిఫరెన్స్ (${bookTelugu} ${startCh}:1)",
+    "explanationEnglish": "Answer explanation and scripture reference (${book} ${startCh}:1)"
   }
 ]
-Output ONLY raw JSON. No markdown, no preface, no trailing text.`;
+Output ONLY raw JSON. No markdown backticks, no preface, no trailing commentary.`;
 
-      let responseText = '';
-      if (groqKey) {
-        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${groqKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.3,
-          }),
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          responseText = data.choices?.[0]?.message?.content || '';
-        }
-      } else if (openAiKey) {
-        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openAiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.3,
-          }),
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          responseText = data.choices?.[0]?.message?.content || '';
+  // 1. Try Groq API
+  if (groqKey) {
+    try {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const responseText = data.choices?.[0]?.message?.content || '';
+        if (responseText) {
+          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanJson);
+          if (Array.isArray(parsed) && parsed.length >= 5) {
+            return parsed.map(shuffleQuestion);
+          }
         }
       }
+    } catch (e) {
+      console.log('Groq AI Quiz generation error:', e);
+    }
+  }
 
+  // 2. Try Gemini API
+  if (geminiKey) {
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7 }
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (responseText) {
+          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanJson);
+          if (Array.isArray(parsed) && parsed.length >= 5) {
+            return parsed.map(shuffleQuestion);
+          }
+        }
+      }
+    } catch (e) {
+      console.log('Gemini AI Quiz generation error:', e);
+    }
+  }
+
+  // 3. Try OpenAI API
+  if (openAiKey) {
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const responseText = data.choices?.[0]?.message?.content || '';
+        if (responseText) {
+          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanJson);
+          if (Array.isArray(parsed) && parsed.length >= 5) {
+            return parsed.map(shuffleQuestion);
+          }
+        }
+      }
+    } catch (e) {
+      console.log('OpenAI Quiz generation error:', e);
+    }
+  }
+
+  // 4. Free AI endpoint fallback (Pollinations AI)
+  try {
+    const resp = await fetch('https://text.pollinations.ai/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'openai',
+        seed: Math.floor(Math.random() * 1000000),
+      }),
+    });
+    if (resp.ok) {
+      const responseText = await resp.text();
       if (responseText) {
         const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleanJson);
@@ -118,9 +185,9 @@ Output ONLY raw JSON. No markdown, no preface, no trailing text.`;
           return parsed.map(shuffleQuestion);
         }
       }
-    } catch (e) {
-      console.log('AI 10-Question Quiz generation fallback:', e);
     }
+  } catch (e) {
+    console.log('Pollinations AI Quiz generation error:', e);
   }
 
   // Built-in dynamic passage-specific 10-question generator covering reading portion
