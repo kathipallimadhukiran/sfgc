@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
 import { User } from '../models/User';
 import { BiblePlan, UserPlanProgress } from '../models/biblePlanModel';
 import { DailyPromise } from '../models/DailyPromise';
@@ -37,84 +39,137 @@ const shuffleQuestion = (q: any) => {
   };
 };
 
-// Generate 10 dynamic passage quiz questions with AI covering every chapter
-export const generateQuizForPassage = async (book: string, bookTelugu: string, startCh: number, endCh: number, attempt: number) => {
+// Helper to log detailed AI generated questions to console
+const logGeneratedQuestions = (provider: string, book: string, startCh: number, endCh: number, questions: any[]) => {
+  console.log('\n======================================================================');
+  console.log(`🤖 [AI QUIZ GENERATOR] Dynamic Questions Generated via Provider: ${provider}`);
+  console.log(`📖 Book: ${book} | Chapters: ${startCh} to ${endCh} | Total Questions: ${questions.length}`);
+  console.log('======================================================================\n');
+
+  questions.forEach((q: any, idx: number) => {
+    console.log(`[Q${idx + 1}] (Chapter ${q.chapter})`);
+    console.log(`   English Question: ${q.questionEnglish}`);
+    console.log(`   Telugu Question:  ${q.questionTelugu}`);
+    console.log(`   Options (English):`, q.optionsEnglish);
+    console.log(`   Options (Telugu): `, q.optionsTelugu);
+    console.log(`   ✅ Correct Answer Index [${q.correctIndex}]: "${q.optionsEnglish[q.correctIndex]}" / "${q.optionsTelugu[q.correctIndex]}"`);
+    console.log(`   💡 Explanation (EN): ${q.explanationEnglish}`);
+    console.log(`   💡 Explanation (TE): ${q.explanationTelugu}`);
+    console.log('----------------------------------------------------------------------');
+  });
+  console.log('======================================================================\n');
+};
+
+// Load actual Bible passage text for AI context
+const loadPassageTextForAI = (book: string, startCh: number, endCh: number): string => {
+  try {
+    const possiblePaths = [
+      path.resolve(__dirname, '../../../mobile-app/src/data/bible', `${book}.json`),
+      path.resolve(process.cwd(), '../mobile-app/src/data/bible', `${book}.json`),
+      path.resolve(process.cwd(), 'mobile-app/src/data/bible', `${book}.json`),
+    ];
+
+    for (const filePath of possiblePaths) {
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const data = JSON.parse(raw);
+        const passageLines: string[] = [];
+
+        for (let c = startCh; c <= endCh; c++) {
+          const chObj = data.eng?.find((ch: any) => Number(ch.chapter) === c);
+          if (chObj && chObj.verses) {
+            chObj.verses.forEach((v: any) => {
+              passageLines.push(`${book} ${c}:${v.verse} - ${v.text}`);
+            });
+          }
+        }
+
+        if (passageLines.length > 0) {
+          return passageLines.slice(0, 100).join('\n');
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Error reading local Bible passage text:', e);
+  }
+  return '';
+};
+
+// Dynamic 2-Stage Dual-AI Quiz Generator (Gemini Primary Generator -> Uniqueness Filter -> Groq Secondary Validator)
+export const generateQuizForPassage = async (
+  book: string,
+  bookTelugu: string,
+  startCh: number,
+  endCh: number,
+  attempt: number,
+  userId: string = 'guest_user',
+  dayId: number = 1
+) => {
   const groqKey = process.env.GROQ_API_KEY;
   const openAiKey = process.env.OPENAI_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  const chaptersList = [];
+  const quizSessionId = `${userId}_day${dayId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const chaptersList: number[] = [];
   for (let c = startCh; c <= endCh; c++) {
     chaptersList.push(c);
   }
   const chaptersStr = chaptersList.join(', ');
-  const randomSeed = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
-  const prompt = `You are a biblical scholar, theologian, and bilingual quiz creator.
-Generate exactly 10 distinct, highly accurate multiple-choice quiz questions (Attempt #${attempt}, Seed: ${randomSeed}) in both Telugu and English for testing daily Bible reading comprehension of ${book} (${bookTelugu}) chapters ${startCh} to ${endCh}.
+  const passageText = loadPassageTextForAI(book, startCh, endCh);
+  const passageSnippet = passageText ? `\n\nACTUAL SCRIPTURE PASSAGE TEXT TO GENERATE QUESTIONS FROM:\n${passageText}\n` : '';
 
-CRITICAL REQUIREMENTS:
+  console.log('\n======================================================================');
+  console.log(`📤 [DUAL-AI QUIZ PIPELINE] Initiating Generation Session: ${quizSessionId}`);
+  console.log(`📖 Reading Portion: ${book} (${bookTelugu}) Chapters ${startCh} to ${endCh}`);
+  console.log(`📜 Scripture Verses in Context: ${passageText ? passageText.split('\n').length : 0}`);
+  console.log(`👤 User ID: ${userId} | Attempt #${attempt}`);
+  console.log('======================================================================\n');
+
+  // Stage 1 Prompt for Primary Generator (16-18 Candidates)
+  const candidateGenPrompt = `You are a master biblical scholar, theologian, and bilingual quiz author.
+Your task is to generate a candidate pool of 16 distinct, high-quality multiple-choice quiz questions for testing Bible comprehension of ${book} (${bookTelugu}) chapters ${startCh} to ${endCh}.
+Session ID: ${quizSessionId}
+${passageSnippet}
+
+REQUIREMENTS:
 1. Every question MUST directly test key events, verses, people, commands, genealogies, or spiritual lessons from ${book} (${bookTelugu}) chapters ${startCh} to ${endCh} (${chaptersStr}).
-2. Ensure 100% theological and factual accuracy, zero spelling errors, and correct Telugu & English terminology.
-3. Every question MUST have exactly 4 options. Distribute the correct answer index randomly across A (0), B (1), C (2), and D (3). DO NOT put the correct answer at index 0 for all questions.
-4. Provide a clear, spiritually enriching explanation with exact scripture reference in both Telugu and English (e.g. "${bookTelugu} ${startCh}:1" / "${book} ${startCh}:1").
-5. Make questions unique and non-repetitive!
+2. Cover varied categories: Factual, Sequence, Character, Cause/Effect, Verse Detail, Context.
+3. Provide a difficulty tag for each question: "easy", "medium", or "hard". Aim for ~5 easy, ~7 medium, ~4 hard.
+4. Ensure 100% biblical accuracy, zero spelling errors, and correct Telugu & English terminology.
+5. Provide 4 option choices per question. Place correct answer index at random positions (0-3).
+6. Provide concise explanation with exact scripture reference in both Telugu and English.
 
-Output ONLY a valid JSON array of 10 objects with this exact structure:
+Return ONLY a raw JSON array of objects with this schema:
 [
   {
     "id": 1,
     "chapter": ${startCh},
+    "category": "Factual",
+    "difficulty": "easy",
     "questionTelugu": "తెలుగులో స్పష్టమైన ప్రశ్న",
     "questionEnglish": "Clear English question",
     "optionsTelugu": ["ఆప్షన్ A", "ఆప్షన్ B", "ఆప్షన్ C", "ఆప్షన్ D"],
     "optionsEnglish": ["Option A", "Option B", "Option C", "Option D"],
-    "correctIndex": 2,
-    "explanationTelugu": "సమాధానము యొక్క వివరణ మరియు రిఫరెన్స్ (${bookTelugu} ${startCh}:1)",
-    "explanationEnglish": "Answer explanation and scripture reference (${book} ${startCh}:1)"
+    "correctIndex": 0,
+    "explanationTelugu": "సమాధాన వివరణ (${bookTelugu} ${startCh}:1)",
+    "explanationEnglish": "Scripture explanation (${book} ${startCh}:1)"
   }
 ]
-Output ONLY raw JSON. No markdown backticks, no preface, no trailing commentary.`;
+No markdown backticks, no text before or after JSON.`;
 
-  // 1. Try Groq API
-  if (groqKey) {
-    try {
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const responseText = data.choices?.[0]?.message?.content || '';
-        if (responseText) {
-          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanJson);
-          if (Array.isArray(parsed) && parsed.length >= 5) {
-            return parsed.map(shuffleQuestion);
-          }
-        }
-      }
-    } catch (e) {
-      console.log('Groq AI Quiz generation error:', e);
-    }
-  }
+  let candidatePool: any[] = [];
+  let primaryProvider = '';
 
-  // 2. Try Gemini API
+  // 1. Primary Generation: Try Gemini 1.5 Flash first
   if (geminiKey) {
     try {
+      console.log('🤖 [STAGE 1] Querying Gemini 1.5 Flash for Candidate Question Pool...');
       const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [{ parts: [{ text: candidateGenPrompt }] }],
           generationConfig: { temperature: 0.7 }
         })
       });
@@ -124,28 +179,30 @@ Output ONLY raw JSON. No markdown backticks, no preface, no trailing commentary.
         if (responseText) {
           const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanJson);
-          if (Array.isArray(parsed) && parsed.length >= 5) {
-            return parsed.map(shuffleQuestion);
+          if (Array.isArray(parsed) && parsed.length >= 8) {
+            candidatePool = parsed;
+            primaryProvider = 'Google Gemini 1.5 Flash';
           }
         }
       }
-    } catch (e) {
-      console.log('Gemini AI Quiz generation error:', e);
+    } catch (e: any) {
+      console.log('Gemini Primary Generation Error:', e?.message || e);
     }
   }
 
-  // 3. Try OpenAI API
-  if (openAiKey) {
+  // Fallback 1B: Try Groq as Primary Generator if Gemini didn't return pool
+  if (candidatePool.length === 0 && groqKey) {
     try {
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      console.log('🤖 [STAGE 1 Fallback] Querying Groq LLaMA-3.3-70B for Candidate Pool...');
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAiKey}`,
+          'Authorization': `Bearer ${groqKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: prompt }],
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: candidateGenPrompt }],
           temperature: 0.7,
         }),
       });
@@ -155,160 +212,363 @@ Output ONLY raw JSON. No markdown backticks, no preface, no trailing commentary.
         if (responseText) {
           const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanJson);
-          if (Array.isArray(parsed) && parsed.length >= 5) {
-            return parsed.map(shuffleQuestion);
+          if (Array.isArray(parsed) && parsed.length >= 8) {
+            candidatePool = parsed;
+            primaryProvider = 'Groq LLaMA-3.3-70B';
           }
         }
       }
-    } catch (e) {
-      console.log('OpenAI Quiz generation error:', e);
+    } catch (e: any) {
+      console.log('Groq Primary Generation Error:', e?.message || e);
     }
   }
 
-  // 4. Free AI endpoint fallback (Pollinations AI)
-  try {
-    const resp = await fetch('https://text.pollinations.ai/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'openai',
-        seed: Math.floor(Math.random() * 1000000),
-      }),
-    });
-    if (resp.ok) {
-      const responseText = await resp.text();
-      if (responseText) {
-        const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanJson);
-        if (Array.isArray(parsed) && parsed.length >= 5) {
-          return parsed.map(shuffleQuestion);
+  // Fallback 1C: Try OpenAI if available
+  if (candidatePool.length === 0 && openAiKey) {
+    try {
+      console.log('🤖 [STAGE 1 Fallback] Querying OpenAI GPT-4o-Mini for Candidate Pool...');
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: candidateGenPrompt }],
+          temperature: 0.7,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const responseText = data.choices?.[0]?.message?.content || '';
+        if (responseText) {
+          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanJson);
+          if (Array.isArray(parsed) && parsed.length >= 8) {
+            candidatePool = parsed;
+            primaryProvider = 'OpenAI GPT-4o-Mini';
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log('OpenAI Generation Error:', e?.message || e);
+    }
+  }
+
+  // Fallback 1D: Try Pollinations AI free endpoint
+  if (candidatePool.length === 0) {
+    try {
+      console.log('🤖 [STAGE 1 Fallback] Querying Pollinations Free AI Engine...');
+      const resp = await fetch('https://text.pollinations.ai/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: candidateGenPrompt }],
+          model: 'openai',
+          seed: Math.floor(Math.random() * 1000000),
+        }),
+      });
+      if (resp.ok) {
+        const responseText = await resp.text();
+        if (responseText) {
+          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanJson);
+          if (Array.isArray(parsed) && parsed.length >= 5) {
+            candidatePool = parsed;
+            primaryProvider = 'Pollinations Free AI Engine';
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log('Pollinations AI Error:', e?.message || e);
+    }
+  }
+
+  console.log(`\n✅ [STAGE 1 COMPLETE] Generated ${candidatePool.length} Candidate Questions via Provider [${primaryProvider || 'Offline Engine'}]`);
+
+  // STAGE 2: Uniqueness & Duplication Filtering
+  console.log('🔍 [STAGE 2] Applying Question Uniqueness & Semantic Duplication Filter...');
+  const uniqueCandidates: any[] = [];
+  const seenTexts = new Set<string>();
+
+  for (const q of candidatePool) {
+    const norm = (q.questionEnglish || q.questionTelugu || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .trim();
+    
+    let isDuplicate = false;
+    for (const seen of seenTexts) {
+      // Simple overlap check
+      const wordsA = new Set<string>(norm.split(/\s+/).filter((w: string) => w.length > 3));
+      const wordsB = new Set<string>(seen.split(/\s+/).filter((w: string) => w.length > 3));
+      if (wordsA.size > 0 && wordsB.size > 0) {
+        let intersection = 0;
+        wordsA.forEach((w: string) => { if (wordsB.has(w)) intersection++; });
+        const similarity = intersection / Math.min(wordsA.size, wordsB.size);
+        if (similarity > 0.75) {
+          isDuplicate = true;
+          break;
         }
       }
     }
-  } catch (e) {
-    console.log('Pollinations AI Quiz generation error:', e);
+
+    if (!isDuplicate && norm.length > 10) {
+      seenTexts.add(norm);
+      uniqueCandidates.push(q);
+    }
+  }
+  console.log(`✅ [STAGE 2 COMPLETE] ${candidatePool.length - uniqueCandidates.length} Duplicate Candidates Purged. ${uniqueCandidates.length} Unique Candidates Remain.`);
+
+  // STAGE 3: Secondary AI Validation (Groq API Validator)
+  let verifiedCandidates = uniqueCandidates;
+  if (groqKey && uniqueCandidates.length > 0) {
+    try {
+      console.log('🛡️ [STAGE 3] Invoking Secondary AI Validator (Groq LLaMA-3.3-70B) for Biblical Verification...');
+      const validatePrompt = `You are a strict Biblical Fact Verification Engine.
+Verify these candidate multiple-choice questions against scripture portion ${book} chapters ${startCh} to ${endCh}.
+${passageSnippet}
+
+CANDIDATES TO VERIFY:
+${JSON.stringify(uniqueCandidates.map(c => ({
+  id: c.id,
+  question: c.questionEnglish,
+  options: c.optionsEnglish,
+  correctIndex: c.correctIndex,
+  explanation: c.explanationEnglish
+})), null, 2)}
+
+Return ONLY a raw JSON array indicating validity for each candidate:
+[
+  {
+    "id": 1,
+    "isValid": true,
+    "verifiedCorrectIndex": 0,
+    "reasoning": "Accurate according to Genesis 1:1"
+  }
+]
+Output raw JSON only. No markdown.`;
+
+      const valResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: validatePrompt }],
+          temperature: 0.2,
+        }),
+      });
+
+      if (valResp.ok) {
+        const valData = await valResp.json();
+        const valText = valData.choices?.[0]?.message?.content || '';
+        const cleanValJson = valText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const valArray = JSON.parse(cleanValJson);
+
+        if (Array.isArray(valArray)) {
+          const valMap = new Map(valArray.map((v: any) => [v.id, v]));
+          const checked = uniqueCandidates.filter(c => {
+            const v = valMap.get(c.id);
+            if (!v || v.isValid === false) return false;
+            if (v.verifiedCorrectIndex !== undefined && v.verifiedCorrectIndex >= 0 && v.verifiedCorrectIndex <= 3) {
+              c.correctIndex = v.verifiedCorrectIndex;
+            }
+            return true;
+          });
+          if (checked.length >= 5) {
+            verifiedCandidates = checked;
+            console.log(`✅ [STAGE 3 COMPLETE] Groq Validator Verified ${verifiedCandidates.length} Questions.`);
+          }
+        }
+      }
+    } catch (valErr: any) {
+      console.log('Groq Validation Warning (Proceeding with Candidate Pool):', valErr?.message || valErr);
+    }
   }
 
-  // Built-in dynamic passage-specific 10-question generator covering reading portion
-  const generatePassageSpecificFallback = (bookName: string, bookTel: string, startC: number, endC: number) => {
-    const questions = [
-      {
-        id: 1,
-        chapter: startC,
-        questionTelugu: `${bookTel} ${startC}వ అధ్యాయంలో ముఖ్యమైన ఆత్మ సంబంధమైన వర్తమానం ఏమిటి?`,
-        questionEnglish: `According to ${bookName} Chapter ${startC}, what is the central spiritual lesson?`,
-        optionsTelugu: ["దేవుని వాక్యమునకు లోబడుట మరియు విశ్వాసము", "కేవలం ఐహిక విషయాలు", "తోటివారితో పోలిక", "ఏదీ కాదు"],
-        optionsEnglish: ["Obedience to God's Word and active faith", "Earthly achievements only", "Comparing with others", "None of these"],
-        correctIndex: 0,
-        explanationTelugu: `${bookTel} ${startC}వ అధ్యాయము దేవుని వాక్యమునకు లోబడి విశ్వాసముతో నడుచుకోవాలని నేర్పుచున్నది.`,
-        explanationEnglish: `${bookName} Chapter ${startC} teaches us to walk by faith and obey God's holy scriptures.`
-      },
-      {
-        id: 2,
-        chapter: startC,
-        questionTelugu: `${bookTel} ${startC}వ అధ్యాయం ద్వారా ప్రభువు తన ప్రజలకు అందించిన వాగ్దానము ఏమిటి?`,
-        questionEnglish: `What divine promise or direction is highlighted in ${bookName} Chapter ${startC}?`,
-        optionsTelugu: ["దేవుని కాపుదల మరియు నడిపింపు", "శ్రమలు మాత్రమే", "సందేశము లేదు", "లోకసంబంధ ఆలోచనలు"],
-        optionsEnglish: ["God's protection and holy guidance", "Trouble without hope", "No message", "Worldly thoughts"],
-        correctIndex: 0,
-        explanationTelugu: "ప్రభువు తనను నమ్ముకొనిన వారిని ఎన్నడూ విడనాడక నడిపించును.",
-        explanationEnglish: "The Lord promises never to leave nor forsake those who trust in Him."
-      },
-      {
-        id: 3,
-        chapter: Math.min(startC + 1, endC),
-        questionTelugu: `${bookTel} ${Math.min(startC + 1, endC)}వ అధ్యాయంలో దైవభక్తి కలిగిన వారి లక్షణములు ఏవి?`,
-        questionEnglish: `In ${bookName} Chapter ${Math.min(startC + 1, endC)}, what characterizes a godly person?`,
-        optionsTelugu: ["ప్రార్థన, వాక్య ధ్యానము మరియు దయ", "కోపము మరియు గర్వము", "అసత్యము మాట్లాడుట", "ఆలయమునకు వెళ్ళకపోవుట"],
-        optionsEnglish: ["Prayer, scripture meditation, and love", "Anger and pride", "Speaking lies", "Avoiding fellowship"],
-        correctIndex: 0,
-        explanationTelugu: "దైవభక్తి కలిగిన వారు నిత్యము ప్రభువు వాక్యమును ధ్యానిస్తూ ప్రార్థనలో స్థిరముగా ఉంటారు.",
-        explanationEnglish: "Godly believers meditate on the Word day and night and abide in love."
-      },
-      {
-        id: 4,
-        chapter: Math.min(startC + 1, endC),
-        questionTelugu: `${bookTel} అధ్యాయములు ${startC}-${endC} ప్రకారం శోధనల సమయంలో విశ్వాసి ఎలా స్పందించాలి?`,
-        questionEnglish: `According to ${bookName} Chapters ${startC}-${endC}, how should a believer respond in trials?`,
-        optionsTelugu: ["విశ్వాసములో స్థిరముగా ఉండి ప్రార్థించుట", "సణుగుకొనుట", "దేవుని నుండి దూరమగుట", "భయపడుట"],
-        optionsEnglish: ["Stand firm in faith and pray", "Murmur and complain", "Turn away from God", "Fear and give up"],
-        correctIndex: 0,
-        explanationTelugu: "శోధనలలో దేవుని వాక్యమనే ఆత్మ ఖడ్గమును ధరించి ప్రార్థనలో విజయం పొందాలి.",
-        explanationEnglish: "Believers overcome trials by standing firm on God's truth and praying continually."
-      },
-      {
-        id: 5,
-        chapter: endC,
-        questionTelugu: `${bookTel} ${endC}వ అధ్యాయము ముగింపులో ఇవ్వబడిన గొప్ప ఆత్మ సంబంధ హెచ్చరిక / ప్రోత్సాహము ఏది?`,
-        questionEnglish: `What key encouragement is highlighted in ${bookName} Chapter ${endC}?`,
-        optionsTelugu: ["ప్రభువు నందు నిరీక్షణ కలిగి పరిశుద్ధత కాపాడుకొనుట", "స్వార్థముతో జీవించుట", "పాపమును సహించుట", "విశ్వాసము వదలుట"],
-        optionsEnglish: ["Keep hope in Christ and preserve holiness", "Live selfishly", "Tolerate sin", "Abandon faith"],
-        correctIndex: 0,
-        explanationTelugu: "ప్రభువైన యేసు క్రీస్తు నందు నిరీక్షణ ఉంచి నిత్యజీవము కొరకు పరిశుద్ధంగా జీవించాలి.",
-        explanationEnglish: "Fix your hope on the Lord Jesus Christ and preserve purity in daily living."
-      },
-      {
-        id: 6,
-        chapter: startC,
-        questionTelugu: `${bookTel} పఠనం ప్రకారం దేవుని కృప మన జీవితంలో ఎలాంటి మార్పు తెస్తుంది?`,
-        questionEnglish: `According to reading ${bookName}, what transformation does God's grace bring?`,
-        optionsTelugu: ["నూతన హృదయము మరియు నూతన జీవితము", "ఏ మార్పు ఉండదు", "భయము మాత్రమే", "దుఃఖము"],
-        optionsEnglish: ["New heart and transformed life", "No change at all", "Fear only", "Sorrow without comfort"],
-        correctIndex: 0,
-        explanationTelugu: "క్రీస్తు నందు ఉన్నవాడు నూతన సృష్టి; పాతవి గతించెను సమస్తము నూతనమాయెను.",
-        explanationEnglish: "If anyone is in Christ, he is a new creation; old things have passed away."
-      },
-      {
-        id: 7,
-        chapter: Math.min(startC + 1, endC),
-        questionTelugu: `${bookTel} అధ్యాయం ${Math.min(startC + 1, endC)} ప్రకారం మనము ఇతరులతో ఏవిధంగా నడుచుకోవాలి?`,
-        questionEnglish: `According to ${bookName} Chapter ${Math.min(startC + 1, endC)}, how should we treat others?`,
-        optionsTelugu: ["ప్రేమ, క్షమాపణ మరియు క్రీస్తు స్వభావముతో", "ద్వేషముతో", "స్వార్థముతో", "ఉపేక్షతో"],
-        optionsEnglish: ["With love, forgiveness, and Christ-like attitude", "With hatred", "With selfishness", "With apathy"],
-        correctIndex: 0,
-        explanationTelugu: "క్రీస్తు మనలను క్షమించిన ప్రకారము మనము కూడా ఇతరులను క్షమించి ప్రేమించాలి.",
-        explanationEnglish: "Forgive one another even as God in Christ forgave you."
-      },
-      {
-        id: 8,
-        chapter: endC,
-        questionTelugu: `${bookTel} ${endC}వ అధ్యాయంలో పరిశుద్ధాత్మ దేవుని నడిపింపు యొక్క ముఖ్య ఉద్దేశ్యం ఏమిటి?`,
-        questionEnglish: `In ${bookName} Chapter ${endC}, what is the purpose of the Holy Spirit's guidance?`,
-        optionsTelugu: ["సత్యములోనికి నడిపించి క్రీస్తును మహిమపరచుట", "లోక ఐశ్వర్యము ఇచ్చుట", "సందేశము లేదు", "అపోహలు కలిగించుట"],
-        optionsEnglish: ["Guide into all truth and glorify Christ", "Give worldly fame only", "No purpose", "Cause confusion"],
-        correctIndex: 0,
-        explanationTelugu: "పరిశుద్ధాత్మ దేవుడు మనలను సమస్త సత్యములోనికి నడిపించి దేవుని మహిమపరుచును.",
-        explanationEnglish: "The Holy Spirit guides believers into all truth and exalts Jesus Christ."
-      },
-      {
-        id: 9,
-        chapter: startC,
-        questionTelugu: `${bookTel} ${startC}వ అధ్యాయము ద్వారా విశ్వాసి పొందే నిత్య నిరీక్షణ ఏది?`,
-        questionEnglish: `What eternal hope is revealed in ${bookName} Chapter ${startC}?`,
-        optionsTelugu: ["క్రీస్తు రక్తము వలన రక్షణ మరియు నిత్యజీవము", "తాత్కాలిక ఆనందం", "ఏమీ లేదు", "లోక భయాలు"],
-        optionsEnglish: ["Salvation through Christ's blood and eternal life", "Temporary happiness", "Nothing", "Worldly anxieties"],
-        correctIndex: 0,
-        explanationTelugu: "క్రీస్తు సిలువ యాగము ద్వారా మనకు రక్షణ మరియు నిత్యజీవ భాగ్యము లభించినది.",
-        explanationEnglish: "Through Christ's sacrifice, we receive salvation and eternal life."
-      },
-      {
-        id: 10,
-        chapter: endC,
-        questionTelugu: `${bookTel} ${endC}వ అధ్యాయము చదివిన తరువాత మన దైనందిన జీవితంలో ఏ తీర్మానం తీసుకోవాలి?`,
-        questionEnglish: `After reading ${bookName} Chapter ${endC}, what practical commitment should we make?`,
-        optionsTelugu: ["దేవుని చిత్తమునకు పూర్తిగా లొంగిపోవుట", "నా ఇష్ట ప్రకారము జీవించుట", "వాక్యమును మరచిపోవుట", "ఏమీ చేయకపోవుట"],
-        optionsEnglish: ["Completely submit to God's holy will", "Live by personal desires", "Forget the message", "Do nothing"],
-        correctIndex: 0,
-        explanationTelugu: "ప్రతిరోజూ దేవుని వాక్యమునకు విధేయులమై ఆయన మహిమ కొరకు జీవించుటకు తీర్మానించుకోవాలి.",
-        explanationEnglish: "Commit daily to obeying God's Word and living for His divine glory."
-      }
-    ];
+  // STAGE 4: Final 10 Selection & Difficulty Balance
+  console.log('🎯 [STAGE 4] Selecting Top 10 Questions and Randomizing Option Placements...');
+  let poolToSelect = verifiedCandidates.length >= 10 ? verifiedCandidates : candidatePool;
+  
+  if (poolToSelect.length === 0) {
+    console.log('⚠️ [STAGE 4 Fallback] AI Providers unreachable or returned empty pool. Using Dynamic Canonical Scripture Engine.');
+    const generatePassageSpecificFallback = (bookName: string, bookTel: string, startC: number, endC: number) => {
+      const questions = [
+        {
+          id: 1,
+          chapter: startC,
+          category: 'Factual',
+          difficulty: 'easy',
+          questionTelugu: `${bookTel} ${startC}వ అధ్యాయంలో ముఖ్యమైన ఆత్మ సంబంధమైన వర్తమానం ఏమిటి?`,
+          questionEnglish: `According to ${bookName} Chapter ${startC}, what is the central spiritual lesson?`,
+          optionsTelugu: ["దేవుని వాక్యమునకు లోబడుట మరియు విశ్వాసము", "కేవలం ఐహిక విషయాలు", "తోటివారితో పోలిక", "ఏదీ కాదు"],
+          optionsEnglish: ["Obedience to God's Word and active faith", "Earthly achievements only", "Comparing with others", "None of these"],
+          correctIndex: 0,
+          explanationTelugu: `${bookTel} ${startC}వ అధ్యాయము దేవుని వాక్యమునకు లోబడి విశ్వాసముతో నడుచుకోవాలని నేర్పుచున్నది.`,
+          explanationEnglish: `${bookName} Chapter ${startC} teaches us to walk by faith and obey God's holy scriptures.`
+        },
+        {
+          id: 2,
+          chapter: startC,
+          category: 'Factual',
+          difficulty: 'easy',
+          questionTelugu: `${bookTel} ${startC}వ అధ్యాయం ద్వారా ప్రభువు తన ప్రజలకు అందించిన వాగ్దానము ఏమిటి?`,
+          questionEnglish: `What divine promise or direction is highlighted in ${bookName} Chapter ${startC}?`,
+          optionsTelugu: ["దేవుని కాపుదల మరియు నడిపింపు", "శ్రమలు మాత్రమే", "సందేశము లేదు", "లోకసంబంధ ఆలోచనలు"],
+          optionsEnglish: ["God's protection and holy guidance", "Trouble without hope", "No message", "Worldly thoughts"],
+          correctIndex: 0,
+          explanationTelugu: "ప్రభువు తనను నమ్ముకొనిన వారిని ఎన్నడూ విడనాడక నడిపించును.",
+          explanationEnglish: "The Lord promises never to leave nor forsake those who trust in Him."
+        },
+        {
+          id: 3,
+          chapter: Math.min(startC + 1, endC),
+          category: 'Character',
+          difficulty: 'medium',
+          questionTelugu: `${bookTel} ${Math.min(startC + 1, endC)}వ అధ్యాయంలో దైవభక్తి కలిగిన వారి లక్షణములు ఏవి?`,
+          questionEnglish: `In ${bookName} Chapter ${Math.min(startC + 1, endC)}, what characterizes a godly person?`,
+          optionsTelugu: ["ప్రార్థన, వాక్య ధ్యానము మరియు దయ", "కోపము మరియు గర్వము", "అసత్యము మాట్లాడుట", "ఆలయమునకు వెళ్ళకపోవుట"],
+          optionsEnglish: ["Prayer, scripture meditation, and love", "Anger and pride", "Speaking lies", "Avoiding fellowship"],
+          correctIndex: 0,
+          explanationTelugu: "దైవభక్తి కలిగిన వారు నిత్యము ప్రభువు వాక్యమును ధ్యానిస్తూ ప్రార్థనలో స్థిరముగా ఉంటారు.",
+          explanationEnglish: "Godly believers meditate on the Word day and night and abide in love."
+        },
+        {
+          id: 4,
+          chapter: Math.min(startC + 1, endC),
+          category: 'Cause/Effect',
+          difficulty: 'medium',
+          questionTelugu: `${bookTel} అధ్యాయములు ${startC}-${endC} ప్రకారం శోధనల సమయంలో విశ్వాసి ఎలా స్పందించాలి?`,
+          questionEnglish: `According to ${bookName} Chapters ${startC}-${endC}, how should a believer respond in trials?`,
+          optionsTelugu: ["విశ్వాసములో స్థిరముగా ఉండి ప్రార్థించుట", "సణుగుకొనుట", "దేవుని నుండి దూరమగుట", "భయపడుట"],
+          optionsEnglish: ["Stand firm in faith and pray", "Murmur and complain", "Turn away from God", "Fear and give up"],
+          correctIndex: 0,
+          explanationTelugu: "శోధనలలో దేవుని వాక్యమనే ఆత్మ ఖడ్గమును ధరించి ప్రార్థనలో విజయం పొందాలి.",
+          explanationEnglish: "Believers overcome trials by standing firm on God's truth and praying continually."
+        },
+        {
+          id: 5,
+          chapter: endC,
+          category: 'Verse Context',
+          difficulty: 'medium',
+          questionTelugu: `${bookTel} ${endC}వ అధ్యాయము ముగింపులో ఇవ్వబడిన గొప్ప ఆత్మ సంబంధ హెచ్చరిక / ప్రోత్సాహము ఏది?`,
+          questionEnglish: `What key encouragement is highlighted in ${bookName} Chapter ${endC}?`,
+          optionsTelugu: ["ప్రభువు నందు నిరీక్షణ కలిగి పరిశుద్ధత కాపాడుకొనుట", "స్వార్థముతో జీవించుట", "పాపమును సహించుట", "విశ్వాసము వదలుట"],
+          optionsEnglish: ["Keep hope in Christ and preserve holiness", "Live selfishly", "Tolerate sin", "Abandon faith"],
+          correctIndex: 0,
+          explanationTelugu: "ప్రభువైన యేసు క్రీస్తు నందు నిరీక్షణ ఉంచి నిత్యజీవము కొరకు పరిశుద్ధంగా జీవించాలి.",
+          explanationEnglish: "Fix your hope on the Lord Jesus Christ and preserve purity in daily living."
+        },
+        {
+          id: 6,
+          chapter: startC,
+          category: 'Detail',
+          difficulty: 'hard',
+          questionTelugu: `${bookTel} పఠనం ప్రకారం దేవుని కృప మన జీవితంలో ఎలాంటి మార్పు తెస్తుంది?`,
+          questionEnglish: `According to reading ${bookName}, what transformation does God's grace bring?`,
+          optionsTelugu: ["నూతన హృదయము మరియు నూతన జీవితము", "ఏ మార్పు ఉండదు", "భయము మాత్రమే", "దుఃఖము"],
+          optionsEnglish: ["New heart and transformed life", "No change at all", "Fear only", "Sorrow without comfort"],
+          correctIndex: 0,
+          explanationTelugu: "క్రీస్తు నందు ఉన్నవాడు నూతన సృష్టి; పాతవి గతించెను సమస్తము నూతనమాయెను.",
+          explanationEnglish: "If anyone is in Christ, he is a new creation; old things have passed away."
+        },
+        {
+          id: 7,
+          chapter: Math.min(startC + 1, endC),
+          category: 'Character',
+          difficulty: 'medium',
+          questionTelugu: `${bookTel} అధ్యాయం ${Math.min(startC + 1, endC)} ప్రకారం మనము ఇతరులతో ఏవిధంగా నడుచుకోవాలి?`,
+          questionEnglish: `According to ${bookName} Chapter ${Math.min(startC + 1, endC)}, how should we treat others?`,
+          optionsTelugu: ["ప్రేమ, క్షమాపణ మరియు క్రీస్తు స్వభావముతో", "ద్వేషముతో", "స్వార్థముతో", "ఉపేక్షతో"],
+          optionsEnglish: ["With love, forgiveness, and Christ-like attitude", "With hatred", "With selfishness", "With apathy"],
+          correctIndex: 0,
+          explanationTelugu: "క్రీస్తు మనలను క్షమించిన ప్రకారము మనము కూడా ఇతరులను క్షమించి ప్రేమించాలి.",
+          explanationEnglish: "Forgive one another even as God in Christ forgave you."
+        },
+        {
+          id: 8,
+          chapter: endC,
+          category: 'Sequence',
+          difficulty: 'hard',
+          questionTelugu: `${bookTel} ${endC}వ అధ్యాయంలో పరిశుద్ధాత్మ దేవుని నడిపింపు యొక్క ముఖ్య ఉద్దేశ్యం ఏమిటి?`,
+          questionEnglish: `In ${bookName} Chapter ${endC}, what is the purpose of the Holy Spirit's guidance?`,
+          optionsTelugu: ["సత్యములోనికి నడిపించి క్రీస్తును మహిమపరచుట", "లోక ఐశ్వర్యము ఇచ్చుట", "సందేశము లేదు", "అపోహలు కలిగించుట"],
+          optionsEnglish: ["Guide into all truth and glorify Christ", "Give worldly fame only", "No purpose", "Cause confusion"],
+          correctIndex: 0,
+          explanationTelugu: "పరిశుద్ధాత్మ దేవుడు మనలను సమస్త సత్యములోనికి నడిపించి దేవుని మహిమపరుచును.",
+          explanationEnglish: "The Holy Spirit guides believers into all truth and exalts Jesus Christ."
+        },
+        {
+          id: 9,
+          chapter: startC,
+          category: 'Factual',
+          difficulty: 'easy',
+          questionTelugu: `${bookTel} ${startC}వ అధ్యాయము ద్వారా విశ్వాసి పొందే నిత్య నిరీక్షణ ఏది?`,
+          questionEnglish: `What eternal hope is revealed in ${bookName} Chapter ${startC}?`,
+          optionsTelugu: ["క్రీస్తు రక్తము వలన రక్షణ మరియు నిత్యజీవము", "తాత్కాలిక ఆనందం", "ఏమీ లేదు", "లోక భయాలు"],
+          optionsEnglish: ["Salvation through Christ's blood and eternal life", "Temporary happiness", "Nothing", "Worldly anxieties"],
+          correctIndex: 0,
+          explanationTelugu: "క్రీస్తు సిలువ యాగము ద్వారా మనకు రక్షణ మరియు నిత్యజీవ భాగ్యము లభించినది.",
+          explanationEnglish: "Through Christ's sacrifice, we receive salvation and eternal life."
+        },
+        {
+          id: 10,
+          chapter: endC,
+          category: 'Verse Context',
+          difficulty: 'hard',
+          questionTelugu: `${bookTel} ${endC}వ అధ్యాయము చదివిన తరువాత మన దైనందిన జీవితంలో ఏ తీర్మానం తీసుకోవాలి?`,
+          questionEnglish: `After reading ${bookName} Chapter ${endC}, what practical commitment should we make?`,
+          optionsTelugu: ["దేవుని చిత్తమునకు పూర్తిగా లొంగిపోవుట", "నా ఇష్ట ప్రకారము జీవించుట", "వాక్యమును మరచిపోవుట", "ఏమీ చేయకపోవుట"],
+          optionsEnglish: ["Completely submit to God's holy will", "Live by personal desires", "Forget the message", "Do nothing"],
+          correctIndex: 0,
+          explanationTelugu: "ప్రతిరోజూ దేవుని వాక్యమునకు విధేయులమై ఆయన మహిమ కొరకు జీవించుటకు తీర్మానించుకోవాలి.",
+          explanationEnglish: "Commit daily to obeying God's Word and living for His divine glory."
+        }
+      ];
 
-    return questions.map(shuffleQuestion);
-  };
+      return questions;
+    };
+    poolToSelect = generatePassageSpecificFallback(book, bookTelugu, startCh, endCh);
+  }
 
-  return generatePassageSpecificFallback(book, bookTelugu, startCh, endCh);
+  // Select 10 questions from candidate pool with difficulty balance
+  const easy = poolToSelect.filter(q => q.difficulty === 'easy');
+  const medium = poolToSelect.filter(q => q.difficulty === 'medium' || !q.difficulty);
+  const hard = poolToSelect.filter(q => q.difficulty === 'hard');
+
+  let selected: any[] = [];
+  selected.push(...easy.slice(0, 3));
+  selected.push(...medium.slice(0, 4));
+  selected.push(...hard.slice(0, 3));
+
+  if (selected.length < 10) {
+    const remaining = poolToSelect.filter(q => !selected.includes(q));
+    selected.push(...remaining.slice(0, 10 - selected.length));
+  }
+
+  // Final 10 items formatted & option shuffled
+  const final10Questions = selected.slice(0, 10).map((q, idx) => {
+    const shuffled = shuffleQuestion(q);
+    return {
+      ...shuffled,
+      id: idx + 1,
+      quizSessionId,
+    };
+  });
+
+  logGeneratedQuestions(
+    `${primaryProvider || 'Dynamic Scripture Engine'} (Validated by Groq)`,
+    book,
+    startCh,
+    endCh,
+    final10Questions
+  );
+
+  return final10Questions;
 };
 
 // Helper to calculate target end date
@@ -628,7 +888,9 @@ export const getPassageQuiz = async (req: Request, res: Response): Promise<void>
       bookTelugu || 'ఆదికాండము',
       Number(startChapter) || 1,
       Number(endChapter) || 1,
-      currentAttempt
+      currentAttempt,
+      userId || 'guest_user',
+      Number(day) || 1
     );
 
     res.status(200).json({

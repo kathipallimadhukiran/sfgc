@@ -303,6 +303,12 @@ class BiblePlanService {
     attemptsRemaining: number;
     totalQuestions: number;
   }> {
+    console.log('\n======================================================================');
+    console.log(`📱 [MOBILE APP] Requesting AI Quiz Generation from Backend...`);
+    console.log(`📖 Portion: ${portion.book} (${portion.bookTelugu}) Chapters ${portion.startChapter} to ${portion.endChapter}`);
+    console.log(`👤 User ID: ${userId} | Plan: ${planId}`);
+    console.log('======================================================================\n');
+
     try {
       const headers = await this.getAuthHeaders();
       const resp = await axios.post(`${API_URL}/api/bible-plans/generate-quiz`, {
@@ -316,6 +322,17 @@ class BiblePlanService {
       }, { headers, timeout: 12000 });
 
       if (resp.data && resp.data.questions && Array.isArray(resp.data.questions)) {
+        console.log('\n======================================================================');
+        console.log(`📱 [MOBILE APP] Received AI Questions Response from Backend!`);
+        console.log(`📖 Total Questions: ${resp.data.questions.length} | Attempt #${resp.data.attemptNumber || 1}`);
+        console.log('======================================================================');
+        resp.data.questions.forEach((q: any, idx: number) => {
+          console.log(`  [Q${idx + 1}] ${q.questionEnglish}`);
+          console.log(`      Options: [${q.optionsEnglish.join(', ')}]`);
+          console.log(`      ✅ Correct Answer Index [${q.correctIndex}]: "${q.optionsEnglish[q.correctIndex]}"`);
+        });
+        console.log('======================================================================\n');
+
         return {
           questions: resp.data.questions.map(shuffleQuestion),
           attemptNumber: resp.data.attemptNumber || 1,

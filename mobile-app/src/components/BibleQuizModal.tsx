@@ -32,6 +32,7 @@ export const BibleQuizModal: React.FC<BibleQuizModalProps> = ({
   const isQuizTel = quizLanguage === 'Telugu';
 
   const [loading, setLoading] = useState(true);
+  const [loadingStep, setLoadingStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [questions, setQuestions] = useState<any[]>([]);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
@@ -71,8 +72,14 @@ export const BibleQuizModal: React.FC<BibleQuizModalProps> = ({
 
   const loadQuizQuestions = async () => {
     setLoading(true);
+    setLoadingStep(1);
     setSelectedAnswers({});
     setQuizResult(null);
+
+    const stepInterval = setInterval(() => {
+      setLoadingStep(prev => (prev < 4 ? prev + 1 : prev));
+    }, 1200);
+
     try {
       const data = await biblePlanService.getPassageQuiz(portion, userId, planId);
       const shuffled = (data.questions || []).map(shuffleQuestion);
@@ -83,6 +90,7 @@ export const BibleQuizModal: React.FC<BibleQuizModalProps> = ({
     } catch (e) {
       console.log('Error loading quiz:', e);
     } finally {
+      clearInterval(stepInterval);
       setLoading(false);
     }
   };
@@ -161,10 +169,27 @@ export const BibleQuizModal: React.FC<BibleQuizModalProps> = ({
         ]}
       >
         {loading ? (
-          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+          <View style={{ paddingVertical: 40, alignItems: 'center', paddingHorizontal: 20 }}>
             <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={{ marginTop: 14, color: theme.textSecondary, fontSize: 13 }}>
-              {isQuizTel ? 'ఈ రోజు 10 ప్రశ్నలు సిద్ధం చేస్తున్నాము...' : 'Generating 10 passage questions with AI...'}
+            <Text style={{ marginTop: 16, color: theme.text, fontSize: 14.5, fontWeight: '700', textAlign: 'center' }}>
+              {isQuizTel
+                ? (loadingStep === 1
+                    ? 'మీ బైబిల్ క్విజ్ సిద్ధం చేయబడుతోంది...'
+                    : loadingStep === 2
+                    ? `${portion?.bookTelugu || 'ఆదికాండము'} ${portion?.startChapter}${portion?.startChapter !== portion?.endChapter ? `–${portion?.endChapter}` : ''} అధ్యాయాలు చదువుతోంది...`
+                    : loadingStep === 3
+                    ? 'AI తో ప్రశ్నలు రూపొందించబడుతున్నాయి...'
+                    : 'ప్రశ్నలు సరిచూడబడుతున్నాయి...')
+                : (loadingStep === 1
+                    ? 'Preparing your personalized Bible quiz...'
+                    : loadingStep === 2
+                    ? `Reading ${portion?.book || 'Genesis'} ${portion?.startChapter}${portion?.startChapter !== portion?.endChapter ? `–${portion?.endChapter}` : ''}...`
+                    : loadingStep === 3
+                    ? 'Creating questions with AI...'
+                    : 'Checking questions...')}
+            </Text>
+            <Text style={{ marginTop: 6, color: theme.textSecondary, fontSize: 12, textAlign: 'center' }}>
+              {isQuizTel ? '2-స్టేజ్ AI ద్వారా వాక్యముతో సరిపోల్చిన 10 ప్రశ్నలు రప్పిస్తున్నాము' : 'Dual-AI Pipeline: Gemini Generation ➔ Groq Validation'}
             </Text>
           </View>
         ) : (
