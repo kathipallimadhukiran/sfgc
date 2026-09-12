@@ -774,6 +774,7 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
   try {
     const { 
       date, 
+      time,
       bookId, 
       bookTelugu, 
       bookEnglish, 
@@ -786,6 +787,7 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
     } = req.body;
     
     const targetDate = date ? date.trim() : new Date().toISOString().split('T')[0];
+    const targetTime = time ? time.trim() : '05:00 AM';
 
     if (!verseTelugu || !referenceTelugu) {
       res.status(400).json({ success: false, message: 'Verse text and reference are required' });
@@ -796,6 +798,7 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
       { date: targetDate },
       {
         date: targetDate,
+        time: targetTime,
         bookId: bookId || '',
         bookTelugu: bookTelugu || '',
         bookEnglish: bookEnglish || '',

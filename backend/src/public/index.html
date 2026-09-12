@@ -1347,10 +1347,16 @@
         <button type="button" class="modal-close" onclick="app.closeModal('dailyPromiseModal')">&times;</button>
       </div>
       <div class="modal-body form-body">
-        <!-- Date Selector -->
-        <div class="form-group">
-          <label>Schedule Date *</label>
-          <input type="date" id="dpDate" class="form-control" required>
+        <!-- Date & Time Selector -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Schedule Date *</label>
+            <input type="date" id="dpDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Notification Time (సమయము)</label>
+            <input type="text" id="dpTime" class="form-control" value="05:00 AM" placeholder="e.g. 05:00 AM">
+          </div>
         </div>
 
         <!-- Book & Reference Dropdowns -->
@@ -1391,7 +1397,7 @@
             <input type="text" id="dpRefTel" class="form-control" placeholder="e.g. యిర్మీయా 29:11" required>
           </div>
           <div class="form-group">
-            <label>English Reference (English Reference) *</label>
+            <label>English Reference *</label>
             <input type="text" id="dpRefEng" class="form-control" placeholder="e.g. Jeremiah 29:11" required>
           </div>
         </div>

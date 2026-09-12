@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IDailyPromise extends Document {
   date: string; // YYYY-MM-DD format
+  time?: string; // HH:MM AM/PM format
   bookId?: string;
   bookTelugu?: string;
   bookEnglish?: string;
@@ -20,6 +21,7 @@ export interface IDailyPromise extends Document {
 
 const DailyPromiseSchema = new Schema<IDailyPromise>({
   date: { type: String, required: true, index: true },
+  time: { type: String, default: '05:00 AM' },
   bookId: { type: String, default: '' },
   bookTelugu: { type: String, default: '' },
   bookEnglish: { type: String, default: '' },

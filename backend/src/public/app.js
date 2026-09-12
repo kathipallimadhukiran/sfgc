@@ -2930,9 +2930,14 @@ class ChurchApp {
 
   openDailyPromiseModal(promiseItem = null) {
     this.populateDailyPromiseBookDropdown();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    document.getElementById('dpDate').value = promiseItem ? promiseItem.date : todayStr;
+    const dateElem = document.getElementById('dpDate');
+    const timeElem = document.getElementById('dpTime');
+    if (dateElem) dateElem.value = promiseItem ? promiseItem.date : todayStr;
+    if (timeElem) timeElem.value = promiseItem ? (promiseItem.time || '05:00 AM') : '05:00 AM';
+
     document.getElementById('dpRefTel').value = promiseItem ? (promiseItem.referenceTelugu || '') : 'యిర్మీయా 29:11';
     document.getElementById('dpRefEng').value = promiseItem ? (promiseItem.referenceEnglish || '') : 'Jeremiah 29:11';
     document.getElementById('dpVerseTel').value = promiseItem ? (promiseItem.verseTelugu || '') : '';
@@ -2943,6 +2948,7 @@ class ChurchApp {
 
   async saveDailyPromiseSubmit() {
     const date = document.getElementById('dpDate').value;
+    const time = document.getElementById('dpTime')?.value || '05:00 AM';
     const referenceTelugu = document.getElementById('dpRefTel').value.trim();
     const referenceEnglish = document.getElementById('dpRefEng').value.trim();
     const verseTelugu = document.getElementById('dpVerseTel').value.trim();
@@ -2958,11 +2964,11 @@ class ChurchApp {
     try {
       const res = await this.authFetch('/api/bible-plans/daily-promise', {
         method: 'POST',
-        body: JSON.stringify({ date, referenceTelugu, referenceEnglish, verseTelugu, verseEnglish })
+        body: JSON.stringify({ date, time, referenceTelugu, referenceEnglish, verseTelugu, verseEnglish })
       });
       const data = await res.json();
       if (data.success) {
-        this.showToast('🌅 Daily God\'s Promise scheduled and broadcast successfully!', 'success');
+        this.showToast('🌅 Daily God\'s Promise scheduled successfully!', 'success');
         this.closeModal('dailyPromiseModal');
         await this.loadDailyPromisesTable();
       } else {
@@ -2991,7 +2997,7 @@ class ChurchApp {
 
       tbody.innerHTML = list.map(p => `
         <tr>
-          <td><strong>${p.date}</strong></td>
+          <td><strong>${p.date}</strong> <span class="badge badge-outline" style="font-size:11px;">⏰ ${p.time || '05:00 AM'}</span></td>
           <td>${p.referenceTelugu}</td>
           <td>${p.referenceEnglish || '—'}</td>
           <td><small class="text-muted">${(p.verseTelugu || '').substring(0, 60)}...</small></td>
