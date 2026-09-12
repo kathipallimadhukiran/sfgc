@@ -10,6 +10,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { biblePlanService, UserProgressData, DailyPromiseData } from '@/services/biblePlanService';
+import { notificationService } from '@/services/notificationService';
 import { bibleService } from '@/services/bibleService';
 import { DailyPortion } from '@/constants/defaultBiblePlans';
 import { LeaderboardCard } from '@/components/LeaderboardCard';
@@ -305,6 +306,9 @@ export default function HomeScreen() {
       const list = await biblePlanService.getScheduledPromises();
       console.log('✅ [HomeScreen] Scheduled promises count received:', list.length);
       setScheduledPromisesList(list);
+      if (list && list.length > 0) {
+        notificationService.syncScheduledPromiseOSNotifications(list);
+      }
     } catch (e: any) {
       console.error('❌ [HomeScreen] Error fetching scheduled promises list:', e);
     }
@@ -523,6 +527,13 @@ export default function HomeScreen() {
     try {
       const p = await biblePlanService.getDailyPromise();
       setDailyPromise(p);
+      const list = await biblePlanService.getScheduledPromises();
+      if (list && list.length > 0) {
+        setScheduledPromisesList(list);
+        notificationService.syncScheduledPromiseOSNotifications(list);
+      } else if (p) {
+        notificationService.syncScheduledPromiseOSNotifications([p]);
+      }
     } catch (e) {
       console.log('Error loading daily promise:', e);
     }

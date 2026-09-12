@@ -15,6 +15,7 @@ import { songsService, SongItem } from '../services/songsService';
 import { eventsService, EventItem } from '../services/eventsService';
 import { noticesService, NoticeItem } from '../services/noticesService';
 import { notificationService } from '../services/notificationService';
+import { biblePlanService } from '../services/biblePlanService';
 import { authService } from '../services/authService';
 import { setAuthTokenCache } from '../services/apiClient';
 import { API_URL } from '../constants/config';
@@ -315,10 +316,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           songsRes,
           eventsRes,
           noticesRes,
+          scheduledPromises,
         ] = await Promise.all([
           songsService.getSongs(),
           eventsService.getEvents(),
           noticesService.getNotices(),
+          biblePlanService.getScheduledPromises().catch(() => []),
         ]);
 
         if (songsRes.songs) {
@@ -334,6 +337,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (noticesRes.notices) {
           setNotices(noticesRes.notices);
+        }
+
+        if (Array.isArray(scheduledPromises) && scheduledPromises.length > 0) {
+          console.log(`⏰ [AppContext] Syncing ${scheduledPromises.length} scheduled promise native OS alarms...`);
+          notificationService.syncScheduledPromiseOSNotifications(scheduledPromises);
         }
       } catch (err) {
         console.log(
@@ -361,7 +369,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
           if (type === 'event') {
             router.push('/events');
-          } else if (type === 'notice' || type === 'daily_promise') {
+          } else if (type === 'notice' || type === 'daily_promise' || type === 'promise') {
             router.push('/notifications');
           } else if (type === 'video') {
             router.push('/live-stream');
@@ -382,8 +390,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
 
+    // Periodic background sync for scheduled promises & native OS alarms (every 10 minutes)
+    const promiseInterval = setInterval(async () => {
+      try {
+        const promises = await biblePlanService.getScheduledPromises();
+        if (Array.isArray(promises) && promises.length > 0) {
+          console.log(`⏰ [AppContext Background Sync] Syncing ${promises.length} scheduled promise native OS alarms...`);
+          notificationService.syncScheduledPromiseOSNotifications(promises);
+        }
+      } catch (e) {}
+    }, 10 * 60 * 1000);
+
     return () => {
       responseSub?.remove?.();
+      clearInterval(promiseInterval);
     };
   }, []);
 

@@ -271,48 +271,98 @@ class NotificationService {
     }
   }
 
+  private scheduledPromiseIds = new Set<string>();
+
+  /**
+   * Schedule Native OS Local Alarms for ALL upcoming Daily Promises
+   * Fires on device at scheduled date & time even if the app is CLOSED, KILLED, or OFFLINE!
+   */
+  async syncScheduledPromiseOSNotifications(promisesList?: any[]): Promise<void> {
+    if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync) return;
+
+    try {
+      if (!Array.isArray(promisesList) || promisesList.length === 0) return;
+
+      for (const promise of promisesList) {
+        if (!promise || !promise.date || !promise.verseTelugu) continue;
+
+        // Parse promise.date ("YYYY-MM-DD")
+        const dateParts = String(promise.date).trim().split('-');
+        if (dateParts.length < 3) continue;
+
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1;
+        const day = parseInt(dateParts[2], 10);
+
+        // Parse promise.time ("05:00 AM", "02:05 PM", "17:30")
+        const timeStr = String(promise.time || '05:00 AM').trim().toUpperCase();
+        const isPM = timeStr.includes('PM');
+        const isAM = timeStr.includes('AM');
+        const cleanTime = timeStr.replace(/AM|PM/gi, '').trim();
+        const timeParts = cleanTime.split(/[:.]/);
+        let hours = parseInt(timeParts[0] || '5', 10);
+        let minutes = parseInt(timeParts[1] || '0', 10);
+
+        if (isNaN(hours)) hours = 5;
+        if (isNaN(minutes)) minutes = 0;
+        if (isPM && hours < 12) hours += 12;
+        if (isAM && hours === 12) hours = 0;
+
+        const targetDate = new Date(year, month, day, hours, minutes, 0, 0);
+        const targetMs = targetDate.getTime();
+        const nowMs = Date.now();
+
+        // Schedule OS alarm ONLY if the target time is in the future
+        if (targetMs > nowMs) {
+          const promiseId = String(promise._id || promise.date).substring(0, 50);
+          const scheduleKey = `${promiseId}_${targetMs}`;
+          if (this.scheduledPromiseIds.has(scheduleKey)) {
+            continue; // Already scheduled
+          }
+
+          const notificationId = `daily_promise_${promiseId}`;
+
+          try {
+            await Notifications.cancelScheduledNotificationAsync(notificationId);
+          } catch (cErr) {}
+
+          await Notifications.scheduleNotificationAsync({
+            identifier: notificationId,
+            content: {
+              title: `🕊️ నేటి దేవుని వాగ్దానము`,
+              body: `"${promise.verseTelugu.trim()}"\n\n— ${promise.referenceTelugu.trim()}`,
+              data: {
+                type: 'daily_promise',
+                date: promise.date,
+                time: promise.time || '05:00 AM',
+                verseTelugu: promise.verseTelugu,
+                referenceTelugu: promise.referenceTelugu,
+                verseEnglish: promise.verseEnglish,
+                referenceEnglish: promise.referenceEnglish,
+              },
+              sound: 'default',
+              priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: targetDate,
+            },
+          });
+
+          this.scheduledPromiseIds.add(scheduleKey);
+          console.log(`⏰ [Native OS Alarm] Scheduled local OS notification for "${promise.referenceTelugu}" on ${promise.date} at ${promise.time} (${targetDate.toLocaleString()}). Will fire even if app is CLOSED!`);
+        }
+      }
+    } catch (err: any) {
+      console.log('Error syncing scheduled promise OS notifications:', err?.message || err);
+    }
+  }
+
   /**
    * Schedule Daily 5:00 AM IST Local OS Notification with dynamic daily Bible promise
    */
   async scheduleDaily5AMPromiseNotification(promisesList?: any[]): Promise<void> {
-    if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync) return;
-
-    try {
-      // Cancel previous scheduled daily promise notification if any
-      try {
-        await Notifications.cancelScheduledNotificationAsync('daily_5am_promise');
-      } catch (cErr) {}
-
-      // Get today's verse or fallback Telugu promise
-      const todayVerse = promisesList?.[0] || {
-        verseTelugu: 'భయపడకుము నేను నీకు తోడైయున్నాను; కలవరపడకుము నేను నీ దేవుడనై యున్నాను.',
-        referenceTelugu: 'యెషయా 41:10'
-      };
-
-      await Notifications.scheduleNotificationAsync({
-        identifier: 'daily_5am_promise',
-        content: {
-          title: `🕊️ నేటి దేవుని వాగ్దానము`,
-          body: `"${todayVerse.verseTelugu}" — ${todayVerse.referenceTelugu}`,
-          data: {
-            type: 'daily_promise',
-            verseTelugu: todayVerse.verseTelugu,
-            referenceTelugu: todayVerse.referenceTelugu,
-          },
-          sound: 'default',
-          priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: 5,
-          minute: 0,
-        },
-      });
-
-      console.log('⏰ Scheduled Local 5:00 AM Daily Promise OS Notification successfully!');
-    } catch (err: any) {
-      console.log('Notice scheduling 5 AM local promise error:', err?.message || err);
-    }
+    await this.syncScheduledPromiseOSNotifications(promisesList);
   }
 }
 
