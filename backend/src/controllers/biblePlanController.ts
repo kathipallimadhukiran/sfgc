@@ -817,7 +817,7 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
     // ABSOLUTELY NO immediate notification or socket emit on save!
     res.status(200).json({ 
       success: true, 
-      message: `Promise scheduled successfully for ${targetDate}. Notification will be sent at 5:00 AM on the scheduled date.`, 
+      message: `Promise scheduled successfully for ${targetDate} at ${targetTime}. Notification will be sent at ${targetTime} on the scheduled date.`, 
       data: promise 
     });
   } catch (error: any) {

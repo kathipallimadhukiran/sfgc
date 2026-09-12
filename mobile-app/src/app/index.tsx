@@ -67,12 +67,21 @@ export default function HomeScreen() {
 
   // Admin Daily Promise Manager State
   const canManagePromise = user && ['Admin', 'Super Admin', 'Event Coordinator', 'Notice Manager'].includes(user.role);
+  const getTodayLocalDateStr = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const [promiseModalVisible, setPromiseModalVisible] = useState(false);
   const [promiseTel, setPromiseTel] = useState('');
   const [promiseEng, setPromiseEng] = useState('');
   const [refTel, setRefTel] = useState('');
   const [refEng, setRefEng] = useState('');
-  const [promiseDate, setPromiseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [promiseDate, setPromiseDate] = useState(getTodayLocalDateStr());
+  const [promiseTime, setPromiseTime] = useState('05:00 AM');
   const [scheduledPromisesList, setScheduledPromisesList] = useState<any[]>([]);
   const [savingPromise, setSavingPromise] = useState(false);
 
@@ -123,6 +132,7 @@ export default function HomeScreen() {
   const [availableVerses, setAvailableVerses] = useState<number[]>(Array.from({ length: 30 }, (_, i) => i + 1));
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [bookModalOpen, setBookModalOpen] = useState(false);
   const [chapterModalOpen, setChapterModalOpen] = useState(false);
   const [verseModalOpen, setVerseModalOpen] = useState(false);
@@ -257,7 +267,7 @@ export default function HomeScreen() {
     setPromiseModalVisible(true);
     fetchScheduledPromisesList();
     loadPassageForSelection(selectedBook || allBibleBooks[18], selectedChapter || '23', selectedVerse || '1');
-    setPromiseDate(new Date().toISOString().split('T')[0]);
+    setPromiseDate(getTodayLocalDateStr());
   };
 
   const fetchScheduledPromisesList = async () => {
@@ -276,6 +286,7 @@ export default function HomeScreen() {
     try {
       const res = await biblePlanService.saveDailyPromise({
         date: promiseDate,
+        time: promiseTime,
         bookId: selectedBook?.english || '',
         bookTelugu: selectedBook?.telugu || '',
         bookEnglish: selectedBook?.english || '',
@@ -288,7 +299,7 @@ export default function HomeScreen() {
       });
 
       if (res.success) {
-        alert(`Promise scheduled successfully for ${promiseDate}.\nNotification will be sent at 5:00 AM on the scheduled date.`);
+        alert(`Promise scheduled successfully for ${promiseDate} at ${promiseTime}.\nNotification will be sent at ${promiseTime} on the scheduled date.`);
         await loadDailyPromise();
         await fetchScheduledPromisesList();
         if (returnToBibleAfterPromise) {
@@ -1110,44 +1121,100 @@ export default function HomeScreen() {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* 1. Schedule Date Picker Selection */}
-            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary, marginTop: 4 }}>
-              Schedule Date
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.primary,
-                backgroundColor: theme.primary + '12',
-                marginTop: 6,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <MaterialCommunityIcons name="calendar-month" size={22} color={theme.primary} />
-                <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text }}>
-                  {promiseDate}
+            {/* 1. Schedule Date & Notification Time Selection */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary }}>
+                  Schedule Date *
                 </Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 12,
+                    paddingVertical: 11,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.primary,
+                    backgroundColor: theme.primary + '12',
+                    marginTop: 6,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <MaterialCommunityIcons name="calendar-month" size={20} color={theme.primary} />
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.text }}>
+                      {promiseDate}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-down" size={18} color={theme.primary} />
+                </TouchableOpacity>
               </View>
-              <MaterialCommunityIcons name="chevron-down" size={20} color={theme.primary} />
-            </TouchableOpacity>
 
-            {/* Native DateTimePicker popup when showDatePicker is true */}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary }}>
+                  Notification Time
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(true)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 12,
+                    paddingVertical: 11,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.primary,
+                    backgroundColor: theme.primary + '12',
+                    marginTop: 6,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <MaterialCommunityIcons name="clock-outline" size={20} color={theme.primary} />
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.text }}>
+                      {promiseTime}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-down" size={18} color={theme.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Native DateTimePicker popups */}
             {showDatePicker && (
               <DateTimePicker
-                value={new Date(promiseDate + 'T00:00:00')}
+                value={new Date(promiseDate + 'T12:00:00')}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={(event: any, selectedDate?: Date) => {
                   setShowDatePicker(Platform.OS === 'ios');
                   if (selectedDate) {
-                    setPromiseDate(selectedDate.toISOString().split('T')[0]);
+                    const yyyy = selectedDate.getFullYear();
+                    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const dd = String(selectedDate.getDate()).padStart(2, '0');
+                    setPromiseDate(`${yyyy}-${mm}-${dd}`);
+                  }
+                }}
+              />
+            )}
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={new Date()}
+                mode="time"
+                is24Hour={false}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event: any, selectedTime?: Date) => {
+                  setShowTimePicker(Platform.OS === 'ios');
+                  if (selectedTime) {
+                    const hours = selectedTime.getHours();
+                    const minutes = selectedTime.getMinutes();
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    const formattedHours = hours % 12 || 12;
+                    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+                    setPromiseTime(`${String(formattedHours).padStart(2, '0')}:${formattedMinutes} ${ampm}`);
                   }
                 }}
               />
@@ -1234,16 +1301,6 @@ export default function HomeScreen() {
                 </View>
                 <MaterialCommunityIcons name="chevron-down" size={18} color={theme.textSecondary} />
               </TouchableOpacity>
-            </View>
-
-            {/* Reference Source of Truth Display */}
-            <View style={{ marginVertical: 10, padding: 10, borderRadius: 10, backgroundColor: theme.primary + '10', borderWidth: 1, borderColor: theme.primary + '30' }}>
-              <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.primary }}>
-                📖 Reference:
-              </Text>
-              <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.text, marginTop: 2 }}>
-                {refTel || 'కీర్తనలు 23:1'} ({refEng || 'Psalms 23:1'})
-              </Text>
             </View>
 
             {/* 3. Telugu Verse Input Area */}

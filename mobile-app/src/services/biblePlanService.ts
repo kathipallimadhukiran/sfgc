@@ -623,6 +623,7 @@ class BiblePlanService {
   // Save/Schedule Daily Promise
   async saveDailyPromise(promiseData: {
     date?: string;
+    time?: string;
     bookId?: string;
     bookTelugu?: string;
     bookEnglish?: string;
