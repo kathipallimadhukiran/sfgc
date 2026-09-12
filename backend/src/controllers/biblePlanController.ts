@@ -338,7 +338,7 @@ const normalizeQuestion = (q: any, defaultBook: string, startCh: number) => {
   };
 };
 
-// Deterministic grounded verse fallback extractor (Guarantees zero generic spiritual questions if AI is offline)
+// Deterministic grounded verse fallback extractor (Scenario & Comprehension framed)
 const generateStrictGroundedFallbackQuestions = (
   book: string,
   bookTel: string,
@@ -354,41 +354,41 @@ const generateStrictGroundedFallbackQuestions = (
     const textTel = v.textTelugu;
     const ref = `${book} ${v.chapter}:${v.verse}`;
 
-    // 1. Age / Number facts
+    // 1. Age / Number facts framed as scenario/comprehension
     const ageMatch = textEng.match(/(\d+)\s+years/i);
     if (ageMatch && fallbackList.length < 10) {
       const numberVal = ageMatch[1];
       fallbackList.push({
         id: fallbackList.length + 1,
         chapter: v.chapter,
-        category: 'number',
-        difficulty: 'easy',
-        questionEnglish: `According to ${ref}, how many years are explicitly recorded?`,
-        questionTelugu: `${telName} ${v.chapter}:${v.verse} ప్రకారం, ఎన్ని సంవత్సరాలు స్పష్టంగా రాయబడ్డాయి?`,
-        optionsEnglish: [`${numberVal} years`, `${Number(numberVal) + 10} years`, `${Math.max(1, Number(numberVal) - 20)} years`, `${Number(numberVal) + 50} years`],
-        optionsTelugu: [`${numberVal} సంవత్సరాలు`, `${Number(numberVal) + 10} సంవత్సరాలు`, `${Math.max(1, Number(numberVal) - 20)} సంవత్సరాలు`, `${Number(numberVal) + 50} సంవత్సరాలు`],
+        category: 'scenario',
+        difficulty: 'medium',
+        questionEnglish: `Suppose someone is examining the record in ${ref} regarding timeframe or age. Based on the passage, which statement accurately reflects what is recorded?`,
+        questionTelugu: `ఒక వ్యక్తి ${telName} ${v.chapter}:${v.verse} లోని వయస్సు లేదా కాలక్రమమును గూర్చి పరిశీలిస్తే, వాక్యము ఆధారంగా ఏ ప్రకటన సరైనది?`,
+        optionsEnglish: [`The text explicitly states ${numberVal} years`, `The text explicitly states ${Number(numberVal) + 10} years`, `The text explicitly states ${Math.max(1, Number(numberVal) - 20)} years`, `No specific years are recorded in the passage`],
+        optionsTelugu: [`వాక్యములో స్పష్టముగా ${numberVal} సంవత్సరాలు అని ఉంది`, `వాక్యములో స్పష్టముగా ${Number(numberVal) + 10} సంవత్సరాలు అని ఉంది`, `వాక్యములో స్పష్టముగా ${Math.max(1, Number(numberVal) - 20)} సంవత్సరాలు అని ఉంది`, `వాక్యములో నిర్దిష్ట వివరాలు లేవు`],
         correctIndex: 0,
-        explanationEnglish: `According to ${ref}, the scripture states: "${textEng}"`,
-        explanationTelugu: `${ref} ప్రకారం వాక్యము: "${textTel || textEng}"`,
+        explanationEnglish: `Genesis passage ${ref} explicitly states: "${textEng}". Therefore this option matches the scripture.`,
+        explanationTelugu: `${ref} లో వాక్యము ప్రకారం: "${textTel || textEng}".`,
         reference: ref,
         evidence: textEng,
       });
     }
 
-    // 2. Direct Verse Statements & Actions
-    if ((textEng.includes('begat') || textEng.includes('father') || textEng.includes('built') || textEng.includes('said') || textEng.includes('commanded')) && fallbackList.length < 20) {
+    // 2. Statements & Actions framed as scenario/comprehension
+    if ((textEng.includes('begat') || textEng.includes('father') || textEng.includes('built') || textEng.includes('said') || textEng.includes('commanded') || textEng.includes('created') || textEng.includes('made')) && fallbackList.length < 20) {
       fallbackList.push({
         id: fallbackList.length + 1,
         chapter: v.chapter,
-        category: 'action',
+        category: 'comprehension',
         difficulty: 'medium',
-        questionEnglish: `What factual detail is explicitly stated in ${ref}?`,
-        questionTelugu: `${telName} ${v.chapter}:${v.verse} లో నమోదైన స్పష్టమైన విషయం ఏది?`,
-        optionsEnglish: [textEng.substring(0, 75), "No specific detail given", "An unrelated historical statement", "None of these"],
-        optionsTelugu: [(textTel || textEng).substring(0, 75), "ఏ వివరమూ లేదు", "సంబంధం లేని సంఘటన", "ఏదీ కాదు"],
+        questionEnglish: `Consider a situation where a reader wants to verify the event described in ${ref}. Based on the text, which response aligns with what occurred?`,
+        questionTelugu: `${telName} ${v.chapter}:${v.verse} లో జరిగిన సంఘటనను ఒక వ్యక్తి పరిశీలిస్తే, వాక్యము ప్రకారం ఏ వివరణ సరిపోలుతుంది?`,
+        optionsEnglish: [textEng.substring(0, 80), "The passage describes an unrelated situation", "No specific detail is recorded", "The opposite event occurred"],
+        optionsTelugu: [(textTel || textEng).substring(0, 80), "సంబంధం లేని సంఘటన వివరించబడింది", "ఏ వివరమూ నమోదు కాలేదు", "వ్యతిరేక సంఘటన జరిగింది"],
         correctIndex: 0,
-        explanationEnglish: `Scripture passage ${ref}: "${textEng}"`,
-        explanationTelugu: `${ref} లో వాక్యము: "${textTel || textEng}"`,
+        explanationEnglish: `Genesis passage ${ref} records: "${textEng}".`,
+        explanationTelugu: `${ref} ప్రకారం వాక్యము: "${textTel || textEng}".`,
         reference: ref,
         evidence: textEng,
       });
@@ -430,81 +430,83 @@ export const generateQuizForPassage = async (
   }
   console.log(`[AI QUIZ] Chapters: ${chaptersArray.join(', ')}`);
 
-  const STRICT_SYSTEM_PROMPT = `You are a Bible text-grounded quiz generator.
+  const STRICT_SYSTEM_PROMPT = `You are a Bible text-grounded SCENARIO and APPLICATION quiz generator.
 
 Your ONLY source of truth is the Bible text supplied in this request.
 
-You are NOT allowed to use your general knowledge.
+QUESTION STYLE REQUIREMENTS:
+- 70% of questions MUST be SITUATION-BASED / SCENARIO-BASED / APPLICATION-OF-TEXT questions.
+- 30% of questions MUST be COMPREHENSION / REASONING questions.
+- DO NOT make the quiz a simple Bible fact-recall or verse-copy test.
+- The user must need to UNDERSTAND the Bible passage and apply the information to a realistic hypothetical scenario.
 
-You are NOT allowed to use information from any other Bible chapter or book.
+SCENARIO QUESTION DEFINITION:
+1. Create a short realistic scenario (using varied starters like: "Suppose...", "Imagine...", "Consider a situation where...", "A person is faced with...", "Two people are discussing...", "Someone misunderstands...", "If you were in [character]'s position...").
+2. Connect that scenario to an event, decision, command, action, consequence, conversation, or principle explicitly present in the supplied Bible text.
+3. The scenario MUST NOT introduce non-existent biblical characters, unmentioned places, or fictional biblical facts.
+4. Have ONE clearly correct answer logically derived strictly from the supplied Bible passage.
 
-You are NOT allowed to import Christian theology, doctrine, sermons, commentaries, or personal interpretation.
-
-Every question must be directly answerable from the supplied text.
-
-Every correct answer must be explicitly supported by the supplied text.
-
-Every explanation must be supported by the supplied text.
-
-Every question must contain an exact chapter/verse reference.
-
-If a question cannot be proven from the supplied text, DO NOT generate it.
-
-Prefer factual and comprehension questions about:
-people,
-events,
-places,
-actions,
-commands,
-relationships,
-numbers,
-ages,
-sequence,
-statements,
-and consequences explicitly described in the text.
-
-Avoid generic spiritual-lesson questions.
-
-Never invent information.
+BANNED QUESTION PATTERNS (NEVER GENERATE):
+- DO NOT generate simple verse-lookup questions (e.g. BANNED: "What factual detail is explicitly stated in...", "What verse says...", "What is the reference for...", "What did God create on the first day?").
+- DO NOT generate generic Christian advice (e.g. BANNED: "How should a believer live today?", "What spiritual lesson...", "What does this teach about salvation/Jesus...").
 
 Return structured JSON only.`;
 
   // STEP 1: Grounded Candidate Question Generation (Extract Factual Facts & Generate 20 Candidates)
-  console.log('🤖 [STEP 1] Generating 20 Grounded Candidate Questions directly from scripture text...');
+  console.log('🤖 [STEP 1] Generating 20 Scenario & Comprehension Grounded Candidate Questions...');
   const step1Prompt = `SUPPLIED BIBLE TEXT FOR ${chapterRangeStr}:
 ${passageData.englishText}
 
-Extract explicit facts and generate 20 distinct candidate questions strictly based on the scripture text above.
+Generate 20 distinct candidate quiz questions based strictly on the Bible text above.
+
+TARGET DISTRIBUTION (20 CANDIDATES):
+- 14 Situation/Scenario/Application questions (70%)
+- 6 Comprehension/Reasoning questions (30%)
+- Target Difficulty: 6 Easy, 8 Medium, 6 Hard
 
 BANNED QUESTION PATTERNS (DO NOT GENERATE):
-- "What spiritual lesson..."
-- "What eternal hope..."
-- "How should a believer..."
-- "What practical commitment..."
-- "How should Christians..."
-- "What does God's grace teach..."
-- "What does this mean for our spiritual life..."
-- Any question importing outside Christian theology or New Testament concepts.
+- "What factual detail is explicitly stated in..."
+- "What verse says..."
+- "What is the reference for..."
+- "What did God create on day X?"
+- "What spiritual lesson should Christians..."
+- "How should a believer live today..."
+- "What does this teach about Jesus/salvation..."
 
-PREFER FACTUAL QUESTIONS:
-Who?, What?, Where?, When?, How?, Which?, How many?, What happened?, What did X say?, What did X do?, What did God command?, What was the result?, What happened before/after?, What object/person/place was mentioned?, What sequence of events occurred?
+VARIED SCENARIO STARTERS (Use diverse openings):
+- "Suppose someone claims that..."
+- "Imagine you are facing a decision similar to [character]'s situation when..."
+- "Consider a scenario where two people are discussing..."
+- "Someone misunderstands what occurred when..."
+- "If a person responds to a situation by doing X, which consequence in the passage..."
+- "If you were in [character]'s position at that point in the story..."
 
 Return raw JSON array of 20 candidate question objects ONLY:
 [
   {
     "id": 1,
     "chapter": ${realStartCh},
-    "category": "person",
-    "difficulty": "easy",
-    "questionEnglish": "Who was the father of Noah?",
-    "questionTelugu": "నోవహు తండ్రి ఎవరు?",
-    "optionsEnglish": ["Lamech", "Methuselah", "Enoch", "Seth"],
-    "optionsTelugu": ["లేమెకు", "మెతూషెల", "హానోకు", "షేతు"],
+    "category": "scenario",
+    "difficulty": "medium",
+    "questionEnglish": "Suppose someone claims that creation occurred without order or structure. Based on Genesis 1, which response best corrects this misunderstanding?",
+    "questionTelugu": "సృష్టి ఏ క్రమము లేకుండా జరిగిందని ఎవరైనా వాదిస్తే, ఆదికాండము 1వ అధ్యాయము ఆధారంగా ఏ సమాధానం సరైనది?",
+    "optionsEnglish": [
+      "God created light and separated it from darkness in an orderly progression",
+      "All creation occurred instantaneously without distinct days",
+      "The passage does not describe creation order",
+      "Light and darkness were treated as identical"
+    ],
+    "optionsTelugu": [
+      "దేవుడు ఒక క్రమానుగత పద్ధతిలో వెలుగును సృష్టించి చీకటి నుండి వేరుచేసెను",
+      "సృష్టి అంతా ఒక్క క్షణంలో ఏ క్రమము లేకుండా జరిగింది",
+      "ఈ అధ్యాయంలో క్రమము గురించి పేర్కొనలేదు",
+      "వెలుగు మరియు చీకటి ఒకేలా పరిగణించబడ్డాయి"
+    ],
     "correctIndex": 0,
-    "explanationEnglish": "Lamech lived 182 years and begat Noah.",
-    "explanationTelugu": "లేమెకు నోవహును కనెను.",
-    "reference": "${book} ${realStartCh}:28-29",
-    "evidence": "Lamech lived 182 years and begat a son named Noah."
+    "explanationEnglish": "Genesis 1:3-5 describes God creating light and systematically separating light from darkness, demonstrating orderly creation.",
+    "explanationTelugu": "ఆదికాండము 1:3-5 లో దేవుడు వెలుగును సృష్టించి దానిని చీకటి నుండి క్రమబద్ధంగా వేరుచేసినట్లు స్పష్టంగా ఉంది.",
+    "reference": "${book} ${realStartCh}:3-5",
+    "evidence": "And God saw the light, that it was good: and God divided the light from the darkness."
   }
 ]`;
 
@@ -520,7 +522,7 @@ Return raw JSON array of 20 candidate question objects ONLY:
   console.log('🛡️ [STEP 3] Running Secondary AI Source Verification...');
   let validationMap = new Map<number, any>();
   if (candidatePool.length > 0) {
-    const validatePrompt = `Determine whether each question is completely supported by the supplied Bible text.
+    const validatePrompt = `Verify each candidate question for Source Grounding & Scenario Validity based on the supplied Bible text.
 
 SUPPLIED BIBLE TEXT (${chapterRangeStr}):
 ${passageData.englishText}
@@ -536,17 +538,24 @@ ${JSON.stringify(candidatePool.map(c => ({
   evidence: c.evidence
 })))}
 
+VERIFICATION CHECKS:
+1. sourceGrounded: Is the correct answer explicitly supported by the supplied Bible text?
+2. scenarioGrounded: Does the scenario apply information from the text WITHOUT inventing unsupported biblical facts/characters?
+3. singleCorrectAnswer: Is there exactly one clear correct answer?
+4. outsideKnowledgeUsed: false (No New Testament theology or generic spiritual advice).
+5. notVerseLookup: Is the question scenario/comprehension-based rather than a simple verse copy ("What factual detail is explicitly stated in...")?
+
 Return raw JSON array ONLY:
 [
   {
     "id": 1,
     "valid": true,
-    "correctAnswer": 0,
-    "referenceValid": true,
-    "evidenceSupported": true,
-    "explanationSupported": true,
+    "sourceGrounded": true,
+    "scenarioGrounded": true,
+    "singleCorrectAnswer": true,
     "outsideKnowledgeUsed": false,
-    "reason": "Supported by text"
+    "notVerseLookup": true,
+    "reason": "Valid scenario grounded in scripture"
   }
 ]`;
 
@@ -589,9 +598,12 @@ Return raw JSON array ONLY:
       continue;
     }
 
-    // Check banned theological keywords
+    // Check banned non-scenario or outside-theology patterns
     const lowerQ = (q.questionEnglish + ' ' + q.explanationEnglish).toLowerCase();
     if (
+      lowerQ.includes('what factual detail is explicitly stated') ||
+      lowerQ.includes('what verse says') ||
+      lowerQ.includes('what is the reference for') ||
       lowerQ.includes('spiritual lesson') ||
       lowerQ.includes('eternal hope') ||
       lowerQ.includes('how should a believer') ||
@@ -603,7 +615,7 @@ Return raw JSON array ONLY:
       lowerQ.includes('salvation through')
     ) {
       rejectedOutsideKnowledge++;
-      console.log(`[AI QUIZ] Rejected - outside knowledge: Q#${q.id} "${q.questionEnglish}" | Reason: Contains banned theological concepts outside text`);
+      console.log(`[AI QUIZ] Rejected - style or outside knowledge: Q#${q.id} "${q.questionEnglish}" | Reason: Banned question pattern or outside theology`);
       continue;
     }
 
@@ -615,9 +627,9 @@ Return raw JSON array ONLY:
         continue;
       }
 
-      if (!v.valid || !v.referenceValid || !v.evidenceSupported || !v.explanationSupported) {
+      if (!v.valid || !v.sourceGrounded || v.notVerseLookup === false) {
         rejectedUnsupportedAnswer++;
-        console.log(`[AI QUIZ] Rejected - unsupported answer: Q#${q.id} "${q.questionEnglish}" | Reason: ${v.reason || 'Unsupported answer or invalid reference'}`);
+        console.log(`[AI QUIZ] Rejected - unsupported or verse lookup: Q#${q.id} "${q.questionEnglish}" | Reason: ${v.reason || 'Failed scenario or source validation'}`);
         continue;
       }
 
