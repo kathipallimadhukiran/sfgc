@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { getStreamState, updateStreamState, getCastInfo } from '../controllers/streamController';
-import { createLiveVideo, deleteLiveVideo, getLiveVideos, updateLiveVideo, syncYouTubeChannelVideos } from '../controllers/liveVideoController';
+import { createLiveVideo, deleteLiveVideo, getLiveVideos, updateLiveVideo, syncYouTubeChannelVideos, handleYouTubeWebhook } from '../controllers/liveVideoController';
 import { authenticate, requireRole } from '../middleware/auth';
 
 const router = Router();
 
+router.get('/youtube-webhook', handleYouTubeWebhook);
+router.post('/youtube-webhook', handleYouTubeWebhook);
 router.get('/videos', getLiveVideos);
 router.post('/videos', authenticate, requireRole(['Admin', 'Super Admin']), createLiveVideo);
 router.post('/videos/sync-channel', syncYouTubeChannelVideos);

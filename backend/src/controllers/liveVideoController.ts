@@ -520,3 +520,31 @@ export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
     return 0;
   }
 };
+
+/**
+ * Google YouTube Official PubSubHubbub Webhook Handler
+ * When YouTube detects a new video on your channel, Google sends a POST request here.
+ * This automatically wakes Render up from sleep, saves the video, and sends FCM notifications!
+ */
+export const handleYouTubeWebhook = async (req: Request, res: Response): Promise<void> => {
+  if (req.method === 'GET') {
+    const challenge = req.query['hub.challenge'];
+    if (challenge) {
+      console.log('✅ Google YouTube Webhook Subscription Verified!');
+      res.status(200).send(challenge);
+      return;
+    }
+    res.status(200).send('YouTube Webhook Endpoint Active');
+    return;
+  }
+
+  try {
+    console.log('📡 [YOUTUBE WEBHOOK] Received Google push notification for new video!');
+    const io = req.app.get('io');
+    const importedCount = await autoSyncChannelVideosJob(io);
+    res.status(200).send(`OK - Processed ${importedCount} videos`);
+  } catch (err: any) {
+    console.error('Error handling YouTube webhook:', err);
+    res.status(500).send('Webhook Processing Error');
+  }
+};

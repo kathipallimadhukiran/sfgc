@@ -13,6 +13,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SongItem } from '@/services/songsService';
 import { apiClient } from '@/services/apiClient';
 import { API_URL } from '@/constants/config';
+import { CastButton } from '@/components/cast/CastButton';
+import { CastDevicePicker } from '@/components/cast/CastDevicePicker';
+import { CastStatus } from '@/components/cast/CastStatus';
 
 const OPERATOR_ROLES = ['Admin', 'Super Admin', 'Worship Leader', 'Choir Leader', 'Media Team'];
 
@@ -373,7 +376,7 @@ export default function LiveLyricsScreen() {
     let url = tvCastInfo?.tvWebUrl;
     if (!url) {
       try {
-        const res = await apiClient.get('/stream/cast-info');
+        const res = await apiClient.get('/api/stream/cast-info');
         if (res && res.tvWebUrl) url = res.tvWebUrl;
       } catch (e) {}
     }
@@ -405,7 +408,7 @@ export default function LiveLyricsScreen() {
   const fetchTvCastInfo = async () => {
     setIsSearchingDevices(true);
     try {
-      const res = await apiClient.get('/stream/cast-info');
+      const res = await apiClient.get('/api/stream/cast-info');
       if (res && res.success) {
         setTvCastInfo({
           hostIp: res.hostIp,
@@ -473,10 +476,23 @@ export default function LiveLyricsScreen() {
   }, [socket]);
 
   useEffect(() => {
+    let interval: any;
     if (showCastModal) {
       fetchTvCastInfo();
+      if (socket) {
+        socket.emit('getDisplays');
+      }
+      interval = setInterval(() => {
+        fetchTvCastInfo();
+        if (socket) {
+          socket.emit('getDisplays');
+        }
+      }, 3000);
     }
-  }, [showCastModal]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [showCastModal, socket]);
 
   const handleAddCustomTv = async () => {
     if (!newTvName.trim() || !newTvIp.trim()) return;
@@ -667,10 +683,8 @@ export default function LiveLyricsScreen() {
                 <MaterialCommunityIcons name="share-variant-outline" size={18} color="#38bdf8" />
               </TouchableOpacity>
 
-              {/* Cast Button */}
-              <TouchableOpacity onPress={() => { setShowCastModal(true); handleStartDeviceScan(); }} style={styles.opTopBtn}>
-                <MaterialCommunityIcons name={castingDevice ? 'cast-connected' : 'cast'} size={18} color={castingDevice ? '#6366f1' : '#aaa'} />
-              </TouchableOpacity>
+              {/* Integrated TV Cast Button */}
+              <CastButton variant="icon" isTelugu={isTel} />
 
               {/* Announcement Note Button */}
               <TouchableOpacity onPress={() => setShowCustomNoteModal(true)} style={styles.opTopBtn}>
@@ -1294,14 +1308,18 @@ export default function LiveLyricsScreen() {
                 <Text style={styles.tvUrlText} numberOfLines={1}>
                   {tvCastInfo.tvWebUrl}
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
                   <TouchableOpacity style={styles.tvUrlBtn} onPress={handleCopyTvUrl}>
                     <MaterialCommunityIcons name="content-copy" size={14} color="#6366f1" />
-                    <Text style={styles.tvUrlBtnText}>{isTel ? 'లింక్ కాపీ చేయి' : 'Copy Link'}</Text>
+                    <Text style={styles.tvUrlBtnText}>{isTel ? 'కాపీ' : 'Copy'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.tvUrlBtn} onPress={handleShareTvLink}>
+                    <MaterialCommunityIcons name="share-variant" size={14} color="#6366f1" />
+                    <Text style={styles.tvUrlBtnText}>{isTel ? 'షేర్' : 'Share'}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.tvUrlBtn, { backgroundColor: '#6366f1' }]} onPress={handleOpenTvUrl}>
                     <MaterialCommunityIcons name="open-in-new" size={14} color="#fff" />
-                    <Text style={[styles.tvUrlBtnText, { color: '#fff' }]}>{isTel ? 'TV బ్రౌజర్‌లో తెరువు' : 'Open TV Player'}</Text>
+                    <Text style={[styles.tvUrlBtnText, { color: '#fff' }]}>{isTel ? 'TVలో తెరువు' : 'Open TV'}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1447,6 +1465,9 @@ export default function LiveLyricsScreen() {
           </Modal>
         </Portal>
 
+        {/* Native Cast Device Picker & Connected TV Status Bar */}
+        <CastDevicePicker isTelugu={isTel} />
+        <CastStatus isTelugu={isTel} />
       </View>
     </Portal.Host>
   );

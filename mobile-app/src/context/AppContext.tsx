@@ -361,7 +361,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
           if (type === 'event') {
             router.push('/events');
-          } else if (type === 'notice') {
+          } else if (type === 'notice' || type === 'daily_promise') {
             router.push('/notifications');
           } else if (type === 'video') {
             router.push('/live-stream');

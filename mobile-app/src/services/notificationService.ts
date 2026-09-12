@@ -270,6 +270,50 @@ class NotificationService {
       console.log('Notice scheduling 2h local event notification:', err?.message || err);
     }
   }
+
+  /**
+   * Schedule Daily 5:00 AM IST Local OS Notification with dynamic daily Bible promise
+   */
+  async scheduleDaily5AMPromiseNotification(promisesList?: any[]): Promise<void> {
+    if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync) return;
+
+    try {
+      // Cancel previous scheduled daily promise notification if any
+      try {
+        await Notifications.cancelScheduledNotificationAsync('daily_5am_promise');
+      } catch (cErr) {}
+
+      // Get today's verse or fallback Telugu promise
+      const todayVerse = promisesList?.[0] || {
+        verseTelugu: 'భయపడకుము నేను నీకు తోడైయున్నాను; కలవరపడకుము నేను నీ దేవుడనై యున్నాను.',
+        referenceTelugu: 'యెషయా 41:10'
+      };
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'daily_5am_promise',
+        content: {
+          title: `🕊️ నేటి దేవుని వాగ్దానము`,
+          body: `"${todayVerse.verseTelugu}" — ${todayVerse.referenceTelugu}`,
+          data: {
+            type: 'daily_promise',
+            verseTelugu: todayVerse.verseTelugu,
+            referenceTelugu: todayVerse.referenceTelugu,
+          },
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: 5,
+          minute: 0,
+        },
+      });
+
+      console.log('⏰ Scheduled Local 5:00 AM Daily Promise OS Notification successfully!');
+    } catch (err: any) {
+      console.log('Notice scheduling 5 AM local promise error:', err?.message || err);
+    }
+  }
 }
 
 export const notificationService = new NotificationService();
