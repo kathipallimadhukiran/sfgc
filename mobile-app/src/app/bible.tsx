@@ -81,11 +81,9 @@ export default function BibleScreen() {
       );
       if (foundBook) {
         setSelectedBook(foundBook);
-        if (params.autoOpenChapter) {
-          setSelectedChapter(String(params.autoOpenChapter));
-        } else {
-          setSelectedChapter('1');
-        }
+        const targetChapter = params.autoOpenChapter ? String(params.autoOpenChapter) : '1';
+        setSelectedChapter(targetChapter);
+        fetchBiblePassage(foundBook.english, targetChapter);
       }
     }
   }, [params.autoOpenBook, params.autoOpenChapter]);

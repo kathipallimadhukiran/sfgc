@@ -65,10 +65,25 @@ export const shuffleQuestion = (q: any) => {
 class BiblePlanService {
   private localProgressKey = 'user_bible_plan_progress';
 
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (e) {}
+    return headers;
+  }
+
   // Get active reading plan
   async getPlan(planId: string = '1-year-canonical'): Promise<BiblePlanData> {
     try {
-      const resp = await axios.get(`${API_URL}/api/bible-plans`, { timeout: 4000 });
+      const headers = await this.getAuthHeaders();
+      const resp = await axios.get(`${API_URL}/api/bible-plans`, { headers, timeout: 4000 });
       if (resp.data && resp.data.data && Array.isArray(resp.data.data)) {
         const found = resp.data.data.find((p: any) => p.planId === planId);
         if (found && found.dailyPortions && found.dailyPortions.length > 0) {
@@ -85,7 +100,8 @@ class BiblePlanService {
   // Get all active reading plans (both built-in and dynamic admin plans)
   async getAllPlans(): Promise<BiblePlanData[]> {
     try {
-      const resp = await axios.get(`${API_URL}/api/bible-plans`, { timeout: 4000 });
+      const headers = await this.getAuthHeaders();
+      const resp = await axios.get(`${API_URL}/api/bible-plans`, { headers, timeout: 4000 });
       if (resp.data && resp.data.data && Array.isArray(resp.data.data) && resp.data.data.length > 0) {
         return resp.data.data;
       }
@@ -99,7 +115,8 @@ class BiblePlanService {
     const userKey = `${this.localProgressKey}_${userId}_${planId}`;
 
     try {
-      const resp = await axios.get(`${API_URL}/api/bible-plans/progress/${userId}?planId=${planId}`, { timeout: 4000 });
+      const headers = await this.getAuthHeaders();
+      const resp = await axios.get(`${API_URL}/api/bible-plans/progress/${userId}?planId=${planId}`, { headers, timeout: 4000 });
       if (resp.data && resp.data.data) {
         const progress = resp.data.data;
         if (!progress.completedDays || progress.completedDays.length === 0) {
@@ -134,6 +151,7 @@ class BiblePlanService {
               // Post quiz attempt to sync backend DB as well
               if (migrated.completedDays.length > 0) {
                 const firstDay = migrated.completedDays[0];
+                const headers = await this.getAuthHeaders();
                 await axios.post(`${API_URL}/api/bible-plans/submit-quiz`, {
                   userId,
                   userName: migrated.userName,
@@ -142,7 +160,7 @@ class BiblePlanService {
                   userAnswers: Array(10).fill({ questionId: 1, selectedIndex: 0, isCorrect: true }),
                   totalQuestions: 10,
                   quizTimeSeconds: 30,
-                }, { timeout: 4000 }).catch(() => {});
+                }, { headers, timeout: 4000 }).catch(() => {});
               }
               return migrated;
             }
@@ -227,6 +245,7 @@ class BiblePlanService {
     };
 
     try {
+      const headers = await this.getAuthHeaders();
       for (const pId of Array.from(new Set(plansToReset))) {
         const userKey = `${this.localProgressKey}_${userId}_${pId}`;
         const defaultKey = `${this.localProgressKey}_${pId}`;
@@ -234,7 +253,7 @@ class BiblePlanService {
         await AsyncStorage.setItem(userKey, JSON.stringify({ ...freshProgress, planId: pId }));
         await AsyncStorage.removeItem(defaultKey);
         await AsyncStorage.removeItem(guestKey);
-        await axios.post(`${API_URL}/api/bible-plans/reset-progress`, { userId, planId: pId }, { timeout: 4000 }).catch(() => {});
+        await axios.post(`${API_URL}/api/bible-plans/reset-progress`, { userId, planId: pId }, { headers, timeout: 4000 }).catch(() => {});
       }
       await AsyncStorage.removeItem(`${this.localProgressKey}_guest_user`);
     } catch (e) {}
@@ -245,11 +264,12 @@ class BiblePlanService {
   // Mark Today's Scripture Portion as Read
   async markDayAsRead(day: number, userId: string = 'guest_user', planId: string = '1-year-canonical'): Promise<boolean> {
     try {
+      const headers = await this.getAuthHeaders();
       await axios.post(`${API_URL}/api/bible-plans/mark-read`, {
         userId,
         planId,
         day,
-      }, { timeout: 4000 });
+      }, { headers, timeout: 4000 });
     } catch (e) {}
 
     const userKey = `${this.localProgressKey}_${userId}_${planId}`;
@@ -284,6 +304,7 @@ class BiblePlanService {
     totalQuestions: number;
   }> {
     try {
+      const headers = await this.getAuthHeaders();
       const resp = await axios.post(`${API_URL}/api/bible-plans/generate-quiz`, {
         book: portion.book,
         bookTelugu: portion.bookTelugu,
@@ -292,7 +313,7 @@ class BiblePlanService {
         day: portion.day,
         userId,
         planId,
-      }, { timeout: 12000 });
+      }, { headers, timeout: 12000 });
 
       if (resp.data && resp.data.questions && Array.isArray(resp.data.questions)) {
         return {
@@ -442,6 +463,7 @@ class BiblePlanService {
     const passed = scorePercent >= 60;
 
     try {
+      const headers = await this.getAuthHeaders();
       const resp = await axios.post(`${API_URL}/api/bible-plans/submit-quiz`, {
         userId,
         userName,
@@ -450,7 +472,7 @@ class BiblePlanService {
         userAnswers,
         totalQuestions,
         quizTimeSeconds,
-      }, { timeout: 6000 });
+      }, { headers, timeout: 6000 });
 
       if (resp.data && resp.data.success) {
         const data = resp.data;
@@ -540,7 +562,8 @@ class BiblePlanService {
   ): Promise<LeaderboardUser[]> {
     let leaders: LeaderboardUser[] = [];
     try {
-      const resp = await axios.get(`${API_URL}/api/bible-plans/leaderboard?planId=${planId}`, { timeout: 5000 });
+      const headers = await this.getAuthHeaders();
+      const resp = await axios.get(`${API_URL}/api/bible-plans/leaderboard?planId=${planId}`, { headers, timeout: 5000 });
       if (resp.data && resp.data.data && Array.isArray(resp.data.data)) {
         leaders = resp.data.data;
       }
@@ -550,7 +573,7 @@ class BiblePlanService {
     try {
       if (currentUserId && currentUserId !== 'guest_user') {
         const localProg = await this.getUserProgress(currentUserId, planId);
-        if (localProg && localProg.userId === currentUserId && (localProg.completedDays.length > 0 || localProg.streak > 0)) {
+        if (localProg && localProg.userId === currentUserId) {
           const existingIdx = leaders.findIndex(l => l.userId === currentUserId);
           const localEntry: LeaderboardUser = {
             rank: 0,
@@ -559,7 +582,7 @@ class BiblePlanService {
             streak: localProg.streak || 0,
             highestStreak: localProg.highestStreak || 0,
             averageScore: localProg.averageScore || 0,
-            completedDays: localProg.completedDays.length,
+            completedDays: localProg.completedDays?.length || 0,
             averageTimeSeconds: localProg.averageTimeSeconds || 0,
           };
 
@@ -579,8 +602,8 @@ class BiblePlanService {
       }
     } catch (e) {}
 
-    // Filter out guest_user and users without at least 1 streak / completed day
-    leaders = leaders.filter(l => l.userId !== 'guest_user' && ((l.streak || 0) >= 1 || (l.completedDays || 0) > 0));
+    // Filter out guest_user
+    leaders = leaders.filter(l => l.userId !== 'guest_user');
 
     // Sort leaders: highest streak first (DESC), then highest averageScore (DESC), then completedDays (DESC), then averageTime (ASC)
     leaders.sort((a, b) => {

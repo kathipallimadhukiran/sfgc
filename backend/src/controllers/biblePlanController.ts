@@ -764,8 +764,8 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       }
     }
 
-    // Only include users who have a streak >= 1 (or completed at least 1 day)
-    const qualifiedLeaders = allProgress.filter(p => (p.streak || 0) >= 1 || (p.completedDays && p.completedDays.length > 0));
+    // Include all registered user plan progress records (guest_user excluded)
+    const qualifiedLeaders = allProgress;
 
     // Fetch all members from User collection to resolve exact user full names
     const allUsers = await User.find().select('name email mobileNumber role');

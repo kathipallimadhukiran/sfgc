@@ -19,7 +19,7 @@ import {
   resetUserPlanProgress,
 } from '../controllers/biblePlanController';
 
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuthenticate } from '../middleware/auth';
 
 const router = Router();
 
@@ -27,10 +27,10 @@ const router = Router();
 router.get('/', getPlans);
 router.get('/progress/:userId', getUserPlanProgress);
 router.post('/reset-progress', resetUserPlanProgress);
-router.post('/enroll', authenticate, enrollPlan);
-router.post('/mark-read', authenticate, markDayAsRead);
-router.post('/generate-quiz', authenticate, getPassageQuiz);
-router.post('/submit-quiz', authenticate, submitQuizAttempt);
+router.post('/enroll', optionalAuthenticate, enrollPlan);
+router.post('/mark-read', optionalAuthenticate, markDayAsRead);
+router.post('/generate-quiz', optionalAuthenticate, getPassageQuiz);
+router.post('/submit-quiz', optionalAuthenticate, submitQuizAttempt);
 router.get('/leaderboard', getLeaderboard);
 router.get('/daily-promise', getDailyPromise);
 router.post('/daily-promise', setDailyPromise);

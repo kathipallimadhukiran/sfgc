@@ -50,6 +50,43 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
+export const optionalAuthenticate = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  let token: string | undefined;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.headers['x-auth-token']) {
+    token = req.headers['x-auth-token'] as string;
+  }
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    if (token.startsWith('inapp_token_')) {
+      const parts = token.split('_');
+      const userId = parts[2];
+      if (userId) {
+        const user = await User.findById(userId);
+        if (user) {
+          req.user = user;
+        }
+      }
+      return next();
+    }
+
+    const decoded = jwt.verify(token, config.jwtSecret) as { id: string; role?: string };
+    const user = await User.findById(decoded.id);
+
+    if (user) {
+      req.user = user;
+    }
+  } catch (error) {}
+
+  next();
+};
+
 export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user) {
     res.status(401).json({ success: false, message: 'Authentication required.' });
