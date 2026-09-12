@@ -826,11 +826,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       newSocket.on('new_promise_notification', (payload: any) => {
+        console.log('📡 [AppContext Socket] Received new_promise_notification event:', payload);
         const p = payload?.promise || payload || {};
         const title = payload?.title || "Today's Daily Promise";
         const vTel = p.verseTelugu || payload?.verseTelugu || '';
         const rTel = p.referenceTelugu || payload?.referenceTelugu || '';
         if (vTel) {
+          console.log(`🔔 [AppContext Socket] Triggering local OS notification for promise: "${rTel}"`);
           notificationService.triggerNotification(
             `🌅 ${title}`,
             `"${vTel}" - ${rTel}`,

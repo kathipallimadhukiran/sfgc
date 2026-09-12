@@ -41,7 +41,7 @@ export const getKolkataTimeMinutes = (dateObj: Date = new Date()): { hours: numb
 };
 
 /**
- * Parse time string ("05:00 AM", "5:00 PM", "17:30") into minutes from midnight (0-1439)
+ * Parse time string ("05:00 AM", "5:00 PM", "17:30", "02.05pm") into minutes from midnight (0-1439)
  */
 export const parseTimeToMinutes = (timeStr?: string): number => {
   if (!timeStr || typeof timeStr !== 'string') return 5 * 60; // Default 5:00 AM = 300 minutes
@@ -76,15 +76,23 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
       date: { $lte: todayStr },
     }).sort({ date: 1, createdAt: 1 });
 
+    if (scheduledPromises.length > 0) {
+      console.log(`🔍 [Daily Promise Scheduler] IST Date: ${todayStr}, IST Time: ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')} (${currentMinutes} mins). Unsent promises found: ${scheduledPromises.length}`);
+    }
+
     for (const promise of scheduledPromises) {
       const scheduledMinutes = parseTimeToMinutes(promise.time || '05:00 AM');
       const isOverdue = promise.date < todayStr;
       const isTimeReached = promise.date === todayStr && currentMinutes >= scheduledMinutes;
 
+      if (!isOverdue && !isTimeReached) {
+        console.log(`⏳ [Daily Promise Scheduler] Promise "${promise.referenceTelugu}" (${promise.date} @ ${promise.time}) is scheduled for ${scheduledMinutes} mins. Current IST: ${currentMinutes} mins. Waiting for target time.`);
+      }
+
       // Trigger if date is in past or current time is at/after scheduled time
       if ((isOverdue || isTimeReached) && promise.verseTelugu) {
         const pubTime = promise.time || '05:00 AM';
-        console.log(`⏰ [Daily Promise Scheduler] Publishing promise for ${promise.date} at ${pubTime}: "${promise.referenceTelugu}"`);
+        console.log(`🚀 [Daily Promise Scheduler] Publishing promise NOW for ${promise.date} at ${pubTime}: "${promise.referenceTelugu}"`);
 
         const telTitle = '🕊️ నేటి దేవుని వాగ్దానము';
         const telBody = `"${promise.verseTelugu.trim()}"\n\n— ${promise.referenceTelugu.trim()}`;
@@ -101,6 +109,7 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
           });
 
           if (io) {
+            console.log(`📡 [Daily Promise Scheduler] Broadcasting Socket.IO events 'newNotice' and 'new_promise_notification'...`);
             io.emit('newNotice', notice);
             io.emit('new_promise_notification', {
               promise,
@@ -114,11 +123,12 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
             });
           }
         } catch (e) {
-          console.log('Notice auto-creation error for Daily Promise:', e);
+          console.error('⚠️ [Daily Promise Scheduler] Notice auto-creation error:', e);
         }
 
         // Send Push Notification to all registered Expo mobile devices
-        await sendPushNotificationToAll(
+        console.log(`📱 [Daily Promise Scheduler] Dispatching Expo Push Notification to registered mobile devices...`);
+        const pushRes = await sendPushNotificationToAll(
           telTitle,
           telBody,
           { 
@@ -131,12 +141,13 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
             referenceEnglish: promise.referenceEnglish,
           }
         );
+        console.log(`📱 [Daily Promise Scheduler] Push result:`, pushRes.message);
 
         promise.status = 'sent';
         promise.notificationSentAt = new Date();
         await promise.save();
 
-        console.log(`✅ [Daily Promise Scheduler] Push notification sent & published status updated for ${promise.date} at ${pubTime}`);
+        console.log(`✅ [Daily Promise Scheduler] Promise status updated to 'sent' for ${promise.date} at ${pubTime}`);
       }
     }
 
@@ -145,7 +156,7 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
       const existingSent = await DailyPromise.findOne({ date: todayStr, status: 'sent' });
       const todayScheduled = await DailyPromise.findOne({ date: todayStr });
       if (!existingSent && !todayScheduled) {
-        console.log(`⚠️ No Daily Promise scheduled for today (${todayStr})! Alerting admins...`);
+        console.log(`⚠️ [Daily Promise Scheduler] No Daily Promise scheduled for today (${todayStr})! Alerting admins...`);
         await sendPushNotificationToAdmins(
           '⚠️ Admin Action Required: Daily Promise Missing!',
           `No Daily Promise is scheduled for today (${todayStr}). Please schedule today's promise in the app.`,
@@ -154,6 +165,6 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
       }
     }
   } catch (err) {
-    console.error('Error running Daily Promise Scheduler job:', err);
+    console.error('❌ [Daily Promise Scheduler Error]:', err);
   }
 };

@@ -82,6 +82,28 @@ export default function HomeScreen() {
   const [refEng, setRefEng] = useState('');
   const [promiseDate, setPromiseDate] = useState(getTodayLocalDateStr());
   const [promiseTime, setPromiseTime] = useState('05:00 AM');
+
+  const getPromiseTimeAsDate = (): Date => {
+    try {
+      const d = new Date();
+      if (!promiseTime || typeof promiseTime !== 'string') return d;
+      const trimmed = promiseTime.trim().toUpperCase();
+      const isPM = trimmed.includes('PM');
+      const isAM = trimmed.includes('AM');
+      const clean = trimmed.replace(/AM|PM/gi, '').trim();
+      const parts = clean.split(/[:.]/);
+      let h = parseInt(parts[0] || '5', 10);
+      let m = parseInt(parts[1] || '0', 10);
+      if (isNaN(h)) h = 5;
+      if (isNaN(m)) m = 0;
+      if (isPM && h < 12) h += 12;
+      if (isAM && h === 12) h = 0;
+      d.setHours(h, m, 0, 0);
+      return d;
+    } catch (e) {
+      return new Date();
+    }
+  };
   const [scheduledPromisesList, setScheduledPromisesList] = useState<any[]>([]);
   const [savingPromise, setSavingPromise] = useState(false);
 
@@ -270,11 +292,22 @@ export default function HomeScreen() {
     setPromiseDate(getTodayLocalDateStr());
   };
 
+  useEffect(() => {
+    if (promiseModalVisible) {
+      console.log('📖 Promise modal opened, fetching scheduled promises...');
+      fetchScheduledPromisesList();
+    }
+  }, [promiseModalVisible]);
+
   const fetchScheduledPromisesList = async () => {
     try {
+      console.log('📖 [HomeScreen] Fetching scheduled promises list...');
       const list = await biblePlanService.getScheduledPromises();
+      console.log('✅ [HomeScreen] Scheduled promises count received:', list.length);
       setScheduledPromisesList(list);
-    } catch (e) {}
+    } catch (e: any) {
+      console.error('❌ [HomeScreen] Error fetching scheduled promises list:', e);
+    }
   };
 
   const handleSaveDailyPromise = async (publishNow: boolean = false) => {
@@ -1135,7 +1168,7 @@ export default function HomeScreen() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     paddingHorizontal: 12,
-                    paddingVertical: 11,
+                    paddingVertical: 10,
                     borderRadius: 12,
                     borderWidth: 1,
                     borderColor: theme.primary,
@@ -1155,33 +1188,50 @@ export default function HomeScreen() {
 
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.textSecondary }}>
-                  Notification Time
+                  Notification Time (సమయము) *
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setShowTimePicker(true)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: 12,
-                    paddingVertical: 11,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.primary,
-                    backgroundColor: theme.primary + '12',
-                    marginTop: 6,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <MaterialCommunityIcons name="clock-outline" size={20} color={theme.primary} />
-                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.text }}>
-                      {promiseTime}
-                    </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.primary, borderRadius: 12, backgroundColor: theme.primary + '0A', paddingHorizontal: 8 }}>
+                    <MaterialCommunityIcons name="clock-outline" size={18} color={theme.primary} />
+                    <TextInput
+                      value={promiseTime}
+                      onChangeText={setPromiseTime}
+                      placeholder="e.g. 05:00 AM"
+                      placeholderTextColor="#757575"
+                      style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 6, fontSize: 12, fontWeight: 'bold', color: theme.text }}
+                    />
                   </View>
-                  <MaterialCommunityIcons name="chevron-down" size={18} color={theme.primary} />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setShowTimePicker(true)}
+                    style={{ padding: 9, borderRadius: 12, backgroundColor: theme.primary + '18', borderWidth: 1, borderColor: theme.primary }}
+                  >
+                    <MaterialCommunityIcons name="clock-edit-outline" size={20} color={theme.primary} />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
+
+            {/* Quick Time Preset Chips for 1-Tap Selection */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6 }}>
+              {['05:00 AM', '06:00 AM', '08:00 AM', '12:00 PM', '02:05 PM', '06:00 PM', '08:00 PM'].map((preset) => (
+                <TouchableOpacity
+                  key={preset}
+                  onPress={() => setPromiseTime(preset)}
+                  style={{
+                    paddingHorizontal: 9,
+                    paddingVertical: 5,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: promiseTime === preset ? theme.primary : theme.cardBorder,
+                    backgroundColor: promiseTime === preset ? theme.primary + '20' : theme.background,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: promiseTime === preset ? theme.primary : theme.textSecondary }}>
+                    ⏰ {preset}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             {/* Native DateTimePicker popups */}
             {showDatePicker && (
@@ -1190,8 +1240,8 @@ export default function HomeScreen() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={(event: any, selectedDate?: Date) => {
-                  setShowDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) {
+                  setShowDatePicker(false);
+                  if (event.type !== 'dismissed' && selectedDate) {
                     const yyyy = selectedDate.getFullYear();
                     const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
                     const dd = String(selectedDate.getDate()).padStart(2, '0');
@@ -1203,13 +1253,13 @@ export default function HomeScreen() {
 
             {showTimePicker && (
               <DateTimePicker
-                value={new Date()}
+                value={getPromiseTimeAsDate()}
                 mode="time"
                 is24Hour={false}
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={(event: any, selectedTime?: Date) => {
-                  setShowTimePicker(Platform.OS === 'ios');
-                  if (selectedTime) {
+                  setShowTimePicker(false);
+                  if (event.type !== 'dismissed' && selectedTime) {
                     const hours = selectedTime.getHours();
                     const minutes = selectedTime.getMinutes();
                     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -1332,23 +1382,24 @@ export default function HomeScreen() {
               style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 75, textAlignVertical: 'top' }]}
             />
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, alignItems: 'center' }}>
               <TouchableOpacity
-                style={[styles.modalBtnPrimary, { flex: 1, backgroundColor: theme.primary + '20', borderWidth: 1, borderColor: theme.primary }]}
+                style={[styles.modalBtnPrimary, { flex: 2, backgroundColor: theme.primary }]}
                 onPress={() => handleSaveDailyPromise(false)}
                 disabled={savingPromise}
               >
-                <Text style={[styles.modalBtnTextPrimary, { color: theme.primary }]}>
-                  {savingPromise ? 'Saving...' : '⏰ Schedule for Time'}
+                <Text style={styles.modalBtnTextPrimary}>
+                  {savingPromise ? 'Scheduling...' : '⏰ Schedule for Time'}
                 </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.modalBtnPrimary, { flex: 1, backgroundColor: theme.primary }]}
+                style={[styles.modalBtnPrimary, { flex: 1, backgroundColor: theme.primary + '18', borderWidth: 1, borderColor: theme.primary, paddingHorizontal: 6 }]}
                 onPress={() => handleSaveDailyPromise(true)}
                 disabled={savingPromise}
               >
-                <Text style={styles.modalBtnTextPrimary}>
-                  {savingPromise ? 'Publishing...' : '🚀 Publish & Push Now'}
+                <Text style={[styles.modalBtnTextPrimary, { color: theme.primary, fontSize: 12 }]}>
+                  {savingPromise ? 'Publishing...' : '🚀 Publish Now'}
                 </Text>
               </TouchableOpacity>
             </View>

@@ -539,11 +539,15 @@ class BiblePlanService {
   // Get Daily Promise
   async getDailyPromise(): Promise<DailyPromiseData> {
     try {
+      console.log('📖 [Mobile BiblePlanService] Requesting daily promise from backend...');
       const resp = await axios.get(`${API_URL}/api/bible-plans/daily-promise`, { timeout: 4000 });
       if (resp.data && resp.data.data) {
+        console.log('✅ [Mobile BiblePlanService] Daily promise fetched successfully:', resp.data.data.referenceTelugu, '| Date:', resp.data.data.date, '| Status:', resp.data.data.status);
         return resp.data.data;
       }
-    } catch (e) {}
+    } catch (e: any) {
+      console.log('⚠️ [Mobile BiblePlanService] Daily promise backend fetch failed or timed out:', e?.message || e);
+    }
 
     const defaultTeluguPromises = [
       {
@@ -611,6 +615,7 @@ class BiblePlanService {
     const idx = new Date().getDate() % defaultTeluguPromises.length;
     const selected = defaultTeluguPromises[idx];
 
+    console.log('ℹ️ [Mobile BiblePlanService] Using offline default canonical promise pool:', selected.referenceTelugu);
     return {
       verseTelugu: selected.verseTelugu,
       verseEnglish: selected.verseEnglish,
@@ -636,9 +641,12 @@ class BiblePlanService {
     publishNow?: boolean;
   }): Promise<{ success: boolean; message?: string; data?: any }> {
     try {
+      console.log('📤 [Mobile BiblePlanService] Saving promise payload:', JSON.stringify(promiseData));
       const resp = await axios.post(`${API_URL}/api/bible-plans/daily-promise`, promiseData, { timeout: 6000 });
+      console.log('✅ [Mobile BiblePlanService] Save promise API response:', resp.data);
       return resp.data;
     } catch (e: any) {
+      console.error('❌ [Mobile BiblePlanService] Save promise error:', e?.response?.data || e?.message || e);
       return { success: false, message: e.response?.data?.message || e.message || 'Failed to save promise' };
     }
   }
@@ -646,11 +654,15 @@ class BiblePlanService {
   // Get Scheduled Daily Promises
   async getScheduledPromises(): Promise<any[]> {
     try {
-      const resp = await axios.get(`${API_URL}/api/bible-plans/scheduled-promises`, { timeout: 4000 });
+      console.log('📋 [Mobile BiblePlanService] Requesting scheduled promises list...');
+      const resp = await axios.get(`${API_URL}/api/bible-plans/scheduled-promises`, { timeout: 6000 });
+      console.log('✅ [Mobile BiblePlanService] Scheduled promises returned count:', resp.data?.data?.length);
       if (resp.data && resp.data.data && Array.isArray(resp.data.data)) {
         return resp.data.data;
       }
-    } catch (e) {}
+    } catch (e: any) {
+      console.error('❌ [Mobile BiblePlanService] Failed to fetch scheduled promises:', e?.response?.data || e?.message || e);
+    }
     return [];
   }
 

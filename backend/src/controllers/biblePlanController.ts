@@ -689,22 +689,29 @@ export const getDailyPromise = async (req: Request, res: Response): Promise<void
     const { currentMinutes } = getKolkataTimeMinutes();
     const allowScheduled = req.query.allowScheduled === 'true';
 
+    console.log(`📖 [API GET /daily-promise] Request received. Today IST: ${todayStr}, Mins: ${currentMinutes}, allowScheduled: ${allowScheduled}`);
+
     // Find today's promise in DB
     let promise = await DailyPromise.findOne({ date: todayStr });
 
     if (promise) {
       const scheduledMinutes = parseTimeToMinutes(promise.time || '05:00 AM');
       const isPublished = promise.status === 'sent' || currentMinutes >= scheduledMinutes;
+      console.log(`📖 [API GET /daily-promise] Today's promise found: "${promise.referenceTelugu}" @ ${promise.time} (${scheduledMinutes} mins). Status: '${promise.status}', Published: ${isPublished}`);
 
       if (isPublished || allowScheduled) {
+        console.log(`✅ [API GET /daily-promise] Returning active promise: "${promise.referenceTelugu}"`);
         res.status(200).json({ success: true, data: promise });
         return;
+      } else {
+        console.log(`🔒 [API GET /daily-promise] Promise scheduled for future time (${scheduledMinutes} mins > ${currentMinutes} mins). Hiding from user.`);
       }
     }
 
     // If today's promise is NOT published yet or doesn't exist, return latest sent promise from previous days
     const latestSent = await DailyPromise.findOne({ status: 'sent', date: { $lte: todayStr } }).sort({ date: -1, createdAt: -1 });
     if (latestSent) {
+      console.log(`ℹ️ [API GET /daily-promise] Returning latest sent promise from ${latestSent.date}: "${latestSent.referenceTelugu}"`);
       res.status(200).json({ success: true, data: latestSent });
       return;
     }
@@ -789,8 +796,10 @@ export const getDailyPromise = async (req: Request, res: Response): Promise<void
     });
     await promise.save();
 
+    console.log(`✨ [API GET /daily-promise] Created & returning canonical default promise: "${promise.referenceTelugu}"`);
     res.status(200).json({ success: true, data: promise });
   } catch (error: any) {
+    console.error('❌ [API GET /daily-promise Error]:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch daily promise', error: error.message });
   }
 };
@@ -816,6 +825,7 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
     const todayStr = getKolkataDateStr();
     const targetDate = date ? date.trim() : todayStr;
     const targetTime = time ? time.trim() : '05:00 AM';
+    const targetMinutes = parseTimeToMinutes(targetTime);
 
     if (!verseTelugu || !referenceTelugu) {
       res.status(400).json({ success: false, message: 'Verse text and reference are required' });
@@ -824,6 +834,8 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
 
     const shouldPublishNow = publishNow === true || publishNow === 'true';
     const statusToSet = shouldPublishNow ? 'sent' : 'scheduled';
+
+    console.log(`📥 [API POST /daily-promise] Saving promise for ${targetDate} @ ${targetTime} (${targetMinutes} mins). Ref: "${referenceTelugu}". publishNow: ${shouldPublishNow}, status: '${statusToSet}'`);
 
     const promise = await DailyPromise.findOneAndUpdate(
       { date: targetDate },
@@ -907,13 +919,22 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
 };
 
 // GET /api/bible-plans/scheduled-promises
-// Get all scheduled daily promises
+// Get all scheduled & upcoming daily promises
 export const getScheduledPromises = async (req: Request, res: Response): Promise<void> => {
   try {
     const todayStr = getKolkataDateStr();
-    const promises = await DailyPromise.find({ date: { $gte: todayStr } }).sort({ date: 1 });
+    console.log(`📋 [API GET /scheduled-promises] Fetching scheduled promises for date >= ${todayStr} or status: 'scheduled'`);
+    const promises = await DailyPromise.find({
+      $or: [
+        { date: { $gte: todayStr } },
+        { status: 'scheduled' }
+      ]
+    }).sort({ date: 1, createdAt: -1 });
+
+    console.log(`📋 [API GET /scheduled-promises] Found ${promises.length} promises:`, promises.map(p => ({ date: p.date, time: p.time, ref: p.referenceTelugu, status: p.status })));
     res.status(200).json({ success: true, data: promises });
   } catch (error: any) {
+    console.error('❌ [API GET /scheduled-promises Error]:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch scheduled promises', error: error.message });
   }
 };
