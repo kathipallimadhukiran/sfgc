@@ -9,21 +9,24 @@ export const MONGODB_DATABASE = process.env.EXPO_PUBLIC_MONGODB_DATABASE || 'SFG
 const resolveBackendUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
-  // If envUrl is explicitly defined in environment, use it
+  // 1. Explicit environment variable takes top priority
   if (envUrl && envUrl.length > 0) {
     return envUrl;
   }
 
-  // If running via Expo CLI / Expo Go in development, detect host IP dynamically
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).experienceUrl || '';
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return `http://${ip}:5000`;
+  // 2. If developer explicitly requested local backend in development
+  if (process.env.EXPO_PUBLIC_USE_LOCAL === 'true') {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).experienceUrl || '';
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+        return `http://${ip}:5000`;
+      }
     }
+    return 'http://localhost:5000';
   }
 
-  // Default to live Render cloud backend
+  // 3. Default to live Render cloud backend
   return 'https://sfgc-church.onrender.com';
 };
 
