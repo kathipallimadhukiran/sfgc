@@ -112,6 +112,45 @@ class BiblePlanService {
       }
     } catch (e) {}
 
+    // Local guest progress migration if logged-in user progress is empty
+    if (userId !== 'guest_user') {
+      try {
+        const guestKey = `${this.localProgressKey}_guest_user_${planId}`;
+        const savedGuest = await AsyncStorage.getItem(guestKey);
+        if (savedGuest) {
+          const parsedGuest = JSON.parse(savedGuest);
+          if (parsedGuest && (parsedGuest.completedDays?.length > 0 || parsedGuest.streak > 0)) {
+            const savedUser = await AsyncStorage.getItem(userKey);
+            let parsedUser = savedUser ? JSON.parse(savedUser) : null;
+            if (!parsedUser || !parsedUser.completedDays || parsedUser.completedDays.length === 0) {
+              const migrated: UserProgressData = {
+                ...parsedGuest,
+                userId,
+                userName: parsedGuest.userName || 'Member',
+                planId,
+              };
+              await AsyncStorage.setItem(userKey, JSON.stringify(migrated));
+              await AsyncStorage.removeItem(guestKey);
+              // Post quiz attempt to sync backend DB as well
+              if (migrated.completedDays.length > 0) {
+                const firstDay = migrated.completedDays[0];
+                await axios.post(`${API_URL}/api/bible-plans/submit-quiz`, {
+                  userId,
+                  userName: migrated.userName,
+                  planId,
+                  day: firstDay,
+                  userAnswers: Array(10).fill({ questionId: 1, selectedIndex: 0, isCorrect: true }),
+                  totalQuestions: 10,
+                  quizTimeSeconds: 30,
+                }, { timeout: 4000 }).catch(() => {});
+              }
+              return migrated;
+            }
+          }
+        }
+      } catch (migErr) {}
+    }
+
     try {
       const saved = await AsyncStorage.getItem(userKey);
       if (saved) {

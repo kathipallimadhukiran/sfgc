@@ -280,6 +280,57 @@ export const getUserPlanProgress = async (req: Request, res: Response): Promise<
     }
 
     let progress = await UserPlanProgress.findOne({ userId, planId: String(planId) });
+
+    // Auto-migrate guest progress to newly logged-in member if member progress is empty
+    if (userId !== 'guest_user' && (!progress || !progress.completedDays || progress.completedDays.length === 0)) {
+      const guestProg = await UserPlanProgress.findOne({ userId: 'guest_user', planId: String(planId) });
+      if (guestProg && (guestProg.completedDays.length > 0 || guestProg.streak > 0)) {
+        if (!progress) {
+          const now = new Date();
+          progress = new UserPlanProgress({
+            userId,
+            userName: authReq.user?.name || 'Member',
+            planId: String(planId),
+            currentDay: guestProg.currentDay || 1,
+            completedDays: guestProg.completedDays || [],
+            readMarkedDays: guestProg.readMarkedDays || [],
+            startDate: guestProg.startDate || now,
+            targetEndDate: guestProg.targetEndDate || getTargetEndDate(now, 365),
+            streak: guestProg.streak || 0,
+            highestStreak: guestProg.highestStreak || 0,
+            averageScore: guestProg.averageScore || 0,
+            totalQuizzes: guestProg.totalQuizzes || 0,
+            totalTimeSeconds: guestProg.totalTimeSeconds || 0,
+            averageTimeSeconds: guestProg.averageTimeSeconds || 0,
+            lastCompletedDate: guestProg.lastCompletedDate,
+            dailyAttempts: guestProg.dailyAttempts,
+            quizScores: guestProg.quizScores,
+            quizTimes: guestProg.quizTimes,
+            status: 'active',
+          });
+        } else {
+          progress.currentDay = guestProg.currentDay || 1;
+          progress.completedDays = guestProg.completedDays || [];
+          progress.readMarkedDays = guestProg.readMarkedDays || [];
+          progress.streak = guestProg.streak || 0;
+          progress.highestStreak = Math.max(progress.highestStreak || 0, guestProg.highestStreak || 0);
+          progress.averageScore = guestProg.averageScore || 0;
+          progress.totalQuizzes = guestProg.totalQuizzes || 0;
+          progress.totalTimeSeconds = guestProg.totalTimeSeconds || 0;
+          progress.averageTimeSeconds = guestProg.averageTimeSeconds || 0;
+          progress.lastCompletedDate = guestProg.lastCompletedDate;
+        }
+        await progress.save();
+
+        // Clean up guest_user progress in DB
+        guestProg.completedDays = [];
+        guestProg.readMarkedDays = [];
+        guestProg.streak = 0;
+        guestProg.currentDay = 1;
+        await guestProg.save();
+      }
+    }
+
     if (!progress) {
       const now = new Date();
       const plan = await BiblePlan.findOne({ planId: String(planId) });
