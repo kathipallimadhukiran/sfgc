@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { User } from '../models/User';
 import { BiblePlan, UserPlanProgress } from '../models/biblePlanModel';
 import { DailyPromise } from '../models/DailyPromise';
@@ -60,8 +61,30 @@ const logGeneratedQuestions = (provider: string, book: string, startCh: number, 
   console.log('======================================================================\n');
 };
 
-// Load actual Bible passage text for AI context
-const loadPassageTextForAI = (book: string, startCh: number, endCh: number): string => {
+// Loaded scripture passage data model
+export interface ScriptureVerse {
+  chapter: number;
+  verse: number;
+  textEnglish: string;
+  textTelugu: string;
+}
+
+export interface LoadedPassageData {
+  englishText: string;
+  teluguText: string;
+  verses: ScriptureVerse[];
+  bookTelugu: string;
+}
+
+// Load actual Bible passage text for AI context without truncation
+const loadPassageTextForAI = (book: string, startCh: number, endCh: number): LoadedPassageData => {
+  const result: LoadedPassageData = {
+    englishText: '',
+    teluguText: '',
+    verses: [],
+    bookTelugu: '',
+  };
+
   try {
     const possiblePaths = [
       path.resolve(__dirname, '../../../mobile-app/src/data/bible', `${book}.json`),
@@ -73,29 +96,301 @@ const loadPassageTextForAI = (book: string, startCh: number, endCh: number): str
       if (fs.existsSync(filePath)) {
         const raw = fs.readFileSync(filePath, 'utf8');
         const data = JSON.parse(raw);
-        const passageLines: string[] = [];
+        result.bookTelugu = data.telName || '';
+
+        const engLines: string[] = [];
+        const telLines: string[] = [];
 
         for (let c = startCh; c <= endCh; c++) {
-          const chObj = data.eng?.find((ch: any) => Number(ch.chapter) === c);
-          if (chObj && chObj.verses) {
-            chObj.verses.forEach((v: any) => {
-              passageLines.push(`${book} ${c}:${v.verse} - ${v.text}`);
+          const chEng = data.eng?.find((ch: any) => Number(ch.chapter) === c);
+          const chTel = data.tel?.find((ch: any) => Number(ch.chapter) === c);
+
+          if (chEng && chEng.verses) {
+            chEng.verses.forEach((vEng: any) => {
+              const vNum = Number(vEng.verse);
+              const vTel = chTel?.verses?.find((vt: any) => Number(vt.verse) === vNum);
+              const engText = (vEng.text || '').trim();
+              const telText = (vTel?.text || '').trim();
+
+              engLines.push(`${book} ${c}:${vNum} - ${engText}`);
+              if (telText) {
+                telLines.push(`${data.telName || book} ${c}:${vNum} - ${telText}`);
+              }
+
+              result.verses.push({
+                chapter: c,
+                verse: vNum,
+                textEnglish: engText,
+                textTelugu: telText,
+              });
             });
           }
         }
 
-        if (passageLines.length > 0) {
-          return passageLines.slice(0, 100).join('\n');
+        result.englishText = engLines.join('\n');
+        result.teluguText = telLines.join('\n');
+        if (result.verses.length > 0) {
+          break;
         }
       }
     }
   } catch (e) {
-    console.log('Error reading local Bible passage text:', e);
+    console.log('[AI QUIZ] Error reading local Bible passage text:', e);
   }
+
+  return result;
+};
+
+// Helper to extract JSON from AI response
+const extractJsonFromAIResponse = (text: string): any => {
+  if (!text) return null;
+  const cleaned = text.replace(/```json/gi, '').replace(/```/gi, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {}
+
+  const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+  if (arrMatch) {
+    try {
+      return JSON.parse(arrMatch[0]);
+    } catch (e) {}
+  }
+
+  const objMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objMatch) {
+    try {
+      return JSON.parse(objMatch[0]);
+    } catch (e) {}
+  }
+
+  return null;
+};
+
+// AI Query helper with retry, rate-limit backoff, and model fallbacks
+const queryAIWithRetries = async (
+  prompt: string,
+  systemPrompt: string = '',
+  temperature: number = 0.2
+): Promise<string> => {
+  const groqKey = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const openAiKey = process.env.OPENAI_API_KEY;
+
+  // 1. Try Gemini if key available
+  if (geminiKey) {
+    try {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: (systemPrompt ? `${systemPrompt}\n\n` : '') + prompt }] }],
+            generationConfig: { temperature, maxOutputTokens: 4096 }
+          })
+        }
+      );
+      if (resp.ok) {
+        const d = await resp.json();
+        const t = d.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (t) return t;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Try Groq (groq/compound-mini then groq/compound) with retries for rate limits
+  if (groqKey) {
+    const models = ['groq/compound-mini', 'groq/compound'];
+    for (const model of models) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+                { role: 'user', content: prompt }
+              ],
+              temperature,
+              max_tokens: 3500
+            })
+          });
+
+          if (resp.ok) {
+            const d = await resp.json();
+            const text = d.choices?.[0]?.message?.content;
+            if (text) return text;
+          } else {
+            const errData = await resp.json().catch(() => ({}));
+            if (errData.error?.code === 'rate_limit_exceeded') {
+              await new Promise(r => setTimeout(r, 2000 * attempt));
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  // 3. Try OpenAI if key available
+  if (openAiKey) {
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            { role: 'user', content: prompt }
+          ],
+          temperature
+        })
+      });
+      if (resp.ok) {
+        const d = await resp.json();
+        return d.choices?.[0]?.message?.content || '';
+      }
+    } catch (e) {}
+  }
+
+  // 4. Try Pollinations AI free endpoint
+  try {
+    const resp = await fetch('https://text.pollinations.ai/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+          { role: 'user', content: prompt }
+        ],
+        model: 'openai',
+        seed: Math.floor(Math.random() * 1000000)
+      })
+    });
+    if (resp.ok) {
+      return await resp.text();
+    }
+  } catch (e) {}
+
   return '';
 };
 
-// Dynamic 2-Stage Dual-AI Quiz Generator (Gemini Primary Generator -> Uniqueness Filter -> Groq Secondary Validator)
+// Normalize candidate question structure
+const normalizeQuestion = (q: any, defaultBook: string, startCh: number) => {
+  const questionEnglish = (q.questionEnglish || q.question || '').trim();
+  const questionTelugu = (q.questionTelugu || q.question_telugu || questionEnglish).trim();
+
+  let optionsEnglish = Array.isArray(q.optionsEnglish)
+    ? q.optionsEnglish
+    : (Array.isArray(q.options) ? q.options : (Array.isArray(q.answers) ? q.answers : []));
+
+  let optionsTelugu = Array.isArray(q.optionsTelugu)
+    ? q.optionsTelugu
+    : (Array.isArray(q.options_telugu) ? q.options_telugu : optionsEnglish);
+
+  if (optionsEnglish.length < 4) {
+    optionsEnglish = ['Option A', 'Option B', 'Option C', 'Option D'];
+  }
+  if (optionsTelugu.length < 4) {
+    optionsTelugu = optionsEnglish;
+  }
+
+  const correctIndex = typeof q.correctIndex === 'number'
+    ? q.correctIndex
+    : (typeof q.correctAnswer === 'number' ? q.correctAnswer : 0);
+
+  const explanationEnglish = (q.explanationEnglish || q.explanation || '').trim();
+  const explanationTelugu = (q.explanationTelugu || q.explanation_telugu || explanationEnglish).trim();
+
+  const reference = (q.reference || `${defaultBook} ${startCh}`).trim();
+  const evidence = (q.evidence || explanationEnglish || questionEnglish).trim();
+
+  return {
+    id: q.id || Math.floor(Math.random() * 10000),
+    chapter: q.chapter || startCh,
+    category: q.category || 'factual',
+    difficulty: q.difficulty || 'easy',
+    questionEnglish,
+    questionTelugu,
+    optionsEnglish,
+    optionsTelugu,
+    correctIndex: Math.min(Math.max(0, correctIndex), 3),
+    explanationEnglish,
+    explanationTelugu,
+    reference,
+    evidence,
+  };
+};
+
+// Deterministic grounded verse fallback extractor (Guarantees zero generic spiritual questions if AI is offline)
+const generateStrictGroundedFallbackQuestions = (
+  book: string,
+  bookTel: string,
+  startC: number,
+  endC: number,
+  passage: LoadedPassageData
+) => {
+  const fallbackList: any[] = [];
+  const telName = passage.bookTelugu || bookTel || book;
+
+  passage.verses.forEach(v => {
+    const textEng = v.textEnglish;
+    const textTel = v.textTelugu;
+    const ref = `${book} ${v.chapter}:${v.verse}`;
+
+    // 1. Age / Number facts
+    const ageMatch = textEng.match(/(\d+)\s+years/i);
+    if (ageMatch && fallbackList.length < 10) {
+      const numberVal = ageMatch[1];
+      fallbackList.push({
+        id: fallbackList.length + 1,
+        chapter: v.chapter,
+        category: 'number',
+        difficulty: 'easy',
+        questionEnglish: `According to ${ref}, how many years are explicitly recorded?`,
+        questionTelugu: `${telName} ${v.chapter}:${v.verse} ప్రకారం, ఎన్ని సంవత్సరాలు స్పష్టంగా రాయబడ్డాయి?`,
+        optionsEnglish: [`${numberVal} years`, `${Number(numberVal) + 10} years`, `${Math.max(1, Number(numberVal) - 20)} years`, `${Number(numberVal) + 50} years`],
+        optionsTelugu: [`${numberVal} సంవత్సరాలు`, `${Number(numberVal) + 10} సంవత్సరాలు`, `${Math.max(1, Number(numberVal) - 20)} సంవత్సరాలు`, `${Number(numberVal) + 50} సంవత్సరాలు`],
+        correctIndex: 0,
+        explanationEnglish: `According to ${ref}, the scripture states: "${textEng}"`,
+        explanationTelugu: `${ref} ప్రకారం వాక్యము: "${textTel || textEng}"`,
+        reference: ref,
+        evidence: textEng,
+      });
+    }
+
+    // 2. Direct Verse Statements & Actions
+    if ((textEng.includes('begat') || textEng.includes('father') || textEng.includes('built') || textEng.includes('said') || textEng.includes('commanded')) && fallbackList.length < 20) {
+      fallbackList.push({
+        id: fallbackList.length + 1,
+        chapter: v.chapter,
+        category: 'action',
+        difficulty: 'medium',
+        questionEnglish: `What factual detail is explicitly stated in ${ref}?`,
+        questionTelugu: `${telName} ${v.chapter}:${v.verse} లో నమోదైన స్పష్టమైన విషయం ఏది?`,
+        optionsEnglish: [textEng.substring(0, 75), "No specific detail given", "An unrelated historical statement", "None of these"],
+        optionsTelugu: [(textTel || textEng).substring(0, 75), "ఏ వివరమూ లేదు", "సంబంధం లేని సంఘటన", "ఏదీ కాదు"],
+        correctIndex: 0,
+        explanationEnglish: `Scripture passage ${ref}: "${textEng}"`,
+        explanationTelugu: `${ref} లో వాక్యము: "${textTel || textEng}"`,
+        reference: ref,
+        evidence: textEng,
+      });
+    }
+  });
+
+  return fallbackList;
+};
+
+// Dynamic 2-Stage Dual-AI Quiz Generator (Gemini/Groq Stage 1 Knowledge Map -> Stage 2 Candidates -> Stage 3 Verification)
 export const generateQuizForPassage = async (
   book: string,
   bookTelugu: string,
@@ -105,453 +400,287 @@ export const generateQuizForPassage = async (
   userId: string = 'guest_user',
   dayId: number = 1
 ) => {
-  const groqKey = process.env.GROQ_API_KEY;
-  const openAiKey = process.env.OPENAI_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const quizSessionId = crypto.randomUUID ? crypto.randomUUID() : `${userId}_day${dayId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-  const quizSessionId = `${userId}_day${dayId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const chaptersList: number[] = [];
-  for (let c = startCh; c <= endCh; c++) {
-    chaptersList.push(c);
-  }
-  const chaptersStr = chaptersList.join(', ');
-
-  const passageText = loadPassageTextForAI(book, startCh, endCh);
-  const passageSnippet = passageText ? `\n\nACTUAL SCRIPTURE PASSAGE TEXT TO GENERATE QUESTIONS FROM:\n${passageText}\n` : '';
+  const passageData = loadPassageTextForAI(book, startCh, endCh);
+  const chapterRangeStr = startCh === endCh ? `${book} ${startCh}` : `${book} ${startCh} to ${endCh}`;
 
   console.log('\n======================================================================');
-  console.log(`📤 [DUAL-AI QUIZ PIPELINE] Initiating Generation Session: ${quizSessionId}`);
-  console.log(`📖 Reading Portion: ${book} (${bookTelugu}) Chapters ${startCh} to ${endCh}`);
-  console.log(`📜 Scripture Verses in Context: ${passageText ? passageText.split('\n').length : 0}`);
-  console.log(`👤 User ID: ${userId} | Attempt #${attempt}`);
+  console.log(`📤 [STRICT SOURCE-ONLY QUIZ PIPELINE] Session: ${quizSessionId}`);
+  console.log(`📖 Reading Portion: ${chapterRangeStr} (${bookTelugu})`);
+  console.log(`📜 Loaded Scripture Verses: ${passageData.verses.length}`);
+  console.log(`👤 User ID: ${userId} | Attempt #${attempt} | Day #${dayId}`);
   console.log('======================================================================\n');
 
-  // Stage 1 Prompt for Primary Generator (16-18 Candidates)
-  const candidateGenPrompt = `You are a master biblical scholar, theologian, and bilingual quiz author.
-Your task is to generate a candidate pool of 16 distinct, high-quality multiple-choice quiz questions for testing Bible comprehension of ${book} (${bookTelugu}) chapters ${startCh} to ${endCh}.
-Session ID: ${quizSessionId}
-${passageSnippet}
+  console.log(`[AI QUIZ] Day: day${dayId}`);
+  const chaptersArray: string[] = [];
+  for (let c = startCh; c <= endCh; c++) {
+    chaptersArray.push(`${book} ${c}`);
+  }
+  console.log(`[AI QUIZ] Chapters: ${chaptersArray.join(', ')}`);
 
-REQUIREMENTS:
-1. Every question MUST directly test key events, verses, people, commands, genealogies, or spiritual lessons from ${book} (${bookTelugu}) chapters ${startCh} to ${endCh} (${chaptersStr}).
-2. Cover varied categories: Factual, Sequence, Character, Cause/Effect, Verse Detail, Context.
-3. Provide a difficulty tag for each question: "easy", "medium", or "hard". Aim for ~5 easy, ~7 medium, ~4 hard.
-4. Ensure 100% biblical accuracy, zero spelling errors, and correct Telugu & English terminology.
-5. Provide 4 option choices per question. Place correct answer index at random positions (0-3).
-6. Provide concise explanation with exact scripture reference in both Telugu and English.
+  const STRICT_SYSTEM_PROMPT = `You are a Bible text-grounded quiz generator.
 
-Return ONLY a raw JSON array of objects with this schema:
+Your ONLY source of truth is the Bible text supplied in this request.
+
+You are NOT allowed to use your general knowledge.
+
+You are NOT allowed to use information from any other Bible chapter or book.
+
+You are NOT allowed to import Christian theology, doctrine, sermons, commentaries, or personal interpretation.
+
+Every question must be directly answerable from the supplied text.
+
+Every correct answer must be explicitly supported by the supplied text.
+
+Every explanation must be supported by the supplied text.
+
+Every question must contain an exact chapter/verse reference.
+
+If a question cannot be proven from the supplied text, DO NOT generate it.
+
+Prefer factual and comprehension questions about:
+people,
+events,
+places,
+actions,
+commands,
+relationships,
+numbers,
+ages,
+sequence,
+statements,
+and consequences explicitly described in the text.
+
+Avoid generic spiritual-lesson questions.
+
+Never invent information.
+
+Return structured JSON only.`;
+
+  // STEP 1: Extract Factual Knowledge Map ONLY (NO theology)
+  console.log('🤖 [STEP 1] Extracting Factual Knowledge Map from scripture text...');
+  const step1Prompt = `Extract ONLY explicit facts from the supplied Bible text (${chapterRangeStr}):
+
+${passageData.englishText}
+
+Return raw JSON ONLY with schema:
+{
+  "people": [],
+  "events": [],
+  "places": [],
+  "relationships": [],
+  "commands": [],
+  "actions": [],
+  "numbers": [],
+  "ages": [],
+  "names": [],
+  "sequences": [],
+  "statements": [],
+  "results": [],
+  "references": []
+}
+
+RULES: NO theology. NO interpretation. NO outside information. Extract ONLY explicitly stated facts.`;
+
+  const step1Raw = await queryAIWithRetries(step1Prompt, STRICT_SYSTEM_PROMPT, 0.2);
+  const knowledgeMap = extractJsonFromAIResponse(step1Raw) || {};
+  console.log(`✅ [STEP 1 COMPLETE] Extracted Factual Map Keys: ${Object.keys(knowledgeMap).join(', ')}`);
+
+  // STEP 2: Generate 20 Candidate Questions strictly from Factual Map & Passage Text
+  console.log('🤖 [STEP 2] Generating 20 Grounded Candidate Questions...');
+  const step2Prompt = `FACTUAL KNOWLEDGE MAP:
+${JSON.stringify(knowledgeMap)}
+
+SUPPLIED BIBLE TEXT FOR ${chapterRangeStr}:
+${passageData.englishText}
+
+Generate 20 distinct candidate questions strictly based on the extracted factual map and scripture text above.
+
+BANNED QUESTION PATTERNS (DO NOT GENERATE):
+- "What spiritual lesson..."
+- "What eternal hope..."
+- "How should a believer..."
+- "What practical commitment..."
+- "How should Christians..."
+- "What does God's grace teach..."
+- "What does this mean for our spiritual life..."
+- Any question importing outside Christian theology or New Testament concepts.
+
+PREFER FACTUAL QUESTIONS:
+Who?, What?, Where?, When?, How?, Which?, How many?, What happened?, What did X say?, What did X do?, What did God command?, What was the result?, What happened before/after?, What object/person/place was mentioned?, What sequence of events occurred?
+
+Return raw JSON array of 20 candidate question objects:
 [
   {
     "id": 1,
     "chapter": ${startCh},
-    "category": "Factual",
+    "category": "person",
     "difficulty": "easy",
-    "questionTelugu": "తెలుగులో స్పష్టమైన ప్రశ్న",
-    "questionEnglish": "Clear English question",
-    "optionsTelugu": ["ఆప్షన్ A", "ఆప్షన్ B", "ఆప్షన్ C", "ఆప్షన్ D"],
-    "optionsEnglish": ["Option A", "Option B", "Option C", "Option D"],
+    "questionEnglish": "Who was the father of Noah?",
+    "questionTelugu": "నోవహు తండ్రి ఎవరు?",
+    "optionsEnglish": ["Lamech", "Methuselah", "Enoch", "Seth"],
+    "optionsTelugu": ["లేమెకు", "మెతూషెల", "హానోకు", "షేతు"],
     "correctIndex": 0,
-    "explanationTelugu": "సమాధాన వివరణ (${bookTelugu} ${startCh}:1)",
-    "explanationEnglish": "Scripture explanation (${book} ${startCh}:1)"
+    "explanationEnglish": "Lamech lived 182 years and begat Noah.",
+    "explanationTelugu": "లేమెకు నోవహును కనెను.",
+    "reference": "${book} ${startCh}:28-29",
+    "evidence": "Lamech lived 182 years and begat a son named Noah."
   }
-]
-No markdown backticks, no text before or after JSON.`;
+]`;
 
-  let candidatePool: any[] = [];
-  let primaryProvider = '';
+  const step2Raw = await queryAIWithRetries(step2Prompt, STRICT_SYSTEM_PROMPT, 0.2);
+  const rawCandidates = extractJsonFromAIResponse(step2Raw);
+  const candidatePool: any[] = Array.isArray(rawCandidates)
+    ? rawCandidates.map(c => normalizeQuestion(c, book, startCh))
+    : [];
 
-  // 1. Primary Generation: Try Gemini 1.5 Flash first
-  if (geminiKey) {
-    try {
-      console.log('🤖 [STAGE 1] Querying Gemini 1.5 Flash for Candidate Question Pool...');
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: candidateGenPrompt }] }],
-          generationConfig: { temperature: 0.7 }
-        })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (responseText) {
-          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanJson);
-          if (Array.isArray(parsed) && parsed.length >= 8) {
-            candidatePool = parsed;
-            primaryProvider = 'Google Gemini 1.5 Flash';
-          }
-        }
-      }
-    } catch (e: any) {
-      console.log('Gemini Primary Generation Error:', e?.message || e);
+  console.log(`[AI QUIZ] Candidate questions: ${candidatePool.length}`);
+
+  // STEP 3: Source Verification (Secondary AI Validator)
+  console.log('🛡️ [STEP 3] Running Secondary AI Source Verification...');
+  let validationMap = new Map<number, any>();
+  if (candidatePool.length > 0) {
+    const validatePrompt = `Determine whether each question is completely supported by the supplied Bible text.
+
+SUPPLIED BIBLE TEXT (${chapterRangeStr}):
+${passageData.englishText}
+
+CANDIDATES TO VERIFY:
+${JSON.stringify(candidatePool.map(c => ({
+  id: c.id,
+  question: c.questionEnglish,
+  options: c.optionsEnglish,
+  correctIndex: c.correctIndex,
+  explanation: c.explanationEnglish,
+  reference: c.reference,
+  evidence: c.evidence
+})))}
+
+Return raw JSON array ONLY:
+[
+  {
+    "id": 1,
+    "valid": true,
+    "correctAnswer": 0,
+    "referenceValid": true,
+    "evidenceSupported": true,
+    "explanationSupported": true,
+    "outsideKnowledgeUsed": false,
+    "reason": "Supported by text"
+  }
+]`;
+
+    const valRaw = await queryAIWithRetries(validatePrompt, '', 0.1);
+    const valArray = extractJsonFromAIResponse(valRaw);
+    if (Array.isArray(valArray)) {
+      validationMap = new Map(valArray.map((v: any) => [v.id, v]));
     }
   }
 
-  // Fallback 1B: Try Groq as Primary Generator if Gemini didn't return pool
-  if (candidatePool.length === 0 && groqKey) {
-    try {
-      console.log('🤖 [STAGE 1 Fallback] Querying Groq LLaMA-3.3-70B for Candidate Pool...');
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: candidateGenPrompt }],
-          temperature: 0.7,
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const responseText = data.choices?.[0]?.message?.content || '';
-        if (responseText) {
-          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanJson);
-          if (Array.isArray(parsed) && parsed.length >= 8) {
-            candidatePool = parsed;
-            primaryProvider = 'Groq LLaMA-3.3-70B';
-          }
-        }
-      }
-    } catch (e: any) {
-      console.log('Groq Primary Generation Error:', e?.message || e);
-    }
-  }
+  // STEP 4: Strict Filtering & Rejection Logging
+  let rejectedOutsideKnowledge = 0;
+  let rejectedUnsupportedAnswer = 0;
+  let rejectedDuplicate = 0;
 
-  // Fallback 1C: Try OpenAI if available
-  if (candidatePool.length === 0 && openAiKey) {
-    try {
-      console.log('🤖 [STAGE 1 Fallback] Querying OpenAI GPT-4o-Mini for Candidate Pool...');
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: candidateGenPrompt }],
-          temperature: 0.7,
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const responseText = data.choices?.[0]?.message?.content || '';
-        if (responseText) {
-          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanJson);
-          if (Array.isArray(parsed) && parsed.length >= 8) {
-            candidatePool = parsed;
-            primaryProvider = 'OpenAI GPT-4o-Mini';
-          }
-        }
-      }
-    } catch (e: any) {
-      console.log('OpenAI Generation Error:', e?.message || e);
-    }
-  }
-
-  // Fallback 1D: Try Pollinations AI free endpoint
-  if (candidatePool.length === 0) {
-    try {
-      console.log('🤖 [STAGE 1 Fallback] Querying Pollinations Free AI Engine...');
-      const resp = await fetch('https://text.pollinations.ai/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: candidateGenPrompt }],
-          model: 'openai',
-          seed: Math.floor(Math.random() * 1000000),
-        }),
-      });
-      if (resp.ok) {
-        const responseText = await resp.text();
-        if (responseText) {
-          const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanJson);
-          if (Array.isArray(parsed) && parsed.length >= 5) {
-            candidatePool = parsed;
-            primaryProvider = 'Pollinations Free AI Engine';
-          }
-        }
-      }
-    } catch (e: any) {
-      console.log('Pollinations AI Error:', e?.message || e);
-    }
-  }
-
-  console.log(`\n✅ [STAGE 1 COMPLETE] Generated ${candidatePool.length} Candidate Questions via Provider [${primaryProvider || 'Offline Engine'}]`);
-
-  // STAGE 2: Uniqueness & Duplication Filtering
-  console.log('🔍 [STAGE 2] Applying Question Uniqueness & Semantic Duplication Filter...');
-  const uniqueCandidates: any[] = [];
+  const validatedQuestions: any[] = [];
   const seenTexts = new Set<string>();
 
   for (const q of candidatePool) {
-    const norm = (q.questionEnglish || q.questionTelugu || '')
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .trim();
-    
-    let isDuplicate = false;
+    const norm = q.questionEnglish.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+
+    // Check duplicate
+    let isDup = false;
     for (const seen of seenTexts) {
-      // Simple overlap check
       const wordsA = new Set<string>(norm.split(/\s+/).filter((w: string) => w.length > 3));
       const wordsB = new Set<string>(seen.split(/\s+/).filter((w: string) => w.length > 3));
       if (wordsA.size > 0 && wordsB.size > 0) {
-        let intersection = 0;
-        wordsA.forEach((w: string) => { if (wordsB.has(w)) intersection++; });
-        const similarity = intersection / Math.min(wordsA.size, wordsB.size);
-        if (similarity > 0.75) {
-          isDuplicate = true;
+        let common = 0;
+        wordsA.forEach((w: string) => { if (wordsB.has(w)) common++; });
+        if (common / Math.min(wordsA.size, wordsB.size) > 0.70) {
+          isDup = true;
           break;
         }
       }
     }
 
-    if (!isDuplicate && norm.length > 10) {
-      seenTexts.add(norm);
-      uniqueCandidates.push(q);
+    if (isDup) {
+      rejectedDuplicate++;
+      console.log(`[AI QUIZ] Rejected - duplicate: Q#${q.id} "${q.questionEnglish}" | Reason: Paraphrased duplicate question`);
+      continue;
     }
-  }
-  console.log(`✅ [STAGE 2 COMPLETE] ${candidatePool.length - uniqueCandidates.length} Duplicate Candidates Purged. ${uniqueCandidates.length} Unique Candidates Remain.`);
 
-  // STAGE 3: Secondary AI Validation (Groq API Validator)
-  let verifiedCandidates = uniqueCandidates;
-  if (groqKey && uniqueCandidates.length > 0) {
-    try {
-      console.log('🛡️ [STAGE 3] Invoking Secondary AI Validator (Groq LLaMA-3.3-70B) for Biblical Verification...');
-      const validatePrompt = `You are a strict Biblical Fact Verification Engine.
-Verify these candidate multiple-choice questions against scripture portion ${book} chapters ${startCh} to ${endCh}.
-${passageSnippet}
+    // Check banned theological keywords
+    const lowerQ = (q.questionEnglish + ' ' + q.explanationEnglish).toLowerCase();
+    if (
+      lowerQ.includes('spiritual lesson') ||
+      lowerQ.includes('eternal hope') ||
+      lowerQ.includes('how should a believer') ||
+      lowerQ.includes('practical commitment') ||
+      lowerQ.includes('god\'s grace teach') ||
+      lowerQ.includes('transformation does god') ||
+      lowerQ.includes('holy spirit') ||
+      lowerQ.includes('christ\'s blood') ||
+      lowerQ.includes('salvation through')
+    ) {
+      rejectedOutsideKnowledge++;
+      console.log(`[AI QUIZ] Rejected - outside knowledge: Q#${q.id} "${q.questionEnglish}" | Reason: Contains banned theological concepts outside text`);
+      continue;
+    }
 
-CANDIDATES TO VERIFY:
-${JSON.stringify(uniqueCandidates.map(c => ({
-  id: c.id,
-  question: c.questionEnglish,
-  options: c.optionsEnglish,
-  correctIndex: c.correctIndex,
-  explanation: c.explanationEnglish
-})), null, 2)}
-
-Return ONLY a raw JSON array indicating validity for each candidate:
-[
-  {
-    "id": 1,
-    "isValid": true,
-    "verifiedCorrectIndex": 0,
-    "reasoning": "Accurate according to Genesis 1:1"
-  }
-]
-Output raw JSON only. No markdown.`;
-
-      const valResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: validatePrompt }],
-          temperature: 0.2,
-        }),
-      });
-
-      if (valResp.ok) {
-        const valData = await valResp.json();
-        const valText = valData.choices?.[0]?.message?.content || '';
-        const cleanValJson = valText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const valArray = JSON.parse(cleanValJson);
-
-        if (Array.isArray(valArray)) {
-          const valMap = new Map(valArray.map((v: any) => [v.id, v]));
-          const checked = uniqueCandidates.filter(c => {
-            const v = valMap.get(c.id);
-            if (!v || v.isValid === false) return false;
-            if (v.verifiedCorrectIndex !== undefined && v.verifiedCorrectIndex >= 0 && v.verifiedCorrectIndex <= 3) {
-              c.correctIndex = v.verifiedCorrectIndex;
-            }
-            return true;
-          });
-          if (checked.length >= 5) {
-            verifiedCandidates = checked;
-            console.log(`✅ [STAGE 3 COMPLETE] Groq Validator Verified ${verifiedCandidates.length} Questions.`);
-          }
-        }
+    const v = validationMap.get(q.id);
+    if (v) {
+      if (v.outsideKnowledgeUsed === true) {
+        rejectedOutsideKnowledge++;
+        console.log(`[AI QUIZ] Rejected - outside knowledge: Q#${q.id} "${q.questionEnglish}" | Reason: ${v.reason || 'Introduced outside knowledge'}`);
+        continue;
       }
-    } catch (valErr: any) {
-      console.log('Groq Validation Warning (Proceeding with Candidate Pool):', valErr?.message || valErr);
+
+      if (!v.valid || !v.referenceValid || !v.evidenceSupported || !v.explanationSupported) {
+        rejectedUnsupportedAnswer++;
+        console.log(`[AI QUIZ] Rejected - unsupported answer: Q#${q.id} "${q.questionEnglish}" | Reason: ${v.reason || 'Unsupported answer or invalid reference'}`);
+        continue;
+      }
+
+      if (typeof v.correctAnswer === 'number' && v.correctAnswer >= 0 && v.correctAnswer <= 3) {
+        q.correctIndex = v.correctAnswer;
+      }
+    } else {
+      if (!q.evidence || q.evidence.length < 5 || !q.reference) {
+        rejectedUnsupportedAnswer++;
+        console.log(`[AI QUIZ] Rejected - unsupported answer: Q#${q.id} "${q.questionEnglish}" | Reason: Missing mandatory evidence quote`);
+        continue;
+      }
+    }
+
+    seenTexts.add(norm);
+    validatedQuestions.push(q);
+  }
+
+  // Fallback to strict grounded verse generator if AI returned fewer than 10 validated questions
+  if (validatedQuestions.length < 10) {
+    console.log(`⚠️ [PIPELINE SUPPLEMENT] Validated count is ${validatedQuestions.length}/10. Generating grounded verse facts to complete pool...`);
+    const fallbackPool = generateStrictGroundedFallbackQuestions(book, bookTelugu, startCh, endCh, passageData);
+    for (const fq of fallbackPool) {
+      if (validatedQuestions.length >= 10) break;
+      const fNorm = fq.questionEnglish.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      if (!seenTexts.has(fNorm)) {
+        seenTexts.add(fNorm);
+        validatedQuestions.push(fq);
+      }
     }
   }
 
-  // STAGE 4: Final 10 Selection & Difficulty Balance
-  console.log('🎯 [STAGE 4] Selecting Top 10 Questions and Randomizing Option Placements...');
-  let poolToSelect = verifiedCandidates.length >= 10 ? verifiedCandidates : candidatePool;
-  
-  if (poolToSelect.length === 0) {
-    console.log('⚠️ [STAGE 4 Fallback] AI Providers unreachable or returned empty pool. Using Dynamic Canonical Scripture Engine.');
-    const generatePassageSpecificFallback = (bookName: string, bookTel: string, startC: number, endC: number) => {
-      const questions = [
-        {
-          id: 1,
-          chapter: startC,
-          category: 'Factual',
-          difficulty: 'easy',
-          questionTelugu: `${bookTel} ${startC}వ అధ్యాయంలో ముఖ్యమైన ఆత్మ సంబంధమైన వర్తమానం ఏమిటి?`,
-          questionEnglish: `According to ${bookName} Chapter ${startC}, what is the central spiritual lesson?`,
-          optionsTelugu: ["దేవుని వాక్యమునకు లోబడుట మరియు విశ్వాసము", "కేవలం ఐహిక విషయాలు", "తోటివారితో పోలిక", "ఏదీ కాదు"],
-          optionsEnglish: ["Obedience to God's Word and active faith", "Earthly achievements only", "Comparing with others", "None of these"],
-          correctIndex: 0,
-          explanationTelugu: `${bookTel} ${startC}వ అధ్యాయము దేవుని వాక్యమునకు లోబడి విశ్వాసముతో నడుచుకోవాలని నేర్పుచున్నది.`,
-          explanationEnglish: `${bookName} Chapter ${startC} teaches us to walk by faith and obey God's holy scriptures.`
-        },
-        {
-          id: 2,
-          chapter: startC,
-          category: 'Factual',
-          difficulty: 'easy',
-          questionTelugu: `${bookTel} ${startC}వ అధ్యాయం ద్వారా ప్రభువు తన ప్రజలకు అందించిన వాగ్దానము ఏమిటి?`,
-          questionEnglish: `What divine promise or direction is highlighted in ${bookName} Chapter ${startC}?`,
-          optionsTelugu: ["దేవుని కాపుదల మరియు నడిపింపు", "శ్రమలు మాత్రమే", "సందేశము లేదు", "లోకసంబంధ ఆలోచనలు"],
-          optionsEnglish: ["God's protection and holy guidance", "Trouble without hope", "No message", "Worldly thoughts"],
-          correctIndex: 0,
-          explanationTelugu: "ప్రభువు తనను నమ్ముకొనిన వారిని ఎన్నడూ విడనాడక నడిపించును.",
-          explanationEnglish: "The Lord promises never to leave nor forsake those who trust in Him."
-        },
-        {
-          id: 3,
-          chapter: Math.min(startC + 1, endC),
-          category: 'Character',
-          difficulty: 'medium',
-          questionTelugu: `${bookTel} ${Math.min(startC + 1, endC)}వ అధ్యాయంలో దైవభక్తి కలిగిన వారి లక్షణములు ఏవి?`,
-          questionEnglish: `In ${bookName} Chapter ${Math.min(startC + 1, endC)}, what characterizes a godly person?`,
-          optionsTelugu: ["ప్రార్థన, వాక్య ధ్యానము మరియు దయ", "కోపము మరియు గర్వము", "అసత్యము మాట్లాడుట", "ఆలయమునకు వెళ్ళకపోవుట"],
-          optionsEnglish: ["Prayer, scripture meditation, and love", "Anger and pride", "Speaking lies", "Avoiding fellowship"],
-          correctIndex: 0,
-          explanationTelugu: "దైవభక్తి కలిగిన వారు నిత్యము ప్రభువు వాక్యమును ధ్యానిస్తూ ప్రార్థనలో స్థిరముగా ఉంటారు.",
-          explanationEnglish: "Godly believers meditate on the Word day and night and abide in love."
-        },
-        {
-          id: 4,
-          chapter: Math.min(startC + 1, endC),
-          category: 'Cause/Effect',
-          difficulty: 'medium',
-          questionTelugu: `${bookTel} అధ్యాయములు ${startC}-${endC} ప్రకారం శోధనల సమయంలో విశ్వాసి ఎలా స్పందించాలి?`,
-          questionEnglish: `According to ${bookName} Chapters ${startC}-${endC}, how should a believer respond in trials?`,
-          optionsTelugu: ["విశ్వాసములో స్థిరముగా ఉండి ప్రార్థించుట", "సణుగుకొనుట", "దేవుని నుండి దూరమగుట", "భయపడుట"],
-          optionsEnglish: ["Stand firm in faith and pray", "Murmur and complain", "Turn away from God", "Fear and give up"],
-          correctIndex: 0,
-          explanationTelugu: "శోధనలలో దేవుని వాక్యమనే ఆత్మ ఖడ్గమును ధరించి ప్రార్థనలో విజయం పొందాలి.",
-          explanationEnglish: "Believers overcome trials by standing firm on God's truth and praying continually."
-        },
-        {
-          id: 5,
-          chapter: endC,
-          category: 'Verse Context',
-          difficulty: 'medium',
-          questionTelugu: `${bookTel} ${endC}వ అధ్యాయము ముగింపులో ఇవ్వబడిన గొప్ప ఆత్మ సంబంధ హెచ్చరిక / ప్రోత్సాహము ఏది?`,
-          questionEnglish: `What key encouragement is highlighted in ${bookName} Chapter ${endC}?`,
-          optionsTelugu: ["ప్రభువు నందు నిరీక్షణ కలిగి పరిశుద్ధత కాపాడుకొనుట", "స్వార్థముతో జీవించుట", "పాపమును సహించుట", "విశ్వాసము వదలుట"],
-          optionsEnglish: ["Keep hope in Christ and preserve holiness", "Live selfishly", "Tolerate sin", "Abandon faith"],
-          correctIndex: 0,
-          explanationTelugu: "ప్రభువైన యేసు క్రీస్తు నందు నిరీక్షణ ఉంచి నిత్యజీవము కొరకు పరిశుద్ధంగా జీవించాలి.",
-          explanationEnglish: "Fix your hope on the Lord Jesus Christ and preserve purity in daily living."
-        },
-        {
-          id: 6,
-          chapter: startC,
-          category: 'Detail',
-          difficulty: 'hard',
-          questionTelugu: `${bookTel} పఠనం ప్రకారం దేవుని కృప మన జీవితంలో ఎలాంటి మార్పు తెస్తుంది?`,
-          questionEnglish: `According to reading ${bookName}, what transformation does God's grace bring?`,
-          optionsTelugu: ["నూతన హృదయము మరియు నూతన జీవితము", "ఏ మార్పు ఉండదు", "భయము మాత్రమే", "దుఃఖము"],
-          optionsEnglish: ["New heart and transformed life", "No change at all", "Fear only", "Sorrow without comfort"],
-          correctIndex: 0,
-          explanationTelugu: "క్రీస్తు నందు ఉన్నవాడు నూతన సృష్టి; పాతవి గతించెను సమస్తము నూతనమాయెను.",
-          explanationEnglish: "If anyone is in Christ, he is a new creation; old things have passed away."
-        },
-        {
-          id: 7,
-          chapter: Math.min(startC + 1, endC),
-          category: 'Character',
-          difficulty: 'medium',
-          questionTelugu: `${bookTel} అధ్యాయం ${Math.min(startC + 1, endC)} ప్రకారం మనము ఇతరులతో ఏవిధంగా నడుచుకోవాలి?`,
-          questionEnglish: `According to ${bookName} Chapter ${Math.min(startC + 1, endC)}, how should we treat others?`,
-          optionsTelugu: ["ప్రేమ, క్షమాపణ మరియు క్రీస్తు స్వభావముతో", "ద్వేషముతో", "స్వార్థముతో", "ఉపేక్షతో"],
-          optionsEnglish: ["With love, forgiveness, and Christ-like attitude", "With hatred", "With selfishness", "With apathy"],
-          correctIndex: 0,
-          explanationTelugu: "క్రీస్తు మనలను క్షమించిన ప్రకారము మనము కూడా ఇతరులను క్షమించి ప్రేమించాలి.",
-          explanationEnglish: "Forgive one another even as God in Christ forgave you."
-        },
-        {
-          id: 8,
-          chapter: endC,
-          category: 'Sequence',
-          difficulty: 'hard',
-          questionTelugu: `${bookTel} ${endC}వ అధ్యాయంలో పరిశుద్ధాత్మ దేవుని నడిపింపు యొక్క ముఖ్య ఉద్దేశ్యం ఏమిటి?`,
-          questionEnglish: `In ${bookName} Chapter ${endC}, what is the purpose of the Holy Spirit's guidance?`,
-          optionsTelugu: ["సత్యములోనికి నడిపించి క్రీస్తును మహిమపరచుట", "లోక ఐశ్వర్యము ఇచ్చుట", "సందేశము లేదు", "అపోహలు కలిగించుట"],
-          optionsEnglish: ["Guide into all truth and glorify Christ", "Give worldly fame only", "No purpose", "Cause confusion"],
-          correctIndex: 0,
-          explanationTelugu: "పరిశుద్ధాత్మ దేవుడు మనలను సమస్త సత్యములోనికి నడిపించి దేవుని మహిమపరుచును.",
-          explanationEnglish: "The Holy Spirit guides believers into all truth and exalts Jesus Christ."
-        },
-        {
-          id: 9,
-          chapter: startC,
-          category: 'Factual',
-          difficulty: 'easy',
-          questionTelugu: `${bookTel} ${startC}వ అధ్యాయము ద్వారా విశ్వాసి పొందే నిత్య నిరీక్షణ ఏది?`,
-          questionEnglish: `What eternal hope is revealed in ${bookName} Chapter ${startC}?`,
-          optionsTelugu: ["క్రీస్తు రక్తము వలన రక్షణ మరియు నిత్యజీవము", "తాత్కాలిక ఆనందం", "ఏమీ లేదు", "లోక భయాలు"],
-          optionsEnglish: ["Salvation through Christ's blood and eternal life", "Temporary happiness", "Nothing", "Worldly anxieties"],
-          correctIndex: 0,
-          explanationTelugu: "క్రీస్తు సిలువ యాగము ద్వారా మనకు రక్షణ మరియు నిత్యజీవ భాగ్యము లభించినది.",
-          explanationEnglish: "Through Christ's sacrifice, we receive salvation and eternal life."
-        },
-        {
-          id: 10,
-          chapter: endC,
-          category: 'Verse Context',
-          difficulty: 'hard',
-          questionTelugu: `${bookTel} ${endC}వ అధ్యాయము చదివిన తరువాత మన దైనందిన జీవితంలో ఏ తీర్మానం తీసుకోవాలి?`,
-          questionEnglish: `After reading ${bookName} Chapter ${endC}, what practical commitment should we make?`,
-          optionsTelugu: ["దేవుని చిత్తమునకు పూర్తిగా లొంగిపోవుట", "నా ఇష్ట ప్రకారము జీవించుట", "వాక్యమును మరచిపోవుట", "ఏమీ చేయకపోవుట"],
-          optionsEnglish: ["Completely submit to God's holy will", "Live by personal desires", "Forget the message", "Do nothing"],
-          correctIndex: 0,
-          explanationTelugu: "ప్రతిరోజూ దేవుని వాక్యమునకు విధేయులమై ఆయన మహిమ కొరకు జీవించుటకు తీర్మానించుకోవాలి.",
-          explanationEnglish: "Commit daily to obeying God's Word and living for His divine glory."
-        }
-      ];
+  console.log(`[AI QUIZ] Rejected - outside knowledge: ${rejectedOutsideKnowledge}`);
+  console.log(`[AI QUIZ] Rejected - unsupported answer: ${rejectedUnsupportedAnswer}`);
+  console.log(`[AI QUIZ] Rejected - duplicate: ${rejectedDuplicate}`);
+  console.log(`[AI QUIZ] Validated questions: ${validatedQuestions.length}`);
 
-      return questions;
-    };
-    poolToSelect = generatePassageSpecificFallback(book, bookTelugu, startCh, endCh);
-  }
+  // Select 10 questions and shuffle options
+  const finalPool = validatedQuestions.slice(0, 10);
+  console.log(`[AI QUIZ] Final questions: ${finalPool.length}`);
 
-  // Select 10 questions from candidate pool with difficulty balance
-  const easy = poolToSelect.filter(q => q.difficulty === 'easy');
-  const medium = poolToSelect.filter(q => q.difficulty === 'medium' || !q.difficulty);
-  const hard = poolToSelect.filter(q => q.difficulty === 'hard');
-
-  let selected: any[] = [];
-  selected.push(...easy.slice(0, 3));
-  selected.push(...medium.slice(0, 4));
-  selected.push(...hard.slice(0, 3));
-
-  if (selected.length < 10) {
-    const remaining = poolToSelect.filter(q => !selected.includes(q));
-    selected.push(...remaining.slice(0, 10 - selected.length));
-  }
-
-  // Final 10 items formatted & option shuffled
-  const final10Questions = selected.slice(0, 10).map((q, idx) => {
+  const final10Questions = finalPool.map((q, idx) => {
     const shuffled = shuffleQuestion(q);
     return {
       ...shuffled,
@@ -561,7 +690,7 @@ Output raw JSON only. No markdown.`;
   });
 
   logGeneratedQuestions(
-    `${primaryProvider || 'Dynamic Scripture Engine'} (Validated by Groq)`,
+    'Dual-AI Source-Only Grounded Engine',
     book,
     startCh,
     endCh,
