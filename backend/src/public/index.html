@@ -1413,10 +1413,13 @@
           <textarea id="dpVerseEng" class="form-control" rows="3" placeholder="e.g. For I know the plans I have for you, declares the Lord..."></textarea>
         </div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="display:flex; gap:10px; justify-content:flex-end;">
         <button type="button" class="btn btn-outline" onclick="app.closeModal('dailyPromiseModal')">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="btnSubmitDailyPromise">
-          <i class="fa-solid fa-cloud-arrow-up"></i> Save & Broadcast Promise
+        <button type="button" class="btn btn-secondary" id="btnSubmitDailyPromiseSchedule" onclick="app.saveDailyPromiseSubmit(false)">
+          <i class="fa-solid fa-clock"></i> Schedule for Time
+        </button>
+        <button type="button" class="btn btn-primary" id="btnSubmitDailyPromiseNow" onclick="app.saveDailyPromiseSubmit(true)">
+          <i class="fa-solid fa-paper-plane"></i> Publish & Push Now
         </button>
       </div>
     </form>

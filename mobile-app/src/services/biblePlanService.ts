@@ -633,6 +633,7 @@ class BiblePlanService {
     verseEnglish?: string;
     referenceTelugu: string;
     referenceEnglish?: string;
+    publishNow?: boolean;
   }): Promise<{ success: boolean; message?: string; data?: any }> {
     try {
       const resp = await axios.post(`${API_URL}/api/bible-plans/daily-promise`, promiseData, { timeout: 6000 });

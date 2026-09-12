@@ -2946,7 +2946,7 @@ class ChurchApp {
     document.getElementById('dailyPromiseModal').classList.add('active');
   }
 
-  async saveDailyPromiseSubmit() {
+  async saveDailyPromiseSubmit(publishNow = false) {
     const date = document.getElementById('dpDate').value;
     const time = document.getElementById('dpTime')?.value || '05:00 AM';
     const referenceTelugu = document.getElementById('dpRefTel').value.trim();
@@ -2959,25 +2959,31 @@ class ChurchApp {
       return;
     }
 
-    this.setButtonLoading('btnSubmitDailyPromise', true, 'Saving Promise...');
+    const btnId = publishNow ? 'btnSubmitDailyPromiseNow' : 'btnSubmitDailyPromiseSchedule';
+    const loadingText = publishNow ? 'Publishing & Pushing...' : 'Scheduling...';
+    this.setButtonLoading(btnId, true, loadingText);
 
     try {
       const res = await this.authFetch('/api/bible-plans/daily-promise', {
         method: 'POST',
-        body: JSON.stringify({ date, time, referenceTelugu, referenceEnglish, verseTelugu, verseEnglish })
+        body: JSON.stringify({ date, time, referenceTelugu, referenceEnglish, verseTelugu, verseEnglish, publishNow })
       });
       const data = await res.json();
       if (data.success) {
-        this.showToast('🌅 Daily God\'s Promise scheduled successfully!', 'success');
+        this.showToast(data.message || '🌅 Daily God\'s Promise saved successfully!', 'success');
         this.closeModal('dailyPromiseModal');
         await this.loadDailyPromisesTable();
       } else {
-        this.showToast('Failed to schedule promise: ' + (data.message || 'Error'), 'error');
+        this.showToast('Failed to save promise: ' + (data.message || 'Error'), 'error');
       }
     } catch (e) {
-      this.showToast('Schedule error: ' + e.message, 'error');
+      this.showToast('Save error: ' + e.message, 'error');
     } finally {
-      this.setButtonLoading('btnSubmitDailyPromise', false, '', '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Broadcast Promise');
+      if (publishNow) {
+        this.setButtonLoading('btnSubmitDailyPromiseNow', false, '', '<i class="fa-solid fa-paper-plane"></i> Publish & Push Now');
+      } else {
+        this.setButtonLoading('btnSubmitDailyPromiseSchedule', false, '', '<i class="fa-solid fa-clock"></i> Schedule for Time');
+      }
     }
   }
 
@@ -2995,19 +3001,28 @@ class ChurchApp {
         return;
       }
 
-      tbody.innerHTML = list.map(p => `
-        <tr>
-          <td><strong>${p.date}</strong> <span class="badge badge-outline" style="font-size:11px;">⏰ ${p.time || '05:00 AM'}</span></td>
-          <td>${p.referenceTelugu}</td>
-          <td>${p.referenceEnglish || '—'}</td>
-          <td><small class="text-muted">${(p.verseTelugu || '').substring(0, 60)}...</small></td>
-          <td>
-            <button class="btn btn-sm btn-danger-action" style="padding:4px 8px;" onclick="app.deleteDailyPromise('${p.date}')">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = list.map(p => {
+        const isSent = p.status === 'sent';
+        const badgeClass = isSent ? 'badge-success' : 'badge-warning';
+        const statusLabel = isSent ? '✅ Published' : '⏰ Scheduled';
+        return `
+          <tr>
+            <td>
+              <strong>${p.date}</strong> 
+              <span class="badge badge-outline" style="font-size:11px;">⏰ ${p.time || '05:00 AM'}</span>
+              <span class="badge ${badgeClass}" style="font-size:10px; margin-left:4px;">${statusLabel}</span>
+            </td>
+            <td>${p.referenceTelugu}</td>
+            <td>${p.referenceEnglish || '—'}</td>
+            <td><small class="text-muted">${(p.verseTelugu || '').substring(0, 60)}...</small></td>
+            <td>
+              <button class="btn btn-sm btn-danger-action" style="padding:4px 8px;" onclick="app.deleteDailyPromise('${p.date}')">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     } catch (e) {
       console.log('Error loading daily promises table:', e);
     }

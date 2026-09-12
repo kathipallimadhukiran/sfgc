@@ -2,8 +2,49 @@ import { DailyPromise } from '../models/DailyPromise';
 import { Notice } from '../models/Notice';
 import { sendPushNotificationToAll, sendPushNotificationToAdmins } from './pushNotificationService';
 
-const parseTimeToMinutes = (timeStr: string): number => {
-  if (!timeStr) return 5 * 60; // Default 5:00 AM = 300 minutes
+/**
+ * Get current date string explicitly formatted in Asia/Kolkata timezone (YYYY-MM-DD)
+ */
+export const getKolkataDateStr = (dateObj: Date = new Date()): string => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+    return formatter.format(dateObj); // Returns "YYYY-MM-DD"
+  } catch (e) {
+    return dateObj.toISOString().split('T')[0];
+  }
+};
+
+/**
+ * Get current time details explicitly in Asia/Kolkata timezone
+ */
+export const getKolkataTimeMinutes = (dateObj: Date = new Date()): { hours: number; minutes: number; currentMinutes: number } => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    }).formatToParts(dateObj);
+
+    let hours = 0;
+    let minutes = 0;
+    for (const part of parts) {
+      if (part.type === 'hour') hours = parseInt(part.value, 10) % 24;
+      if (part.type === 'minute') minutes = parseInt(part.value, 10);
+    }
+    return { hours, minutes, currentMinutes: hours * 60 + minutes };
+  } catch (e) {
+    const h = dateObj.getHours();
+    const m = dateObj.getMinutes();
+    return { hours: h, minutes: m, currentMinutes: h * 60 + m };
+  }
+};
+
+/**
+ * Parse time string ("05:00 AM", "5:00 PM", "17:30") into minutes from midnight (0-1439)
+ */
+export const parseTimeToMinutes = (timeStr?: string): number => {
+  if (!timeStr || typeof timeStr !== 'string') return 5 * 60; // Default 5:00 AM = 300 minutes
   const trimmed = timeStr.trim().toUpperCase();
   const isPM = trimmed.includes('PM');
   const isAM = trimmed.includes('AM');
@@ -11,6 +52,9 @@ const parseTimeToMinutes = (timeStr: string): number => {
   const parts = clean.split(':');
   let h = parseInt(parts[0] || '5', 10);
   let m = parseInt(parts[1] || '0', 10);
+
+  if (isNaN(h)) h = 5;
+  if (isNaN(m)) m = 0;
 
   if (isPM && h < 12) h += 12;
   if (isAM && h === 12) h = 0;
@@ -23,30 +67,27 @@ const parseTimeToMinutes = (timeStr: string): number => {
  */
 export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
   try {
-    // Get current date & time explicitly in Asia/Kolkata timezone
-    const nowKolkata = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const hours = nowKolkata.getHours();
-    const minutes = nowKolkata.getMinutes();
-    
-    const year = nowKolkata.getFullYear();
-    const month = String(nowKolkata.getMonth() + 1).padStart(2, '0');
-    const day = String(nowKolkata.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-    const currentMinutes = hours * 60 + minutes;
+    const todayStr = getKolkataDateStr();
+    const { hours, minutes, currentMinutes } = getKolkataTimeMinutes();
 
-    // Find today's promises that are still marked 'scheduled' (not yet 'sent')
+    // Find unsent promises scheduled for today or overdue from previous days
     const scheduledPromises = await DailyPromise.find({
-      date: todayStr,
-      status: { $ne: 'sent' }
-    });
+      status: { $ne: 'sent' },
+      date: { $lte: todayStr },
+    }).sort({ date: 1, createdAt: 1 });
 
     for (const promise of scheduledPromises) {
       const scheduledMinutes = parseTimeToMinutes(promise.time || '05:00 AM');
+      const isOverdue = promise.date < todayStr;
+      const isTimeReached = promise.date === todayStr && currentMinutes >= scheduledMinutes;
 
-      // Trigger if current time is at or after scheduled time
-      if (currentMinutes >= scheduledMinutes && promise.verseTelugu) {
+      // Trigger if date is in past or current time is at/after scheduled time
+      if ((isOverdue || isTimeReached) && promise.verseTelugu) {
         const pubTime = promise.time || '05:00 AM';
-        console.log(`⏰ [Daily Promise Scheduler] Publishing promise for ${todayStr} at ${pubTime}: "${promise.referenceTelugu}"`);
+        console.log(`⏰ [Daily Promise Scheduler] Publishing promise for ${promise.date} at ${pubTime}: "${promise.referenceTelugu}"`);
+
+        const telTitle = '🕊️ నేటి దేవుని వాగ్దానము';
+        const telBody = `"${promise.verseTelugu.trim()}"\n\n— ${promise.referenceTelugu.trim()}`;
 
         let notice = null;
         try {
@@ -61,21 +102,28 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
 
           if (io) {
             io.emit('newNotice', notice);
-            io.emit('new_promise_notification', { promise });
+            io.emit('new_promise_notification', {
+              promise,
+              title: telTitle,
+              verseTelugu: promise.verseTelugu,
+              referenceTelugu: promise.referenceTelugu,
+              verseEnglish: promise.verseEnglish,
+              referenceEnglish: promise.referenceEnglish,
+              date: promise.date,
+              time: pubTime,
+            });
           }
         } catch (e) {
           console.log('Notice auto-creation error for Daily Promise:', e);
         }
 
-        const telTitle = '🕊️ నేటి దేవుని వాగ్దానము';
-        const telBody = `"${promise.verseTelugu.trim()}"\n\n— ${promise.referenceTelugu.trim()}`;
-
+        // Send Push Notification to all registered Expo mobile devices
         await sendPushNotificationToAll(
           telTitle,
           telBody,
           { 
             type: 'daily_promise', 
-            date: todayStr,
+            date: promise.date,
             time: pubTime,
             verseTelugu: promise.verseTelugu,
             referenceTelugu: promise.referenceTelugu,
@@ -88,14 +136,15 @@ export const checkDailyPromiseJob = async (io?: any): Promise<void> => {
         promise.notificationSentAt = new Date();
         await promise.save();
 
-        console.log(`✅ [Daily Promise Scheduler] Push notification sent and status updated to 'sent' for ${todayStr} at ${pubTime}`);
+        console.log(`✅ [Daily Promise Scheduler] Push notification sent & published status updated for ${promise.date} at ${pubTime}`);
       }
     }
 
-    // If 5:00 AM hour exact match and no promise found at all, alert admins once
+    // Early morning admin alert if no promise exists for today
     if (hours === 5 && minutes < 5) {
       const existingSent = await DailyPromise.findOne({ date: todayStr, status: 'sent' });
-      if (!existingSent && scheduledPromises.length === 0) {
+      const todayScheduled = await DailyPromise.findOne({ date: todayStr });
+      if (!existingSent && !todayScheduled) {
         console.log(`⚠️ No Daily Promise scheduled for today (${todayStr})! Alerting admins...`);
         await sendPushNotificationToAdmins(
           '⚠️ Admin Action Required: Daily Promise Missing!',

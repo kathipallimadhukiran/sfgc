@@ -826,11 +826,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       newSocket.on('new_promise_notification', (payload: any) => {
-        notificationService.triggerNotification(
-          `🌅 ${payload.title || "Today's Daily Promise"}`,
-          `"${payload.verseTelugu}" - ${payload.referenceTelugu}`,
-          { type: 'PROMISE' }
-        );
+        const p = payload?.promise || payload || {};
+        const title = payload?.title || "Today's Daily Promise";
+        const vTel = p.verseTelugu || payload?.verseTelugu || '';
+        const rTel = p.referenceTelugu || payload?.referenceTelugu || '';
+        if (vTel) {
+          notificationService.triggerNotification(
+            `🌅 ${title}`,
+            `"${vTel}" - ${rTel}`,
+            { type: 'PROMISE', verseTelugu: vTel, referenceTelugu: rTel }
+          );
+        }
       });
 
       newSocket.on(

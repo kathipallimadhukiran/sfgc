@@ -4,6 +4,9 @@ import { User } from '../models/User';
 import { BiblePlan, UserPlanProgress } from '../models/biblePlanModel';
 import { DailyPromise } from '../models/DailyPromise';
 import { Notice } from '../models/Notice';
+import { getKolkataDateStr, getKolkataTimeMinutes, parseTimeToMinutes } from '../services/dailyPromiseScheduler';
+import { sendPushNotificationToAll } from '../services/pushNotificationService';
+
 
 // Helper function to compute exact calendar day difference (ignores hours/minutes/seconds)
 const getCalendarDayDiff = (d1: Date, d2: Date): number => {
@@ -682,86 +685,116 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
 // GET /api/bible-plans/daily-promise
 export const getDailyPromise = async (req: Request, res: Response): Promise<void> => {
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getKolkataDateStr();
+    const { currentMinutes } = getKolkataTimeMinutes();
+    const allowScheduled = req.query.allowScheduled === 'true';
+
+    // Find today's promise in DB
     let promise = await DailyPromise.findOne({ date: todayStr });
 
-    if (!promise) {
-      const defaultTeluguPromises = [
-        {
-          verseTelugu: "యెహోవా నా కాపరి; నాకు లేమి కలుగదు. ఆయన పచ్చికగల చోట్లను నన్ను పరుండజేయుచున్నాడు.",
-          verseEnglish: "The Lord is my shepherd; I shall not want. He maketh me to lie down in green pastures.",
-          referenceTelugu: "కీర్తనలు 23:1-2",
-          referenceEnglish: "Psalms 23:1-2"
-        },
-        {
-          verseTelugu: "నేను మీ విషయమై తలంచియున్న తలంపులను నేనెరుగుదును; అవి రాబోవు కాలమందు మీకు నిరీక్షణ కలుగునట్లు సమాధానకరమైన తలంపులేగాని హానికరమైనవి కావు.",
-          verseEnglish: "For I know the thoughts that I think toward you, saith the Lord, thoughts of peace, and not of evil, to give you an expected end.",
-          referenceTelugu: "యిర్మీయా 29:11",
-          referenceEnglish: "Jeremiah 29:11"
-        },
-        {
-          verseTelugu: "నీవు నడుచు మార్గమంతటిలో నిన్ను కాపాడుటకు ఆయన తన దూతలకు నిన్నుగూర్చి ఆజ్ఞాపించును.",
-          verseEnglish: "For He shall give His angels charge over thee, to keep thee in all thy ways.",
-          referenceTelugu: "కీర్తనలు 91:11",
-          referenceEnglish: "Psalms 91:11"
-        },
-        {
-          verseTelugu: "నేను నిన్ను విడువను, నిన్ను ఎడబాయను; నిబ్బరము కలిగి ధైర్యముగా ఉండుము.",
-          verseEnglish: "I will not fail thee, nor forsake thee. Be strong and of a good courage.",
-          referenceTelugu: "యెహోషువ 1:5-6",
-          referenceEnglish: "Joshua 1:5-6"
-        },
-        {
-          verseTelugu: "భయపడకుము నేను నీకు తోడైయున్నాను; దిగులుపడకుము నేను నీ దేవుడనై యున్నాను; నేను నిన్ను బలపరతును.",
-          verseEnglish: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee.",
-          referenceTelugu: "యెషయా 41:10",
-          referenceEnglish: "Isaiah 41:10"
-        },
-        {
-          verseTelugu: "మీ దేవుడైన యెహోవా మీ మధ్య ఉన్నాడు, ఆయన రక్షించుటకు సమర్థుడైన శూరుడు.",
-          verseEnglish: "The Lord thy God in the midst of thee is mighty; He will save.",
-          referenceTelugu: "జెఫన్యా 3:17",
-          referenceEnglish: "Zephaniah 3:17"
-        },
-        {
-          verseTelugu: "నా దేవుడు తన ఐశ్వర్యము చొప్పున క్రీస్తుయేసు నందు మహిమలో మీ ప్రతి అవసరమును తీర్చును.",
-          verseEnglish: "But my God shall supply all your need according to His riches in glory by Christ Jesus.",
-          referenceTelugu: "ఫిలిప్పీయులకు 4:19",
-          referenceEnglish: "Philippians 4:19"
-        },
-        {
-          verseTelugu: "యెహోవా కొరకు ఎదురుచూచువారు నూతన బలము పొందుదురు; వారు పక్షులవలె రెక్కలు చాపి పైకి ఎగురుదురు.",
-          verseEnglish: "But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles.",
-          referenceTelugu: "యెషయా 40:31",
-          referenceEnglish: "Isaiah 40:31"
-        },
-        {
-          verseTelugu: "ప్రయాసపడి భారము మోసుకొనుచున్న సమస్త జనులారా, నా యొద్దకు రండి, నేను మీకు విశ్రాంతి కలుగజేతును.",
-          verseEnglish: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
-          referenceTelugu: "మత్తయి 11:28",
-          referenceEnglish: "Matthew 11:28"
-        },
-        {
-          verseTelugu: "దేవుడు మనకు ఆశ్రయమును బలమునై యున్నాడు, ఆపత్కాలములో ఆయన నమ్మదగిన సహాయకుడు.",
-          verseEnglish: "God is our refuge and strength, a very present help in trouble.",
-          referenceTelugu: "కీర్తనలు 46:1",
-          referenceEnglish: "Psalms 46:1"
+    if (promise) {
+      const scheduledMinutes = parseTimeToMinutes(promise.time || '05:00 AM');
+      const isPublished = promise.status === 'sent' || currentMinutes >= scheduledMinutes;
+
+      // If scheduled for future time today and request is not for admin preview, return latest sent promise
+      if (!isPublished && !allowScheduled) {
+        const latestSent = await DailyPromise.findOne({ status: 'sent' }).sort({ date: -1, createdAt: -1 });
+        if (latestSent) {
+          res.status(200).json({ success: true, data: latestSent });
+          return;
         }
-      ];
-
-      const dayIdx = new Date().getDate() % defaultTeluguPromises.length;
-      const selected = defaultTeluguPromises[dayIdx];
-
-      promise = new DailyPromise({
-        date: todayStr,
-        verseTelugu: selected.verseTelugu,
-        verseEnglish: selected.verseEnglish,
-        referenceTelugu: selected.referenceTelugu,
-        referenceEnglish: selected.referenceEnglish,
-        addedBy: 'ai',
-      });
-      await promise.save();
+      } else {
+        res.status(200).json({ success: true, data: promise });
+        return;
+      }
     }
+
+    // Fallback: Check if there's any sent promise
+    const latestSent = await DailyPromise.findOne({ status: 'sent' }).sort({ date: -1, createdAt: -1 });
+    if (latestSent && latestSent.date === todayStr) {
+      res.status(200).json({ success: true, data: latestSent });
+      return;
+    }
+
+    // Default canonical Telugu scripture pool
+    const defaultTeluguPromises = [
+      {
+        verseTelugu: "యెహోవా నా కాపరి; నాకు లేమి కలుగదు. ఆయన పచ్చికగల చోట్లను నన్ను పరుండజేయుచున్నాడు.",
+        verseEnglish: "The Lord is my shepherd; I shall not want. He maketh me to lie down in green pastures.",
+        referenceTelugu: "కీర్తనలు 23:1-2",
+        referenceEnglish: "Psalms 23:1-2"
+      },
+      {
+        verseTelugu: "నేను మీ విషయమై తలంచియున్న తలంపులను నేనెరుగుదును; అవి రాబోవు కాలమందు మీకు నిరీక్షణ కలుగునట్లు సమాధానకరమైన తలంపులేగాని హానికరమైనవి కావు.",
+        verseEnglish: "For I know the thoughts that I think toward you, saith the Lord, thoughts of peace, and not of evil, to give you an expected end.",
+        referenceTelugu: "యిర్మీయా 29:11",
+        referenceEnglish: "Jeremiah 29:11"
+      },
+      {
+        verseTelugu: "నీవు నడుచు మార్గమంతటిలో నిన్ను కాపాడుటకు ఆయన తన దూతలకు నిన్నుగూర్చి ఆజ్ఞాపించును.",
+        verseEnglish: "For He shall give His angels charge over thee, to keep thee in all thy ways.",
+        referenceTelugu: "కీర్తనలు 91:11",
+        referenceEnglish: "Psalms 91:11"
+      },
+      {
+        verseTelugu: "నేను నిన్ను విడువను, నిన్ను ఎడబాయను; నిబ్బరము కలిగి ధైర్యముగా ఉండుము.",
+        verseEnglish: "I will not fail thee, nor forsake thee. Be strong and of a good courage.",
+        referenceTelugu: "యెహోషువ 1:5-6",
+        referenceEnglish: "Joshua 1:5-6"
+      },
+      {
+        verseTelugu: "భయపడకుము నేను నీకు తోడైయున్నాను; దిగులుపడకుము నేను నీ దేవుడనై యున్నాను; నేను నిన్ను బలపరతును.",
+        verseEnglish: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee.",
+        referenceTelugu: "యెషయా 41:10",
+        referenceEnglish: "Isaiah 41:10"
+      },
+      {
+        verseTelugu: "మీ దేవుడైన యెహోవా మీ మధ్య ఉన్నాడు, ఆయన రక్షించుటకు సమర్థుడైన శూరుడు.",
+        verseEnglish: "The Lord thy God in the midst of thee is mighty; He will save.",
+        referenceTelugu: "జెఫన్యా 3:17",
+        referenceEnglish: "Zephaniah 3:17"
+      },
+      {
+        verseTelugu: "నా దేవుడు తన ఐశ్వర్యము చొప్పున క్రీస్తుయేసు నందు మహిమలో మీ ప్రతి అవసరమును తీర్చును.",
+        verseEnglish: "But my God shall supply all your need according to His riches in glory by Christ Jesus.",
+        referenceTelugu: "ఫిలిప్పీయులకు 4:19",
+        referenceEnglish: "Philippians 4:19"
+      },
+      {
+        verseTelugu: "యెహోవా కొరకు ఎదురుచూచువారు నూతన బలము పొందుదురు; వారు పక్షులవలె రెక్కలు చాపి పైకి ఎగురుదురు.",
+        verseEnglish: "But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles.",
+        referenceTelugu: "యెషయా 40:31",
+        referenceEnglish: "Isaiah 40:31"
+      },
+      {
+        verseTelugu: "ప్రయాసపడి భారము మోసుకొనుచున్న సమస్త జనులారా, నా యొద్దకు రండి, నేను మీకు విశ్రాంతి కలుగజేతును.",
+        verseEnglish: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
+        referenceTelugu: "మత్తయి 11:28",
+        referenceEnglish: "Matthew 11:28"
+      },
+      {
+        verseTelugu: "దేవుడు మనకు ఆశ్రయమును బలమునై యున్నాడు, ఆపత్కాలములో ఆయన నమ్మదగిన సహాయకుడు.",
+        verseEnglish: "God is our refuge and strength, a very present help in trouble.",
+        referenceTelugu: "కీర్తనలు 46:1",
+        referenceEnglish: "Psalms 46:1"
+      }
+    ];
+
+    const dayIdx = new Date().getDate() % defaultTeluguPromises.length;
+    const selected = defaultTeluguPromises[dayIdx];
+
+    promise = new DailyPromise({
+      date: todayStr,
+      time: '05:00 AM',
+      verseTelugu: selected.verseTelugu,
+      verseEnglish: selected.verseEnglish,
+      referenceTelugu: selected.referenceTelugu,
+      referenceEnglish: selected.referenceEnglish,
+      status: 'sent',
+      notificationSentAt: new Date(),
+      addedBy: 'ai',
+    });
+    await promise.save();
 
     res.status(200).json({ success: true, data: promise });
   } catch (error: any) {
@@ -783,16 +816,21 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
       verseTelugu, 
       verseEnglish, 
       referenceTelugu, 
-      referenceEnglish 
+      referenceEnglish,
+      publishNow,
     } = req.body;
     
-    const targetDate = date ? date.trim() : new Date().toISOString().split('T')[0];
+    const todayStr = getKolkataDateStr();
+    const targetDate = date ? date.trim() : todayStr;
     const targetTime = time ? time.trim() : '05:00 AM';
 
     if (!verseTelugu || !referenceTelugu) {
       res.status(400).json({ success: false, message: 'Verse text and reference are required' });
       return;
     }
+
+    const shouldPublishNow = publishNow === true || publishNow === 'true';
+    const statusToSet = shouldPublishNow ? 'sent' : 'scheduled';
 
     const promise = await DailyPromise.findOneAndUpdate(
       { date: targetDate },
@@ -808,16 +846,66 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
         verseEnglish: verseEnglish ? verseEnglish.trim() : '',
         referenceTelugu: referenceTelugu.trim(),
         referenceEnglish: referenceEnglish ? referenceEnglish.trim() : '',
-        status: 'scheduled',
+        status: statusToSet,
+        notificationSentAt: shouldPublishNow ? new Date() : undefined,
         addedBy: 'admin',
       },
       { upsert: true, new: true }
     );
 
-    // ABSOLUTELY NO immediate notification or socket emit on save!
+    if (shouldPublishNow) {
+      const pubTime = targetTime;
+      const telTitle = '🕊️ నేటి దేవుని వాగ్దానము';
+      const telBody = `"${promise.verseTelugu.trim()}"\n\n— ${promise.referenceTelugu.trim()}`;
+
+      try {
+        const notice = await Notice.create({
+          title: `🌅 నేటి వాగ్దానం (Daily Promise)`,
+          description: `📖 "${promise.verseTelugu.trim()}" - ${promise.referenceTelugu.trim()}${promise.verseEnglish ? `\n\n"${promise.verseEnglish.trim()}" - ${promise.referenceEnglish || ''}` : ''}`,
+          date: new Date().toISOString(),
+          time: pubTime,
+          location: 'Daily Scripture Verse',
+          isPinned: false,
+        });
+
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('newNotice', notice);
+          io.emit('new_promise_notification', {
+            promise,
+            title: telTitle,
+            verseTelugu: promise.verseTelugu,
+            referenceTelugu: promise.referenceTelugu,
+            verseEnglish: promise.verseEnglish,
+            referenceEnglish: promise.referenceEnglish,
+            date: targetDate,
+            time: pubTime,
+          });
+        }
+      } catch (e) {
+        console.log('Notice creation error on immediate promise publish:', e);
+      }
+
+      await sendPushNotificationToAll(
+        telTitle,
+        telBody,
+        { 
+          type: 'daily_promise', 
+          date: targetDate,
+          time: pubTime,
+          verseTelugu: promise.verseTelugu,
+          referenceTelugu: promise.referenceTelugu,
+          verseEnglish: promise.verseEnglish,
+          referenceEnglish: promise.referenceEnglish,
+        }
+      );
+    }
+
     res.status(200).json({ 
       success: true, 
-      message: `Promise scheduled successfully for ${targetDate} at ${targetTime}. Notification will be sent at ${targetTime} on the scheduled date.`, 
+      message: shouldPublishNow 
+        ? `Promise published and broadcasted immediately for ${targetDate}!`
+        : `Promise scheduled successfully for ${targetDate} at ${targetTime}. Notification will be sent at ${targetTime} on the scheduled date.`, 
       data: promise 
     });
   } catch (error: any) {
@@ -829,7 +917,7 @@ export const setDailyPromise = async (req: Request, res: Response): Promise<void
 // Get all scheduled daily promises
 export const getScheduledPromises = async (req: Request, res: Response): Promise<void> => {
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getKolkataDateStr();
     const promises = await DailyPromise.find({ date: { $gte: todayStr } }).sort({ date: 1 });
     res.status(200).json({ success: true, data: promises });
   } catch (error: any) {

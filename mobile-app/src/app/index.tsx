@@ -277,7 +277,7 @@ export default function HomeScreen() {
     } catch (e) {}
   };
 
-  const handleSaveDailyPromise = async () => {
+  const handleSaveDailyPromise = async (publishNow: boolean = false) => {
     if (!promiseTel.trim() || !refTel.trim()) {
       alert('Please select a valid Bible reference and ensure Telugu verse text is present.');
       return;
@@ -296,10 +296,11 @@ export default function HomeScreen() {
         verseEnglish: promiseEng.trim(),
         referenceTelugu: refTel.trim(),
         referenceEnglish: refEng.trim(),
+        publishNow,
       });
 
       if (res.success) {
-        alert(`Promise scheduled successfully for ${promiseDate} at ${promiseTime}.\nNotification will be sent at ${promiseTime} on the scheduled date.`);
+        alert(res.message || (publishNow ? 'Promise published & broadcasted immediately!' : `Promise scheduled successfully for ${promiseDate} at ${promiseTime}.`));
         await loadDailyPromise();
         await fetchScheduledPromisesList();
         if (returnToBibleAfterPromise) {
@@ -1331,15 +1332,26 @@ export default function HomeScreen() {
               style={[styles.modalInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardBorder, height: 75, textAlignVertical: 'top' }]}
             />
 
-            <TouchableOpacity
-              style={[styles.modalBtnPrimary, { backgroundColor: theme.primary, marginTop: 16 }]}
-              onPress={handleSaveDailyPromise}
-              disabled={savingPromise}
-            >
-              <Text style={styles.modalBtnTextPrimary}>
-                {savingPromise ? 'Saving & Scheduling Promise...' : '💾 Save & Schedule Promise'}
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                style={[styles.modalBtnPrimary, { flex: 1, backgroundColor: theme.primary + '20', borderWidth: 1, borderColor: theme.primary }]}
+                onPress={() => handleSaveDailyPromise(false)}
+                disabled={savingPromise}
+              >
+                <Text style={[styles.modalBtnTextPrimary, { color: theme.primary }]}>
+                  {savingPromise ? 'Saving...' : '⏰ Schedule for Time'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtnPrimary, { flex: 1, backgroundColor: theme.primary }]}
+                onPress={() => handleSaveDailyPromise(true)}
+                disabled={savingPromise}
+              >
+                <Text style={styles.modalBtnTextPrimary}>
+                  {savingPromise ? 'Publishing...' : '🚀 Publish & Push Now'}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Scheduled Promises List */}
             <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.text, marginTop: 20, marginBottom: 8 }}>
@@ -1347,12 +1359,19 @@ export default function HomeScreen() {
             </Text>
 
             {scheduledPromisesList && scheduledPromisesList.length > 0 ? (
-              scheduledPromisesList.map((item) => (
-                <View key={item._id || item.date} style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.cardBorder, marginBottom: 8, backgroundColor: theme.background }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.primary }}>
-                      📅 {item.date}
-                    </Text>
+              scheduledPromisesList.map((item) => {
+                const isSent = item.status === 'sent';
+                return (
+                  <View key={item._id || item.date} style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.cardBorder, marginBottom: 8, backgroundColor: theme.background }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.primary }}>
+                          📅 {item.date} {item.time ? `(${item.time})` : ''}
+                        </Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: isSent ? '#10b981' : '#f59e0b', backgroundColor: isSent ? '#10b98120' : '#f59e0b20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                          {isSent ? '✅ Published' : '⏰ Scheduled'}
+                        </Text>
+                      </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <TouchableOpacity onPress={() => handleEditScheduledPromise(item)} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                         <MaterialCommunityIcons name="pencil-outline" size={16} color={theme.primary} />
@@ -1371,7 +1390,8 @@ export default function HomeScreen() {
                     "{item.verseTelugu}"
                   </Text>
                 </View>
-              ))
+              );
+            })
             ) : (
               <Text style={{ fontSize: 12, color: theme.textSecondary, fontStyle: 'italic', marginBottom: 10 }}>
                 No future promises scheduled yet.

@@ -36,4 +36,7 @@ const DailyPromiseSchema = new Schema<IDailyPromise>({
   addedBy: { type: String, enum: ['admin', 'ai'], default: 'admin' },
 }, { timestamps: true });
 
+DailyPromiseSchema.index({ date: 1, status: 1 });
+
 export const DailyPromise = mongoose.model<IDailyPromise>('DailyPromise', DailyPromiseSchema);
+
