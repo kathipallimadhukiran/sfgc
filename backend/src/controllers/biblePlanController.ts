@@ -78,6 +78,9 @@ export interface LoadedPassageData {
 
 // Load actual Bible passage text for AI context without truncation
 const loadPassageTextForAI = (book: string, startCh: number, endCh: number): LoadedPassageData => {
+  const realStartCh = Math.min(Number(startCh) || 1, Number(endCh) || 1);
+  const realEndCh = Math.max(Number(startCh) || 1, Number(endCh) || 1);
+
   const result: LoadedPassageData = {
     englishText: '',
     teluguText: '',
@@ -106,7 +109,7 @@ const loadPassageTextForAI = (book: string, startCh: number, endCh: number): Loa
         const engLines: string[] = [];
         const telLines: string[] = [];
 
-        for (let c = startCh; c <= endCh; c++) {
+        for (let c = realStartCh; c <= realEndCh; c++) {
           const chEng = data.eng?.find((ch: any) => Number(ch.chapter) === c);
           const chTel = data.tel?.find((ch: any) => Number(ch.chapter) === c);
 
@@ -405,10 +408,13 @@ export const generateQuizForPassage = async (
   userId: string = 'guest_user',
   dayId: number = 1
 ) => {
+  const realStartCh = Math.min(Number(startCh) || 1, Number(endCh) || 1);
+  const realEndCh = Math.max(Number(startCh) || 1, Number(endCh) || 1);
+
   const quizSessionId = crypto.randomUUID ? crypto.randomUUID() : `${userId}_day${dayId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-  const passageData = loadPassageTextForAI(book, startCh, endCh);
-  const chapterRangeStr = startCh === endCh ? `${book} ${startCh}` : `${book} ${startCh} to ${endCh}`;
+  const passageData = loadPassageTextForAI(book, realStartCh, realEndCh);
+  const chapterRangeStr = realStartCh === realEndCh ? `${book} ${realStartCh}` : `${book} ${realStartCh} to ${realEndCh}`;
 
   console.log('\n======================================================================');
   console.log(`📤 [STRICT SOURCE-ONLY QUIZ PIPELINE] Session: ${quizSessionId}`);
@@ -419,7 +425,7 @@ export const generateQuizForPassage = async (
 
   console.log(`[AI QUIZ] Day: day${dayId}`);
   const chaptersArray: string[] = [];
-  for (let c = startCh; c <= endCh; c++) {
+  for (let c = realStartCh; c <= realEndCh; c++) {
     chaptersArray.push(`${book} ${c}`);
   }
   console.log(`[AI QUIZ] Chapters: ${chaptersArray.join(', ')}`);
@@ -487,7 +493,7 @@ Return raw JSON array of 20 candidate question objects ONLY:
 [
   {
     "id": 1,
-    "chapter": ${startCh},
+    "chapter": ${realStartCh},
     "category": "person",
     "difficulty": "easy",
     "questionEnglish": "Who was the father of Noah?",
@@ -497,7 +503,7 @@ Return raw JSON array of 20 candidate question objects ONLY:
     "correctIndex": 0,
     "explanationEnglish": "Lamech lived 182 years and begat Noah.",
     "explanationTelugu": "లేమెకు నోవహును కనెను.",
-    "reference": "${book} ${startCh}:28-29",
+    "reference": "${book} ${realStartCh}:28-29",
     "evidence": "Lamech lived 182 years and begat a son named Noah."
   }
 ]`;
@@ -505,7 +511,7 @@ Return raw JSON array of 20 candidate question objects ONLY:
   const step1Raw = await queryAIWithRetries(step1Prompt, STRICT_SYSTEM_PROMPT, 0.2);
   const rawCandidates = extractJsonFromAIResponse(step1Raw);
   const candidatePool: any[] = Array.isArray(rawCandidates)
-    ? rawCandidates.map(c => normalizeQuestion(c, book, startCh))
+    ? rawCandidates.map(c => normalizeQuestion(c, book, realStartCh))
     : [];
 
   console.log(`[AI QUIZ] Candidate questions generated: ${candidatePool.length}`);
@@ -633,7 +639,7 @@ Return raw JSON array ONLY:
   // Fallback to strict grounded verse generator if AI returned fewer than 10 validated questions
   if (validatedQuestions.length < 10) {
     console.log(`⚠️ [PIPELINE SUPPLEMENT] Validated count is ${validatedQuestions.length}/10. Generating grounded verse facts to complete pool...`);
-    const fallbackPool = generateStrictGroundedFallbackQuestions(book, bookTelugu, startCh, endCh, passageData);
+    const fallbackPool = generateStrictGroundedFallbackQuestions(book, bookTelugu, realStartCh, realEndCh, passageData);
     for (const fq of fallbackPool) {
       if (validatedQuestions.length >= 10) break;
       const fNorm = fq.questionEnglish.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
@@ -665,8 +671,8 @@ Return raw JSON array ONLY:
   logGeneratedQuestions(
     'Dual-AI Source-Only Grounded Engine',
     book,
-    startCh,
-    endCh,
+    realStartCh,
+    realEndCh,
     final10Questions
   );
 
