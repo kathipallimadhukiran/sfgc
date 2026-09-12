@@ -315,11 +315,10 @@ class BiblePlanService {
         book: portion.book,
         bookTelugu: portion.bookTelugu,
         startChapter: portion.startChapter,
-        endChapter: portion.endChapter,
         day: portion.day,
         userId,
         planId,
-      }, { headers, timeout: 12000 });
+      }, { headers, timeout: 30000 });
 
       if (resp.data && resp.data.questions && Array.isArray(resp.data.questions)) {
         console.log('\n======================================================================');
@@ -344,7 +343,7 @@ class BiblePlanService {
       console.log('Quiz generator offline fallback:', e);
     }
 
-    // 10 offline fallback questions with option shuffling
+    // 10 offline fallback questions with option shuffling (Strictly text-grounded)
     const rawFallback = [
       {
         id: 1,
@@ -420,28 +419,28 @@ class BiblePlanService {
         id: 8,
         questionTelugu: `స్త్రీని మోసగించి నిషేధిత ఫలమును తినునట్లు చేసినది ఏది?`,
         questionEnglish: `What deceived the woman into eating the forbidden fruit?`,
-        optionsTelugu: ["సర్పము (అపవాది)", "తోడేలు", "సింహము", "పక్షి"],
-        optionsEnglish: ["The serpent (Satan)", "A wolf", "A lion", "A bird"],
+        optionsTelugu: ["సర్పము", "తోడేలు", "సింహము", "పక్షి"],
+        optionsEnglish: ["The serpent", "A wolf", "A lion", "A bird"],
         correctIndex: 0,
         explanationTelugu: "సర్పము దేవుడైన యెహోవా చేసిన సమస్త భూజంతువులకంటె యుక్తిగలదై యుండెను (ఆదికాండము 3:1).",
         explanationEnglish: "The serpent was more subtil than any beast of the field (Genesis 3:1)."
       },
       {
         id: 9,
-        questionTelugu: `ఆదాము హవ్వల అవిధేయత వలన మానవజాతికి ఏమి సంభవించెను?`,
-        questionEnglish: `What entered the world through the disobedience of Adam and Eve?`,
-        optionsTelugu: ["నిత్య సంతోషము", "పాపము మరియు మరణము", "సంపద", "శాశ్వత జీవము"],
-        optionsEnglish: ["Eternal joy", "Sin and spiritual death", "Earthly riches", "Immunity"],
-        correctIndex: 1,
-        explanationTelugu: "పాపము లోకములోనికి ప్రవేశించెను మరియు మరణము సంభవించెను (రోమీ 5:12, ఆదికాండము 3:19).",
-        explanationEnglish: "By one man sin entered into the world, and death by sin (Romans 5:12, Genesis 3)."
+        questionTelugu: `నోవహు ఏ చెక్కతో వాడను చేసుకొనవలెనని దేవుడు ఆజ్ఞాపించెను?`,
+        questionEnglish: `Which wood did God command Noah to use to build the ark?`,
+        optionsTelugu: ["గోఫెరు కర్ర", "దేవదారు కర్ర", "ఎర్ర చందనం", "ఒలివ కర్ర"],
+        optionsEnglish: ["Gopher wood", "Cedar wood", "Sandalwood", "Olive wood"],
+        correctIndex: 0,
+        explanationTelugu: "గోఫెరు కర్రతో నీ కొరకు ఒక ఓడను చేసుకొనుము (ఆదికాండము 6:14).",
+        explanationEnglish: "Make thee an ark of gopher wood (Genesis 6:14)."
       },
       {
         id: 10,
-        questionTelugu: `దేవుడు ఆదాము హవ్వలకు చర్మపు చొక్కాయిలను తొడిగించుట దేనికి సూచన?`,
-        questionEnglish: `What did God making coats of skins to clothe Adam and Eve symbolize?`,
-        optionsTelugu: ["శరీర సౌందర్యము", "కేవలం చలి నుండి రక్షణ", "రక్తము చిందించుట ద్వారా పాపములకు ప్రాయశ్చిత్తము మరియు దేవుని కృప", "ఏదీ కాదు"],
-        optionsEnglish: ["Physical fashion", "Protection from cold only", "Atonement for sin through shedding of blood and God's grace", "None"],
+        questionTelugu: `దేవుడు ఆదాము హవ్వలకు ఏ దుస్తులను తొడిగించెను?`,
+        questionEnglish: `What clothing did the Lord God make for Adam and his wife?`,
+        optionsTelugu: ["పత్తి దుస్తులు", "పట్టు వస్త్రములు", "చర్మపు చొక్కాయిలు", "అంజీరపు ఆకులు"],
+        optionsEnglish: ["Cotton clothes", "Silk garments", "Coats of skins", "Fig leaves"],
         correctIndex: 2,
         explanationTelugu: "దేవుడు చర్మపు చొక్కాయిలను చేయించి వారికి తొడిగించెను (ఆదికాండము 3:21).",
         explanationEnglish: "The Lord God made coats of skins, and clothed them (Genesis 3:21)."

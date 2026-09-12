@@ -90,6 +90,11 @@ const loadPassageTextForAI = (book: string, startCh: number, endCh: number): Loa
       path.resolve(__dirname, '../../../mobile-app/src/data/bible', `${book}.json`),
       path.resolve(process.cwd(), '../mobile-app/src/data/bible', `${book}.json`),
       path.resolve(process.cwd(), 'mobile-app/src/data/bible', `${book}.json`),
+      path.resolve(__dirname, '../data/bible', `${book}.json`),
+      path.resolve(__dirname, '../../src/data/bible', `${book}.json`),
+      path.resolve(process.cwd(), 'src/data/bible', `${book}.json`),
+      path.resolve(process.cwd(), 'dist/data/bible', `${book}.json`),
+      path.resolve(process.cwd(), 'data/bible', `${book}.json`),
     ];
 
     for (const filePath of possiblePaths) {
@@ -458,44 +463,12 @@ Never invent information.
 
 Return structured JSON only.`;
 
-  // STEP 1: Extract Factual Knowledge Map ONLY (NO theology)
-  console.log('🤖 [STEP 1] Extracting Factual Knowledge Map from scripture text...');
-  const step1Prompt = `Extract ONLY explicit facts from the supplied Bible text (${chapterRangeStr}):
-
+  // STEP 1: Grounded Candidate Question Generation (Extract Factual Facts & Generate 20 Candidates)
+  console.log('🤖 [STEP 1] Generating 20 Grounded Candidate Questions directly from scripture text...');
+  const step1Prompt = `SUPPLIED BIBLE TEXT FOR ${chapterRangeStr}:
 ${passageData.englishText}
 
-Return raw JSON ONLY with schema:
-{
-  "people": [],
-  "events": [],
-  "places": [],
-  "relationships": [],
-  "commands": [],
-  "actions": [],
-  "numbers": [],
-  "ages": [],
-  "names": [],
-  "sequences": [],
-  "statements": [],
-  "results": [],
-  "references": []
-}
-
-RULES: NO theology. NO interpretation. NO outside information. Extract ONLY explicitly stated facts.`;
-
-  const step1Raw = await queryAIWithRetries(step1Prompt, STRICT_SYSTEM_PROMPT, 0.2);
-  const knowledgeMap = extractJsonFromAIResponse(step1Raw) || {};
-  console.log(`✅ [STEP 1 COMPLETE] Extracted Factual Map Keys: ${Object.keys(knowledgeMap).join(', ')}`);
-
-  // STEP 2: Generate 20 Candidate Questions strictly from Factual Map & Passage Text
-  console.log('🤖 [STEP 2] Generating 20 Grounded Candidate Questions...');
-  const step2Prompt = `FACTUAL KNOWLEDGE MAP:
-${JSON.stringify(knowledgeMap)}
-
-SUPPLIED BIBLE TEXT FOR ${chapterRangeStr}:
-${passageData.englishText}
-
-Generate 20 distinct candidate questions strictly based on the extracted factual map and scripture text above.
+Extract explicit facts and generate 20 distinct candidate questions strictly based on the scripture text above.
 
 BANNED QUESTION PATTERNS (DO NOT GENERATE):
 - "What spiritual lesson..."
@@ -510,7 +483,7 @@ BANNED QUESTION PATTERNS (DO NOT GENERATE):
 PREFER FACTUAL QUESTIONS:
 Who?, What?, Where?, When?, How?, Which?, How many?, What happened?, What did X say?, What did X do?, What did God command?, What was the result?, What happened before/after?, What object/person/place was mentioned?, What sequence of events occurred?
 
-Return raw JSON array of 20 candidate question objects:
+Return raw JSON array of 20 candidate question objects ONLY:
 [
   {
     "id": 1,
@@ -529,13 +502,13 @@ Return raw JSON array of 20 candidate question objects:
   }
 ]`;
 
-  const step2Raw = await queryAIWithRetries(step2Prompt, STRICT_SYSTEM_PROMPT, 0.2);
-  const rawCandidates = extractJsonFromAIResponse(step2Raw);
+  const step1Raw = await queryAIWithRetries(step1Prompt, STRICT_SYSTEM_PROMPT, 0.2);
+  const rawCandidates = extractJsonFromAIResponse(step1Raw);
   const candidatePool: any[] = Array.isArray(rawCandidates)
     ? rawCandidates.map(c => normalizeQuestion(c, book, startCh))
     : [];
 
-  console.log(`[AI QUIZ] Candidate questions: ${candidatePool.length}`);
+  console.log(`[AI QUIZ] Candidate questions generated: ${candidatePool.length}`);
 
   // STEP 3: Source Verification (Secondary AI Validator)
   console.log('🛡️ [STEP 3] Running Secondary AI Source Verification...');
