@@ -49,7 +49,7 @@ export const parseTimeToMinutes = (timeStr?: string): number => {
   const isPM = trimmed.includes('PM');
   const isAM = trimmed.includes('AM');
   const clean = trimmed.replace(/AM|PM/gi, '').trim();
-  const parts = clean.split(':');
+  const parts = clean.split(/[:.]/);
   let h = parseInt(parts[0] || '5', 10);
   let m = parseInt(parts[1] || '0', 10);
 

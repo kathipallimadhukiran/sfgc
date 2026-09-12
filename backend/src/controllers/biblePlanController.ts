@@ -696,22 +696,15 @@ export const getDailyPromise = async (req: Request, res: Response): Promise<void
       const scheduledMinutes = parseTimeToMinutes(promise.time || '05:00 AM');
       const isPublished = promise.status === 'sent' || currentMinutes >= scheduledMinutes;
 
-      // If scheduled for future time today and request is not for admin preview, return latest sent promise
-      if (!isPublished && !allowScheduled) {
-        const latestSent = await DailyPromise.findOne({ status: 'sent' }).sort({ date: -1, createdAt: -1 });
-        if (latestSent) {
-          res.status(200).json({ success: true, data: latestSent });
-          return;
-        }
-      } else {
+      if (isPublished || allowScheduled) {
         res.status(200).json({ success: true, data: promise });
         return;
       }
     }
 
-    // Fallback: Check if there's any sent promise
-    const latestSent = await DailyPromise.findOne({ status: 'sent' }).sort({ date: -1, createdAt: -1 });
-    if (latestSent && latestSent.date === todayStr) {
+    // If today's promise is NOT published yet or doesn't exist, return latest sent promise from previous days
+    const latestSent = await DailyPromise.findOne({ status: 'sent', date: { $lte: todayStr } }).sort({ date: -1, createdAt: -1 });
+    if (latestSent) {
       res.status(200).json({ success: true, data: latestSent });
       return;
     }
