@@ -317,6 +317,19 @@ export const getUserPlanProgress = async (req: Request, res: Response): Promise<
       }
     }
 
+    if (!progress.completedDays || progress.completedDays.length === 0) {
+      progress.currentDay = 1;
+      progress.streak = 0;
+      progress.averageScore = 0;
+      await progress.save();
+    } else {
+      const maxCompleted = Math.max(...progress.completedDays);
+      if (progress.currentDay <= maxCompleted) {
+        progress.currentDay = maxCompleted + 1;
+        await progress.save();
+      }
+    }
+
     res.status(200).json({ success: true, data: progress });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Failed to fetch progress', error: error.message });
@@ -363,6 +376,65 @@ export const enrollPlan = async (req: Request, res: Response): Promise<void> => 
     res.status(200).json({ success: true, data: progress });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Failed to enroll plan', error: error.message });
+  }
+};
+
+// POST /api/bible-plans/reset-progress
+export const resetUserPlanProgress = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?._id?.toString() || authReq.user?.id || req.body.userId;
+    const { planId = '1-year-canonical' } = req.body;
+
+    if (!userId) {
+      res.status(400).json({ success: false, message: 'User ID is required' });
+      return;
+    }
+
+    const now = new Date();
+    let progress = await UserPlanProgress.findOne({ userId, planId: String(planId) });
+    if (!progress) {
+      progress = new UserPlanProgress({
+        userId,
+        userName: authReq.user?.name || req.body.userName || 'Member',
+        planId: String(planId),
+        currentDay: 1,
+        completedDays: [],
+        readMarkedDays: [],
+        startDate: now,
+        targetEndDate: getTargetEndDate(now, 365),
+        streak: 0,
+        highestStreak: 0,
+        averageScore: 0,
+        totalQuizzes: 0,
+        dailyAttempts: {},
+        quizScores: {},
+        quizTimes: {},
+        status: 'active',
+      });
+    } else {
+      progress.currentDay = 1;
+      progress.completedDays = [];
+      progress.readMarkedDays = [];
+      progress.startDate = now;
+      progress.targetEndDate = getTargetEndDate(now, 365);
+      progress.streak = 0;
+      progress.highestStreak = 0;
+      progress.averageScore = 0;
+      progress.totalQuizzes = 0;
+      progress.totalTimeSeconds = 0;
+      progress.averageTimeSeconds = 0;
+      progress.dailyAttempts = {} as any;
+      progress.quizScores = {} as any;
+      progress.quizTimes = {} as any;
+      progress.status = 'active';
+      progress.lastCompletedDate = undefined;
+    }
+    await progress.save();
+
+    res.status(200).json({ success: true, message: 'User plan progress reset cleanly', data: progress });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to reset progress', error: error.message });
   }
 };
 
@@ -625,7 +697,12 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
     const { planId = '1-year-canonical', limit = 20 } = req.query;
 
     const now = new Date();
-    const allProgress = await UserPlanProgress.find({ planId: String(planId) });
+    // Exclude guest_user from leaderboard calculations
+    const allProgress = await UserPlanProgress.find({
+      planId: String(planId),
+      userId: { $ne: 'guest_user' }
+    });
+
     for (const p of allProgress) {
       if (p.lastCompletedDate && p.streak > 0) {
         const calDiff = getCalendarDayDiff(new Date(p.lastCompletedDate), now);
@@ -636,10 +713,8 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       }
     }
 
-    const leaders = await UserPlanProgress.find({ planId: String(planId) })
-      .sort({ streak: -1, averageScore: -1, completedDays: -1, averageTimeSeconds: 1 })
-      .limit(Number(limit))
-      .select('userId userName planId currentDay completedDays streak highestStreak averageScore averageTimeSeconds updatedAt lastCompletedDate');
+    // Only include users who have a streak >= 1 (or completed at least 1 day)
+    const qualifiedLeaders = allProgress.filter(p => (p.streak || 0) >= 1 || (p.completedDays && p.completedDays.length > 0));
 
     // Fetch all members from User collection to resolve exact user full names
     const allUsers = await User.find().select('name email mobileNumber role');
@@ -653,7 +728,7 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
       }
     }
 
-    const formattedLeaders = leaders.map((item, idx) => {
+    const formattedLeaders = qualifiedLeaders.map(item => {
       let exactName = userMap.get(item.userId) || item.userName || '';
 
       // Clean up raw roles if erroneously set as name
@@ -664,19 +739,33 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
           : 'Member';
       }
 
+      const completedCount = item.completedDays ? item.completedDays.length : 0;
+
       return {
-        rank: idx + 1,
         userId: item.userId,
         userName: exactName,
         streak: item.streak || 0,
         highestStreak: item.highestStreak || 0,
         averageScore: item.averageScore || 0,
-        completedDays: item.completedDays ? item.completedDays.length : 0,
+        completedDays: completedCount,
         averageTimeSeconds: item.averageTimeSeconds || 0,
       };
     });
 
-    res.status(200).json({ success: true, count: formattedLeaders.length, data: formattedLeaders });
+    // Sort by highest streak first (DESC), then highest average score (DESC), then highest completed days (DESC), then lowest time (ASC)
+    formattedLeaders.sort((a, b) => {
+      if (b.streak !== a.streak) return b.streak - a.streak;
+      if (b.averageScore !== a.averageScore) return b.averageScore - a.averageScore;
+      if (b.completedDays !== a.completedDays) return b.completedDays - a.completedDays;
+      return (a.averageTimeSeconds || 0) - (b.averageTimeSeconds || 0);
+    });
+
+    const finalLeaders = formattedLeaders.slice(0, Number(limit)).map((item, idx) => ({
+      rank: idx + 1,
+      ...item,
+    }));
+
+    res.status(200).json({ success: true, count: finalLeaders.length, data: finalLeaders });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Failed to fetch leaderboard', error: error.message });
   }

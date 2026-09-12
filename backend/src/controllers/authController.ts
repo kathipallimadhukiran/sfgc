@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User, IUser } from '../models/User';
 import { PushToken } from '../models/PushToken';
+import { UserPlanProgress } from '../models/biblePlanModel';
 import { config } from '../config/config';
 import { AuthRequest } from '../middleware/auth';
 
@@ -99,6 +100,30 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         { upsert: true }
       );
       console.log(`📱 Push token registered during sign up for user ${newUser.name}: ${pushToken}`);
+    }
+
+    // Initialize clean Bible plan progress for new registered member (Day 1, Streak 0)
+    try {
+      const now = new Date();
+      const targetEnd = new Date(now);
+      targetEnd.setDate(targetEnd.getDate() + 365);
+      await UserPlanProgress.create({
+        userId: newUser._id.toString(),
+        userName: newUser.name,
+        planId: '1-year-canonical',
+        currentDay: 1,
+        completedDays: [],
+        readMarkedDays: [],
+        startDate: now,
+        targetEndDate: targetEnd,
+        streak: 0,
+        highestStreak: 0,
+        averageScore: 0,
+        totalQuizzes: 0,
+        status: 'active',
+      });
+    } catch (planErr) {
+      console.log('UserPlanProgress initial record creation notice:', planErr);
     }
 
     const token = generateToken(newUser);

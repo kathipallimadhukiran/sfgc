@@ -141,7 +141,7 @@ export default function BibleScreen() {
     React.useCallback(() => {
       loadPlanAndStreak();
       setLeaderboardRefreshTrigger(prev => prev + 1);
-    }, [selectedBiblePlan, user])
+    }, [selectedBiblePlan, user?._id, user?.id])
   );
 
   const hasCompletedQuizToday = () => {
@@ -156,7 +156,7 @@ export default function BibleScreen() {
   const loadPlanAndStreak = async () => {
     try {
       const activePlan = selectedBiblePlan || '1-year-canonical';
-      const userId = user?.id || 'guest_user';
+      const userId = user?._id || user?.id || 'guest_user';
       const prog = await biblePlanService.getUserProgress(userId, activePlan);
       setUserProgress(prog);
       const portion = await biblePlanService.getTodayPortion(activePlan, prog.currentDay);
@@ -168,7 +168,7 @@ export default function BibleScreen() {
 
   useEffect(() => {
     loadPlanAndStreak();
-  }, [selectedBiblePlan, user]);
+  }, [selectedBiblePlan, user?._id, user?.id]);
 
   // Load initial passage & saved recent searches
   useEffect(() => {
@@ -917,7 +917,8 @@ export default function BibleScreen() {
                     }
                   ]}
                   onPress={async () => {
-                    await biblePlanService.markDayAsRead(todayPortion.day, user?.id || 'guest_user', selectedBiblePlan || '1-year-canonical');
+                    const userId = user?._id || user?.id || 'guest_user';
+                    await biblePlanService.markDayAsRead(todayPortion.day, userId, selectedBiblePlan || '1-year-canonical');
                     await loadPlanAndStreak();
                   }}
                 >
@@ -1278,7 +1279,7 @@ export default function BibleScreen() {
           portion={todayPortion}
           planId={selectedBiblePlan || '1-year-canonical'}
           appLanguage={bibleLanguage}
-          userId={user?.id || 'guest_user'}
+          userId={user?._id || user?.id || 'guest_user'}
           userName={user?.name || 'Member'}
           onQuizCompleted={() => {
             loadPlanAndStreak();

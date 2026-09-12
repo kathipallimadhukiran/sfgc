@@ -102,6 +102,11 @@ class BiblePlanService {
       const resp = await axios.get(`${API_URL}/api/bible-plans/progress/${userId}?planId=${planId}`, { timeout: 4000 });
       if (resp.data && resp.data.data) {
         const progress = resp.data.data;
+        if (!progress.completedDays || progress.completedDays.length === 0) {
+          progress.currentDay = 1;
+          progress.streak = 0;
+          progress.averageScore = 0;
+        }
         await AsyncStorage.setItem(userKey, JSON.stringify(progress));
         return progress;
       }
@@ -112,6 +117,12 @@ class BiblePlanService {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (!parsed.readMarkedDays) parsed.readMarkedDays = [];
+        if (!parsed.completedDays) parsed.completedDays = [];
+        if (parsed.completedDays.length === 0) {
+          parsed.currentDay = 1;
+          parsed.streak = 0;
+          parsed.averageScore = 0;
+        }
         if (!parsed.startDate) parsed.startDate = new Date().toISOString();
         if (!parsed.targetEndDate) {
           const end = new Date(parsed.startDate);
@@ -155,8 +166,7 @@ class BiblePlanService {
 
   // Reset user's bible plan progress to clean 0-streak state upon new registration
   async resetUserProgress(userId: string, planId: string = '1-year-canonical'): Promise<UserProgressData> {
-    const userKey = `${this.localProgressKey}_${userId}_${planId}`;
-    const defaultKey = `${this.localProgressKey}_${planId}`;
+    const plansToReset = ['1-year-canonical', '2-year-canonical', planId];
     const now = new Date();
     const end = new Date(now);
     end.setDate(end.getDate() + 365);
@@ -178,8 +188,16 @@ class BiblePlanService {
     };
 
     try {
-      await AsyncStorage.setItem(userKey, JSON.stringify(freshProgress));
-      await AsyncStorage.removeItem(defaultKey);
+      for (const pId of Array.from(new Set(plansToReset))) {
+        const userKey = `${this.localProgressKey}_${userId}_${pId}`;
+        const defaultKey = `${this.localProgressKey}_${pId}`;
+        const guestKey = `${this.localProgressKey}_guest_user_${pId}`;
+        await AsyncStorage.setItem(userKey, JSON.stringify({ ...freshProgress, planId: pId }));
+        await AsyncStorage.removeItem(defaultKey);
+        await AsyncStorage.removeItem(guestKey);
+        await axios.post(`${API_URL}/api/bible-plans/reset-progress`, { userId, planId: pId }, { timeout: 4000 }).catch(() => {});
+      }
+      await AsyncStorage.removeItem(`${this.localProgressKey}_guest_user`);
     } catch (e) {}
 
     return freshProgress;
@@ -201,7 +219,6 @@ class BiblePlanService {
     if (!progress.readMarkedDays.includes(day)) {
       progress.readMarkedDays.push(day);
       await AsyncStorage.setItem(userKey, JSON.stringify(progress));
-      await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(progress));
     }
     return true;
   }
@@ -382,7 +399,7 @@ class BiblePlanService {
   }> {
     const totalQuestions = userAnswers.length || 10;
     const correctCount = userAnswers.filter(a => a.isCorrect).length;
-    const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 100;
+    const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
     const passed = scorePercent >= 60;
 
     try {
@@ -411,7 +428,6 @@ class BiblePlanService {
         }
         const userKey = `${this.localProgressKey}_${userId}_${planId}`;
         await AsyncStorage.setItem(userKey, JSON.stringify(currentProg));
-        await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(currentProg));
 
         return data;
       }
@@ -464,7 +480,6 @@ class BiblePlanService {
 
     const userKey = `${this.localProgressKey}_${userId}_${planId}`;
     await AsyncStorage.setItem(userKey, JSON.stringify(currentProg));
-    await AsyncStorage.setItem(`${this.localProgressKey}_${planId}`, JSON.stringify(currentProg));
 
     return {
       passed,
@@ -473,7 +488,7 @@ class BiblePlanService {
       attemptsRemaining: Math.max(0, 3 - used),
       currentStreak: currentProg.streak,
       currentDay: currentProg.currentDay,
-      averageScore: currentProg.averageScore || scorePercent,
+      averageScore: currentProg.averageScore ?? 0,
       streakReset,
     };
   }
@@ -492,39 +507,43 @@ class BiblePlanService {
       }
     } catch (e) {}
 
-    // Seamlessly integrate current user's local progress if available
+    // Only integrate local progress if an authenticated user ID is provided (never for guest_user)
     try {
-      const userId = currentUserId || 'guest_user';
-      const localProg = await this.getUserProgress(userId, planId);
-      if (localProg && (localProg.completedDays.length > 0 || localProg.streak > 0)) {
-        const existingIdx = leaders.findIndex(l => l.userId === userId || (currentUserId && l.userId === currentUserId));
-        const localEntry: LeaderboardUser = {
-          rank: 0,
-          userId: userId,
-          userName: currentUserName || localProg.userName || 'Member',
-          streak: localProg.streak || 0,
-          highestStreak: localProg.highestStreak || 0,
-          averageScore: localProg.averageScore || 0,
-          completedDays: localProg.completedDays.length,
-          averageTimeSeconds: localProg.averageTimeSeconds || 0,
-        };
-
-        if (existingIdx >= 0) {
-          leaders[existingIdx] = {
-            ...leaders[existingIdx],
-            userName: currentUserName || leaders[existingIdx].userName,
-            streak: Math.max(leaders[existingIdx].streak || 0, localEntry.streak),
-            highestStreak: Math.max(leaders[existingIdx].highestStreak || 0, localEntry.highestStreak),
-            averageScore: localEntry.averageScore || leaders[existingIdx].averageScore,
-            completedDays: Math.max(leaders[existingIdx].completedDays || 0, localEntry.completedDays),
+      if (currentUserId && currentUserId !== 'guest_user') {
+        const localProg = await this.getUserProgress(currentUserId, planId);
+        if (localProg && localProg.userId === currentUserId && (localProg.completedDays.length > 0 || localProg.streak > 0)) {
+          const existingIdx = leaders.findIndex(l => l.userId === currentUserId);
+          const localEntry: LeaderboardUser = {
+            rank: 0,
+            userId: currentUserId,
+            userName: currentUserName || localProg.userName || 'Member',
+            streak: localProg.streak || 0,
+            highestStreak: localProg.highestStreak || 0,
+            averageScore: localProg.averageScore || 0,
+            completedDays: localProg.completedDays.length,
+            averageTimeSeconds: localProg.averageTimeSeconds || 0,
           };
-        } else {
-          leaders.push(localEntry);
+
+          if (existingIdx >= 0) {
+            leaders[existingIdx] = {
+              ...leaders[existingIdx],
+              userName: currentUserName || leaders[existingIdx].userName,
+              streak: Math.max(leaders[existingIdx].streak || 0, localEntry.streak),
+              highestStreak: Math.max(leaders[existingIdx].highestStreak || 0, localEntry.highestStreak),
+              averageScore: localEntry.averageScore || leaders[existingIdx].averageScore,
+              completedDays: Math.max(leaders[existingIdx].completedDays || 0, localEntry.completedDays),
+            };
+          } else {
+            leaders.push(localEntry);
+          }
         }
       }
     } catch (e) {}
 
-    // Sort leaders by streak desc, averageScore desc, completedDays desc, averageTime asc
+    // Filter out guest_user and users without at least 1 streak / completed day
+    leaders = leaders.filter(l => l.userId !== 'guest_user' && ((l.streak || 0) >= 1 || (l.completedDays || 0) > 0));
+
+    // Sort leaders: highest streak first (DESC), then highest averageScore (DESC), then completedDays (DESC), then averageTime (ASC)
     leaders.sort((a, b) => {
       if (b.streak !== a.streak) return b.streak - a.streak;
       if (b.averageScore !== a.averageScore) return b.averageScore - a.averageScore;

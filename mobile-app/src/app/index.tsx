@@ -460,7 +460,7 @@ export default function HomeScreen() {
     return () => {
       leaveLiveSession();
     };
-  }, [selectedBiblePlan, user, language, bibleLanguage]);
+  }, [selectedBiblePlan, user?.id, user?._id, language, bibleLanguage]);
 
   useEffect(() => {
     const checkPlanPrompt = async () => {
@@ -483,7 +483,7 @@ export default function HomeScreen() {
       loadPlanAndStreak();
       loadDailyPromise();
       setLeaderboardRefreshTrigger(prev => prev + 1);
-    }, [selectedBiblePlan])
+    }, [selectedBiblePlan, user?._id, user?.id])
   );
 
   const onRefresh = async () => {
@@ -514,7 +514,8 @@ export default function HomeScreen() {
   const loadPlanAndStreak = async () => {
     try {
       const activePlan = selectedBiblePlan || '1-year-canonical';
-      const prog = await biblePlanService.getUserProgress(user?.id || 'guest_user', activePlan);
+      const userId = user?._id || user?.id || 'guest_user';
+      const prog = await biblePlanService.getUserProgress(userId, activePlan);
       setUserProgress(prog);
       const portion = await biblePlanService.getTodayPortion(activePlan, prog.currentDay);
       setTodayPortion(portion);
@@ -792,13 +793,13 @@ export default function HomeScreen() {
                         ? (isTel ? '🎉 అద్భుతం! నేటి పఠనం & క్విజ్ పూర్తయింది. రేపటి కోసం టెస్ట్ లాక్ చేయబడింది.' : '🎉 Great job! Today\'s reading & quiz completed. Test locked for tomorrow.')
                         : (hasCompletedQuizToday()
                             ? (isTel ? '📖 నేటి క్విజ్ పూర్తయింది. రేపటి కోసం టెస్ట్ లాక్ చేయబడింది!' : '📖 Today\'s quiz completed! Test locked for tomorrow.')
-                            : (isTel ? '👉 వాక్యం చదవడానికి "వాక్యం చదవండి" అని నొక్కండి. చదివిన తర్వాత క్రింద "చదివాను" అని గుర్తించి క్విజ్ రాయండి.' : '👉 Tap "Go to Read" to read today\'s chapters in Bible, then mark as read to take quiz.'))}
+                            : (isTel ? '👉 వాక్యం చదవడానికి మరియు క్విజ్ అన్‌లాక్ చేయడానికి క్రింద నొక్కండి.' : '👉 Tap below to read today\'s chapters in Bible and unlock quiz.'))}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              {/* Action: Go to Read & Mark as Read Buttons / Locked Tomorrow Status */}
+              {/* Action: Single Go to Read Action Button / Locked Tomorrow Status */}
               {isTodayCompleted ? (
                 <View style={[styles.lockedTomorrowBanner, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.18)' : '#f0fdf4', borderColor: isDark ? '#15803d' : '#86efac', paddingVertical: 12 }]}>
                   <MaterialCommunityIcons name="lock-clock" size={20} color={isDark ? '#4ade80' : '#16a34a'} />
@@ -807,42 +808,21 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               ) : (
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity 
-                    activeOpacity={0.85}
-                    onPress={() => router.push({ pathname: '/bible', params: { autoOpenChapter: todayPortion.startChapter, autoOpenBook: todayPortion.book } })}
-                    style={[styles.planBtn, { flex: 1, backgroundColor: theme.primary }]}
-                  >
-                    <MaterialCommunityIcons name="book-open-page-variant" size={16} color="#ffffff" />
-                    <Text style={[styles.planBtnText, { fontSize: 12 }]}>
-                      {isTel ? 'వాక్యం చదవండి' : 'Go to Read'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    activeOpacity={0.85}
-                    onPress={async () => {
-                      await biblePlanService.markDayAsRead(todayPortion.day, user?.id || 'guest_user', selectedBiblePlan || '1-year-canonical');
-                      await loadPlanAndStreak();
-                    }}
-                    style={[
-                      styles.planBtn, 
-                      { 
-                        flex: 1, 
-                        backgroundColor: userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#e0f2fe' : '#10b981',
-                      }
-                    ]}
-                  >
-                    <MaterialCommunityIcons 
-                      name={userProgress?.readMarkedDays?.includes(todayPortion.day) ? 'checkbox-marked-circle' : 'check-circle-outline'} 
-                      size={16} 
-                      color={userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : '#ffffff'} 
-                    />
-                    <Text style={[styles.planBtnText, { fontSize: 12, color: userProgress?.readMarkedDays?.includes(todayPortion.day) ? '#0284c7' : '#ffffff' }]}>
-                      {userProgress?.readMarkedDays?.includes(todayPortion.day) ? (isTel ? 'చదివాను ✅' : 'Read ✅') : (isTel ? 'చదివాను మార్క్' : 'Mark as Read')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity 
+                  activeOpacity={0.85}
+                  onPress={async () => {
+                    const userId = user?._id || user?.id || 'guest_user';
+                    await biblePlanService.markDayAsRead(todayPortion.day, userId, selectedBiblePlan || '1-year-canonical');
+                    await loadPlanAndStreak();
+                    router.push({ pathname: '/bible', params: { autoOpenChapter: todayPortion.startChapter, autoOpenBook: todayPortion.book } });
+                  }}
+                  style={[styles.planBtn, { width: '100%', backgroundColor: theme.primary, paddingVertical: 13, justifyContent: 'center' }]}
+                >
+                  <MaterialCommunityIcons name="book-open-page-variant" size={18} color="#ffffff" />
+                  <Text style={[styles.planBtnText, { fontSize: 13.5, fontWeight: '700' }]}>
+                    {isTel ? '📖 నేటి వాక్యం చదవండి' : '📖 Go to Read Today\'s Portion'}
+                  </Text>
+                </TouchableOpacity>
               )}
             </>
           )

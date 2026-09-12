@@ -171,6 +171,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const handledNotificationIdsRef = useRef<Set<string>>(new Set());
+  const hasHandledInitialNotificationRef = useRef<boolean>(false);
 
   const [setlist, setSetlistState] = useState<SongItem[]>([]);
 
@@ -364,16 +366,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           const data = response?.notification?.request?.content?.data;
           if (!data) return;
 
+          const notifId = response?.notification?.request?.identifier || `${data.type}_${data.date || ''}_${data.time || ''}`;
+          if (handledNotificationIdsRef.current.has(notifId)) {
+            return; // Skip duplicate notification click processing
+          }
+          handledNotificationIdsRef.current.add(notifId);
+
           const type = String(data.type || '').toLowerCase();
           console.log('📱 [NOTIFICATION_TAP_NAVIGATE]', type, data);
 
-          if (type === 'event') {
-            router.push('/events');
-          } else if (type === 'notice' || type === 'daily_promise' || type === 'promise') {
-            router.push('/notifications');
-          } else if (type === 'video') {
-            router.push('/live-stream');
-          }
+          // Delay navigation slightly so Expo Router Root Layout navigator finishes mounting
+          setTimeout(() => {
+            try {
+              if (type === 'event') {
+                router.push('/events');
+              } else if (type === 'notice' || type === 'daily_promise' || type === 'promise') {
+                router.push('/notifications');
+              } else if (type === 'video') {
+                router.push('/live-stream');
+              }
+            } catch (navErr) {
+              console.log('Delayed navigation notice:', navErr);
+            }
+          }, 600);
         } catch (err) {
           console.log('Error handling notification click navigation:', err);
         }
@@ -381,7 +396,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
       responseSub = Notifications.addNotificationResponseReceivedListener(handleNotificationClick);
 
-      if (Notifications?.getLastNotificationResponseAsync) {
+      if (!hasHandledInitialNotificationRef.current && Notifications?.getLastNotificationResponseAsync) {
+        hasHandledInitialNotificationRef.current = true;
         Notifications.getLastNotificationResponseAsync()
           .then((lastResp: any) => {
             if (lastResp) handleNotificationClick(lastResp);
@@ -510,6 +526,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     await AsyncStorage.removeItem(
       'userData'
     );
+
+    // Clean up local Bible plan progress cache on logout
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const progressKeys = allKeys.filter(k => k.startsWith('user_bible_plan_progress'));
+      if (progressKeys.length > 0) {
+        await AsyncStorage.multiRemove(progressKeys);
+      }
+    } catch (e) {}
 
     if (socketRef.current) {
       socketRef.current.disconnect();
@@ -874,30 +899,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const joinLiveSession = () => {
+  const joinLiveSession = useCallback(() => {
     if (socketRef.current) {
-      socketRef.current.emit('joinSession');
+      try {
+        socketRef.current.emit('joinSession');
+      } catch (e) {}
     } else {
       initGlobalSocket();
     }
-  };
+  }, []);
 
   // --------------------------------------------------
   // Leave live session
   // --------------------------------------------------
 
-  const leaveLiveSession = () => {
+  const leaveLiveSession = useCallback(() => {
     if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-      setSocket(null);
-      setLiveSession(null);
-    } else if (socket) {
-      socket.disconnect();
-      setSocket(null);
-      setLiveSession(null);
+      try {
+        socketRef.current.emit('leaveSession');
+      } catch (e) {}
     }
-  };
+  }, []);
 
   // --------------------------------------------------
   // Update YouTube link

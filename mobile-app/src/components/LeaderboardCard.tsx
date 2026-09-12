@@ -26,12 +26,13 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
 
   useEffect(() => {
     loadLeaderboard();
-  }, [planId, refreshTrigger, user?.id]);
+  }, [planId, refreshTrigger, user?._id, user?.id]);
 
   const loadLeaderboard = async () => {
     setLoading(true);
     try {
-      const data = await biblePlanService.getLeaderboard(planId, user?.id || 'guest_user', user?.name || 'Member');
+      const userId = user?._id || user?.id || 'guest_user';
+      const data = await biblePlanService.getLeaderboard(planId, userId, user?.name || 'Member');
       setLeaders(data);
     } catch (e) {
       console.log('Error loading leaderboard:', e);

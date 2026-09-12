@@ -16,6 +16,7 @@ import {
   getPublicPlan,
   updatePublicPlan,
   translateVerse,
+  resetUserPlanProgress,
 } from '../controllers/biblePlanController';
 
 import { authenticate } from '../middleware/auth';
@@ -24,7 +25,8 @@ const router = Router();
 
 // Public / User Routes
 router.get('/', getPlans);
-router.get('/progress/:userId', authenticate, getUserPlanProgress);
+router.get('/progress/:userId', getUserPlanProgress);
+router.post('/reset-progress', resetUserPlanProgress);
 router.post('/enroll', authenticate, enrollPlan);
 router.post('/mark-read', authenticate, markDayAsRead);
 router.post('/generate-quiz', authenticate, getPassageQuiz);
