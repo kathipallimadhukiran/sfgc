@@ -64,6 +64,26 @@ export const getLiveVideos = async (req: Request, res: Response, next: NextFunct
     }
 
     const rawVideos = await queryExec;
+
+    // Explicit date-publishing sort: newest published date first, oldest last
+    rawVideos.sort((a: any, b: any) => {
+      const getTs = (doc: any) => {
+        if (doc.publishedAt) {
+          const t = new Date(doc.publishedAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (doc.createdAt) {
+          const t = new Date(doc.createdAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (doc._id) {
+          const t = parseInt(doc._id.toString().substring(0, 8), 16) * 1000;
+          if (!isNaN(t) && t > 0) return t;
+        }
+        return 0;
+      };
+      return getTs(b) - getTs(a);
+    });
     const liveState = await LiveState.findOne({ key: 'active_session' });
     const channelId = liveState?.channelId || DEFAULT_CHANNEL_ID;
 

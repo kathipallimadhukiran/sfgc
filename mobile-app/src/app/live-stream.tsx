@@ -110,7 +110,8 @@ export default function LiveStreamScreen() {
   }, []);
 
   // ── State ────────────────────────────────────────────────────────────────────
-  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [allVideos, setAllVideos] = useState<VideoItem[]>([]);
+  const [visibleCount, setVisibleCount] = useState<number>(10);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -137,6 +138,26 @@ export default function LiveStreamScreen() {
 
   // Subscribe YouTube Channels modal
   const [subscribeModalVisible, setSubscribeModalVisible] = useState(false);
+
+  const getVideoPublishTime = (v: any) => {
+    if (v.createdAt) {
+      const t = new Date(v.createdAt).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (v.publishedAt) {
+      const t = new Date(v.publishedAt).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (v.dbId && typeof v.dbId === 'string' && v.dbId.length === 24) {
+      const t = parseInt(v.dbId.substring(0, 8), 16) * 1000;
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (v.id && typeof v.id === 'string' && v.id.length === 24) {
+      const t = parseInt(v.id.substring(0, 8), 16) * 1000;
+      if (!isNaN(t) && t > 0) return t;
+    }
+    return 0;
+  };
 
   const loadVideos = async (targetPage: number = 1, isRefresh: boolean = false) => {
     if (targetPage === 1) {
@@ -182,13 +203,17 @@ export default function LiveStreamScreen() {
       });
 
       if (targetPage === 1) {
-        setVideos(formatted);
+        const sorted = [...formatted].sort((a, b) => getVideoPublishTime(b) - getVideoPublishTime(a));
+        setAllVideos(sorted);
+        setVisibleCount(10);
       } else {
-        setVideos(prev => {
+        setAllVideos(prev => {
           const existingIds = new Set(prev.map(v => v.id));
           const newUnique = formatted.filter(v => !existingIds.has(v.id));
-          return [...prev, ...newUnique];
+          const combined = [...prev, ...newUnique];
+          return combined.sort((a, b) => getVideoPublishTime(b) - getVideoPublishTime(a));
         });
+        setVisibleCount(prev => prev + 10);
       }
 
       setPage(targetPage);
@@ -210,10 +235,16 @@ export default function LiveStreamScreen() {
   }, [videoSearch, selectedCategoryFilter]);
 
   const handleEndReached = () => {
-    if (!loading && !loadingMore && hasMore) {
+    if (loading || loadingMore) return;
+
+    if (visibleCount < allVideos.length) {
+      setVisibleCount(prev => Math.min(prev + 10, allVideos.length));
+    } else if (hasMore) {
       loadVideos(page + 1, false);
     }
   };
+
+  const displayedVideos = allVideos.slice(0, visibleCount);
 
   // Live video ID from socket session (if active)
   const liveVideoId = liveSession?.activeYoutubeLink
@@ -270,7 +301,7 @@ export default function LiveStreamScreen() {
               Alert.alert('', result.message || 'Unable to delete video.');
               return;
             }
-            setVideos(prev => prev.filter(video => video.dbId !== videoId));
+            setAllVideos(prev => prev.filter(video => video.dbId !== videoId));
             refreshData();
           },
         },
@@ -318,7 +349,7 @@ export default function LiveStreamScreen() {
       };
 
       // 1. Immediately add to list
-      setVideos(prev => [newVideo, ...prev]);
+      setAllVideos(prev => [newVideo, ...prev]);
 
       // 2. Refresh app data (updates notification count & list)
       refreshData();
@@ -480,7 +511,7 @@ export default function LiveStreamScreen() {
               <Text style={styles.livePillText}>{isTel ? '🔴 సజీవ ప్రసారం (LIVE NOW)' : '🔴 LIVE STREAMING NOW'}</Text>
             </View>
             <Text style={styles.liveBannerTitle} numberOfLines={2}>
-              {liveSession?.song?.title || (videos[0] ? (isTel ? videos[0].titleTel : videos[0].titleEng) : (isTel ? 'చర్చి సజీవ ఆరాధన ప్రసారం' : 'Sanctuary Live Worship Service'))}
+              {liveSession?.song?.title || (allVideos[0] ? (isTel ? allVideos[0].titleTel : allVideos[0].titleEng) : (isTel ? 'చర్చి సజీవ ఆరాధన ప్రసారం' : 'Sanctuary Live Worship Service'))}
             </Text>
             <View style={styles.watchNowBtn}>
               <MaterialCommunityIcons name="youtube" size={18} color="#fff" />
@@ -500,7 +531,7 @@ export default function LiveStreamScreen() {
         <View style={[styles.videoCountBadge, { backgroundColor: theme.accentBackground }]}>
           <MaterialCommunityIcons name="youtube" size={15} color={theme.primary} />
           <Text style={[styles.videoCountText, { color: theme.primary }]}>
-            {totalCount || videos.length}
+            {totalCount || allVideos.length}
           </Text>
         </View>
       </View>
@@ -573,7 +604,7 @@ export default function LiveStreamScreen() {
   };
 
   const renderFooter = () => {
-    if (loadingMore) {
+    if (loadingMore || (visibleCount < allVideos.length && !loading)) {
       return (
         <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="small" color={theme.primary} />
@@ -594,7 +625,7 @@ export default function LiveStreamScreen() {
         <FlatList
           style={styles.feedScroll}
           contentContainerStyle={{ paddingBottom: 20 }}
-          data={videos}
+          data={displayedVideos}
           keyExtractor={(item, index) => item.dbId || item.id || String(index)}
           renderItem={renderVideoItem}
           ListHeaderComponent={renderHeader}
