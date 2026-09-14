@@ -38,8 +38,47 @@ const fetchFullVideoTitle = async (youtubeId: string, fallbackTitle?: string): P
 
 const DEFAULT_CHANNEL_ID = 'UCtIy1UK9Bv_yEoGPv8F6shg';
 
+export const autoPruneOldestVideos = async (maxLimit: number = 200): Promise<number> => {
+  try {
+    const totalCount = await LiveVideo.countDocuments();
+    if (totalCount > maxLimit) {
+      const excessCount = totalCount - maxLimit;
+      const oldestVideos = await LiveVideo.find()
+        .sort({ publishedAt: 1, createdAt: 1, _id: 1 })
+        .limit(excessCount)
+        .select('_id');
+
+      if (oldestVideos.length > 0) {
+        const idsToDelete = oldestVideos.map(v => v._id);
+        await LiveVideo.deleteMany({ _id: { $in: idsToDelete } });
+        console.log(`🧹 Auto-pruned ${idsToDelete.length} oldest videos exceeding limit of ${maxLimit}.`);
+        return idsToDelete.length;
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ Error auto-pruning oldest videos:', err);
+  }
+  return 0;
+};
+
+export const removeDuplicateVideos = async (): Promise<void> => {
+  try {
+    const duplicates = await LiveVideo.aggregate([
+      { $group: { _id: "$youtubeId", count: { $sum: 1 }, docs: { $push: "$_id" } } },
+      { $match: { count: { $gt: 1 } } }
+    ]);
+    for (const dup of duplicates) {
+      const [keepId, ...deleteIds] = dup.docs;
+      await LiveVideo.deleteMany({ _id: { $in: deleteIds } });
+    }
+  } catch (e) {}
+};
+
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    await removeDuplicateVideos();
+    await autoPruneOldestVideos(200);
+
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limitParam = req.query.limit as string;
     const isAll = limitParam === 'all' || limitParam === '0';
@@ -82,7 +121,9 @@ export const getLiveVideos = async (req: Request, res: Response, next: NextFunct
         }
         return 0;
       };
-      return getTs(b) - getTs(a);
+      const diff = getTs(b) - getTs(a);
+      if (diff !== 0) return diff;
+      return String(b._id || '').localeCompare(String(a._id || ''));
     });
     const liveState = await LiveState.findOne({ key: 'active_session' });
     const channelId = liveState?.channelId || DEFAULT_CHANNEL_ID;
@@ -94,11 +135,11 @@ export const getLiveVideos = async (req: Request, res: Response, next: NextFunct
       title: v.title,
       description: v.description || v.title,
       thumbnail: v.thumbnail || `https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg`,
-      publishedAt: v.publishedAt || v.createdAt,
+      publishedAt: v.publishedAt ? v.publishedAt.toISOString() : (v.createdAt ? v.createdAt.toISOString() : new Date().toISOString()),
       youtubeUrl: v.youtubeUrl || `https://www.youtube.com/watch?v=${v.youtubeId}`,
       isLive: v.isLive || false,
       categoryId: v.categoryId || 'sunday',
-      createdAt: v.createdAt,
+      createdAt: v.createdAt ? v.createdAt.toISOString() : new Date().toISOString(),
     }));
 
     const effectiveLimit = limit > 0 ? limit : (totalVideos || 1);
@@ -138,6 +179,8 @@ export const createLiveVideo = async (req: Request, res: Response, next: NextFun
       categoryId: categoryId || 'sunday',
       thumbnail: `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
     });
+
+    await autoPruneOldestVideos(200);
 
     // 2. ONLY AFTER MongoDB save succeeds: Create notification & trigger socket event
     let notice = null;
@@ -503,6 +546,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
       console.warn('Cleanup error:', cleanErr);
     }
 
+    await autoPruneOldestVideos(200);
     const videos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1, _id: -1 });
 
     res.status(200).json({

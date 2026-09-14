@@ -84,6 +84,7 @@ interface VideoItem {
   publishedTel: string;
   thumbnail: string;
   categoryId: string;
+  publishedAt?: string;
   createdAt?: string;
 }
 
@@ -140,12 +141,12 @@ export default function LiveStreamScreen() {
   const [subscribeModalVisible, setSubscribeModalVisible] = useState(false);
 
   const getVideoPublishTime = (v: any) => {
-    if (v.createdAt) {
-      const t = new Date(v.createdAt).getTime();
-      if (!isNaN(t) && t > 0) return t;
-    }
     if (v.publishedAt) {
       const t = new Date(v.publishedAt).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (v.createdAt) {
+      const t = new Date(v.createdAt).getTime();
       if (!isNaN(t) && t > 0) return t;
     }
     if (v.dbId && typeof v.dbId === 'string' && v.dbId.length === 24) {
@@ -157,6 +158,17 @@ export default function LiveStreamScreen() {
       if (!isNaN(t) && t > 0) return t;
     }
     return 0;
+  };
+
+  const compareVideosDesc = (a: VideoItem, b: VideoItem) => {
+    const timeA = getVideoPublishTime(a);
+    const timeB = getVideoPublishTime(b);
+    if (timeA !== timeB) {
+      return timeB - timeA; // Newest published date first (Sep 13 -> Sep 12 -> Sep 11)
+    }
+    const idA = a.dbId || a.id || '';
+    const idB = b.dbId || b.id || '';
+    return idB.localeCompare(idA);
   };
 
   const loadVideos = async (targetPage: number = 1, isRefresh: boolean = false) => {
@@ -181,12 +193,19 @@ export default function LiveStreamScreen() {
       }
 
       const rawList = result.videos || [];
-      const formatted: VideoItem[] = rawList.map(video => {
+      const formatted: VideoItem[] = [];
+      const seenKeys = new Set<string>();
+
+      for (const video of rawList) {
+        const key = video.youtubeId || video._id;
+        if (!key || seenKeys.has(key)) continue;
+        seenKeys.add(key);
+
         const rawDate = video.publishedAt || video.createdAt;
         const validDate = rawDate ? new Date(rawDate) : null;
         const isValid = validDate && !isNaN(validDate.getTime());
 
-        return {
+        formatted.push({
           dbId: video._id,
           id: video.youtubeId,
           titleEng: video.title,
@@ -198,20 +217,24 @@ export default function LiveStreamScreen() {
           publishedTel: isValid ? validDate.toLocaleDateString('te-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'ఇప్పుడే జోడించారు',
           thumbnail: video.thumbnail,
           categoryId: video.categoryId,
+          publishedAt: video.publishedAt || video.createdAt,
           createdAt: video.createdAt,
-        };
-      });
+        });
+      }
 
       if (targetPage === 1) {
-        const sorted = [...formatted].sort((a, b) => getVideoPublishTime(b) - getVideoPublishTime(a));
+        const sorted = [...formatted].sort(compareVideosDesc);
         setAllVideos(sorted);
         setVisibleCount(10);
       } else {
         setAllVideos(prev => {
-          const existingIds = new Set(prev.map(v => v.id));
-          const newUnique = formatted.filter(v => !existingIds.has(v.id));
+          const existingKeys = new Set(prev.map(v => v.id || v.dbId).filter(Boolean));
+          const newUnique = formatted.filter(v => {
+            const k = v.id || v.dbId;
+            return k ? !existingKeys.has(k) : true;
+          });
           const combined = [...prev, ...newUnique];
-          return combined.sort((a, b) => getVideoPublishTime(b) - getVideoPublishTime(a));
+          return combined.sort(compareVideosDesc);
         });
         setVisibleCount(prev => prev + 10);
       }
@@ -373,8 +396,9 @@ export default function LiveStreamScreen() {
   // ── Render Video Card Item for Virtualized List ──────────────────────────────
   const renderVideoItem = ({ item }: { item: VideoItem }) => {
     const title = isTel ? item.titleTel : item.titleEng;
-    const dateStr = item.createdAt 
-      ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    const rawDateStr = item.publishedAt || item.createdAt;
+    const dateStr = rawDateStr 
+      ? new Date(rawDateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       : '16 Aug 2026';
 
     return (
@@ -626,13 +650,13 @@ export default function LiveStreamScreen() {
           style={styles.feedScroll}
           contentContainerStyle={{ paddingBottom: 20 }}
           data={displayedVideos}
-          keyExtractor={(item, index) => item.dbId || item.id || String(index)}
+          keyExtractor={(item, index) => `${item.dbId || item.id || 'v'}_${index}`}
           renderItem={renderVideoItem}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
           onEndReached={handleEndReached}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={0.3}
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           windowSize={5}
