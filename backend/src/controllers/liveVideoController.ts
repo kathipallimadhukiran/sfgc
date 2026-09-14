@@ -36,10 +36,36 @@ const fetchFullVideoTitle = async (youtubeId: string, fallbackTitle?: string): P
   return 'Sanctuary Worship Service';
 };
 
+const DEFAULT_CHANNEL_ID = 'UCtIy1UK9Bv_yEoGPv8F6shg';
+
 export const getLiveVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const rawVideos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1, _id: -1 });
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limitParam = req.query.limit as string;
+    const isAll = limitParam === 'all' || limitParam === '0';
+    const limit = isAll ? 0 : Math.max(1, parseInt(limitParam) || 20);
+
+    const categoryId = req.query.category as string;
+    const search = req.query.search as string;
+
+    const query: any = {};
+    if (categoryId && categoryId !== 'all') {
+      query.categoryId = categoryId;
+    }
+    if (search && search.trim()) {
+      query.title = { $regex: search.trim(), $options: 'i' };
+    }
+
+    const totalVideos = await LiveVideo.countDocuments(query);
+
+    let queryExec = LiveVideo.find(query).sort({ publishedAt: -1, createdAt: -1, _id: -1 });
+    if (limit > 0) {
+      queryExec = queryExec.skip((page - 1) * limit).limit(limit);
+    }
+
+    const rawVideos = await queryExec;
     const liveState = await LiveState.findOne({ key: 'active_session' });
+    const channelId = liveState?.channelId || DEFAULT_CHANNEL_ID;
 
     const formattedVideos = rawVideos.map(v => ({
       _id: v._id,
@@ -55,10 +81,18 @@ export const getLiveVideos = async (req: Request, res: Response, next: NextFunct
       createdAt: v.createdAt,
     }));
 
+    const effectiveLimit = limit > 0 ? limit : (totalVideos || 1);
+    const totalPages = Math.ceil(totalVideos / effectiveLimit) || 1;
+
     res.status(200).json({ 
       success: true, 
       videos: formattedVideos, 
-      channelId: liveState?.channelId || '',
+      page,
+      limit: limit > 0 ? limit : totalVideos,
+      total: totalVideos,
+      totalPages,
+      hasMore: limit > 0 ? (page * limit < totalVideos) : false,
+      channelId,
       autoSyncEnabled: liveState?.autoSyncEnabled ?? true,
     });
   } catch (error) {
@@ -249,39 +283,52 @@ interface ExtractedVideo {
 const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVideo[]> => {
   const foundVideosMap = new Map<string, { title: string; publishedAt?: Date }>();
 
-  // Engine 1: YouTube Public RSS Feed with Cache Busting
-  try {
-    const rssFeedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&nocache=${Date.now()}`;
-    const rssResp = await fetch(rssFeedUrl, {
-      headers: { 'Cache-Control': 'no-cache', 'User-Agent': 'Mozilla/5.0' }
-    });
-    if (rssResp.ok) {
-      const xmlText = await rssResp.text();
-      const entryMatches = xmlText.split('<entry>');
-      for (let i = 1; i < entryMatches.length; i++) {
-        const entryStr = entryMatches[i];
-        const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
-        const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
-        const pubMatch = entryStr.match(/<published>(.*?)<\/published>/);
-        if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
-          const yId = videoIdMatch[1].trim();
-          const vTitle = decodeXmlEntities(titleMatch[1]);
-          let pubDate: Date | undefined = undefined;
-          if (pubMatch && pubMatch[1]) {
-            const parsedP = new Date(pubMatch[1]);
-            if (!isNaN(parsedP.getTime())) pubDate = parsedP;
+  // Engine 1: YouTube Public RSS Feeds (Channel feed + Uploads playlist feed)
+  const rssUrls = [
+    `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&nocache=${Date.now()}`,
+    `https://www.youtube.com/feeds/videos.xml?playlist_id=UU${channelId.substring(2)}&nocache=${Date.now()}`
+  ];
+
+  for (const rssFeedUrl of rssUrls) {
+    try {
+      const rssResp = await fetch(rssFeedUrl, {
+        headers: { 'Cache-Control': 'no-cache', 'User-Agent': 'Mozilla/5.0' }
+      });
+      if (rssResp.ok) {
+        const xmlText = await rssResp.text();
+        const entryMatches = xmlText.split('<entry>');
+        for (let i = 1; i < entryMatches.length; i++) {
+          const entryStr = entryMatches[i];
+          const videoIdMatch = entryStr.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+          const titleMatch = entryStr.match(/<title>(.*?)<\/title>/);
+          const pubMatch = entryStr.match(/<published>(.*?)<\/published>/);
+          const chMatch = entryStr.match(/<yt:channelId>(.*?)<\/yt:channelId>/);
+
+          // Ensure video strictly belongs to target channelId if specified in XML
+          if (chMatch && chMatch[1] && chMatch[1].trim() !== channelId) {
+            continue;
           }
-          if (yId.length === 11) {
-            foundVideosMap.set(yId, { title: vTitle, publishedAt: pubDate });
+
+          if (videoIdMatch && videoIdMatch[1] && titleMatch && titleMatch[1]) {
+            const yId = videoIdMatch[1].trim();
+            const vTitle = decodeXmlEntities(titleMatch[1]);
+            let pubDate: Date | undefined = undefined;
+            if (pubMatch && pubMatch[1]) {
+              const parsedP = new Date(pubMatch[1]);
+              if (!isNaN(parsedP.getTime())) pubDate = parsedP;
+            }
+            if (yId.length === 11) {
+              foundVideosMap.set(yId, { title: vTitle, publishedAt: pubDate });
+            }
           }
         }
       }
+    } catch (err) {
+      console.warn('⚠️ Engine 1 RSS fetch warning:', err);
     }
-  } catch (err) {
-    console.warn('⚠️ Engine 1 RSS fetch warning:', err);
   }
 
-  // Engine 2: Instant Channel HTML Scraper (/videos, /streams, /live, and main page)
+  // Engine 2: Channel HTML Scraper (/videos, /streams, /live, and main page)
   const tabs = [
     `https://www.youtube.com/channel/${channelId}/videos`,
     `https://www.youtube.com/channel/${channelId}/streams`,
@@ -309,31 +356,27 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
           if (idMatch && idMatch[1]) {
             const yId = idMatch[1].trim();
 
-            let rawTitle = 'Sanctuary Worship Video';
-            const titleMatch = block.match(/"title":\{.*?"text":"([^"]+)"/);
-            const simpleMatch = block.match(/"title":\{.*?"simpleText":"([^"]+)"/);
+            // Verify ownership: check if channelId or channel browseId is referenced inside block
+            const containsChannelRef = block.includes(channelId) || 
+              block.includes('ownerText') || 
+              block.includes('channelId');
 
-            if (titleMatch && titleMatch[1]) {
-              rawTitle = titleMatch[1];
-            } else if (simpleMatch && simpleMatch[1]) {
-              rawTitle = simpleMatch[1];
-            }
+            if (containsChannelRef) {
+              let rawTitle = 'Sanctuary Worship Video';
+              const titleMatch = block.match(/"title":\{.*?"text":"([^"]+)"/);
+              const simpleMatch = block.match(/"title":\{.*?"simpleText":"([^"]+)"/);
 
-            const vTitle = decodeXmlEntities(rawTitle);
-            const existing = foundVideosMap.get(yId);
-            if (yId.length === 11 && (!existing || existing.title.includes('('))) {
-              foundVideosMap.set(yId, { title: vTitle, publishedAt: existing?.publishedAt });
-            }
-          }
-        }
+              if (titleMatch && titleMatch[1]) {
+                rawTitle = titleMatch[1];
+              } else if (simpleMatch && simpleMatch[1]) {
+                rawTitle = simpleMatch[1];
+              }
 
-        // 2b. Match all videoId strings in the page HTML as fallback
-        const videoIdMatches = html.match(/"videoId":"([^"]{11})"/g);
-        if (videoIdMatches) {
-          for (const vm of videoIdMatches) {
-            const yId = vm.replace(/"videoId":"|"/g, '').trim();
-            if (yId.length === 11 && !foundVideosMap.has(yId)) {
-              foundVideosMap.set(yId, { title: `Sanctuary Worship Service (${yId})` });
+              const vTitle = decodeXmlEntities(rawTitle);
+              const existing = foundVideosMap.get(yId);
+              if (yId.length === 11 && (!existing || existing.title.includes('('))) {
+                foundVideosMap.set(yId, { title: vTitle, publishedAt: existing?.publishedAt });
+              }
             }
           }
         }
@@ -356,12 +399,7 @@ const fetchLatestChannelVideos = async (channelId: string): Promise<ExtractedVid
 export const syncYouTubeChannelVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { channelId, channelUrl } = req.body;
-    const rawInput = (channelId || channelUrl || '').trim();
-
-    if (!rawInput) {
-      res.status(400).json({ success: false, message: 'A YouTube Channel ID, Channel URL, or Handle (@name) is required.' });
-      return;
-    }
+    const rawInput = (channelId || channelUrl || '').trim() || DEFAULT_CHANNEL_ID;
 
     const targetChannelId = await resolveChannelId(rawInput);
 
@@ -381,6 +419,7 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
     );
 
     const fetchedVideos = await fetchLatestChannelVideos(targetChannelId);
+    const validIds = new Set(fetchedVideos.map(v => v.youtubeId));
     let importedCount = 0;
 
     for (const vItem of fetchedVideos) {
@@ -435,6 +474,15 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
       }
     }
 
+    // Purge false generic fallback videos that don't belong to this channel
+    let deletedCount = 0;
+    try {
+      const fallbackDeletes = await LiveVideo.deleteMany({ title: /Sanctuary Worship Service \(/ });
+      deletedCount += fallbackDeletes.deletedCount || 0;
+    } catch (cleanErr) {
+      console.warn('Cleanup error:', cleanErr);
+    }
+
     const videos = await LiveVideo.find().sort({ publishedAt: -1, createdAt: -1, _id: -1 });
 
     res.status(200).json({
@@ -453,8 +501,8 @@ export const syncYouTubeChannelVideos = async (req: Request, res: Response, next
 export const autoSyncChannelVideosJob = async (io?: any): Promise<number> => {
   try {
     const liveState = await LiveState.findOne({ key: 'active_session' });
-    const targetChannelId = liveState?.channelId;
-    if (!targetChannelId || liveState?.autoSyncEnabled === false) {
+    const targetChannelId = liveState?.channelId || DEFAULT_CHANNEL_ID;
+    if (liveState?.autoSyncEnabled === false) {
       return 0;
     }
 

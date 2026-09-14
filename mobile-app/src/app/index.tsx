@@ -387,7 +387,7 @@ export default function HomeScreen() {
     React.useCallback(() => {
       let isActive = true;
 
-      liveVideosService.getVideos().then(result => {
+      liveVideosService.getVideos(1, 10).then(result => {
         if (!isActive || !result.success) return;
         const nowMs = Date.now();
         const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;

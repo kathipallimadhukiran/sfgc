@@ -12,6 +12,8 @@ import {
   Linking,
   StatusBar,
   RefreshControl,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { Text, Portal, Modal, Button, Divider, IconButton } from 'react-native-paper';
 import { useTheme } from '@/hooks/use-theme';
@@ -109,6 +111,11 @@ export default function LiveStreamScreen() {
 
   // ── State ────────────────────────────────────────────────────────────────────
   const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [videoSearch, setVideoSearch] = useState('');
@@ -131,36 +138,29 @@ export default function LiveStreamScreen() {
   // Subscribe YouTube Channels modal
   const [subscribeModalVisible, setSubscribeModalVisible] = useState(false);
 
-  const loadVideos = async () => {
-    setLoading(true);
+  const loadVideos = async (targetPage: number = 1, isRefresh: boolean = false) => {
+    if (targetPage === 1) {
+      if (!isRefresh) setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setFetchError(false);
+
     try {
-      const result = await liveVideosService.getVideos();
+      const result = await liveVideosService.getVideos(
+        targetPage,
+        20,
+        videoSearch,
+        selectedCategoryFilter
+      );
+
       if (!result.success) {
         setFetchError(true);
         return;
       }
 
-      const getVideoTime = (v: any) => {
-        if (v.publishedAt) {
-          const t = new Date(v.publishedAt).getTime();
-          if (!isNaN(t) && t > 0) return t;
-        }
-        if (v.createdAt) {
-          const t = new Date(v.createdAt).getTime();
-          if (!isNaN(t) && t > 0) return t;
-        }
-        if (v._id && typeof v._id === 'string' && v._id.length === 24) {
-          const t = parseInt(v._id.substring(0, 8), 16) * 1000;
-          if (!isNaN(t) && t > 0) return t;
-        }
-        return 0;
-      };
-
       const rawList = result.videos || [];
-      const sorted = [...rawList].sort((a, b) => getVideoTime(b) - getVideoTime(a));
-
-      setVideos(sorted.map(video => {
+      const formatted: VideoItem[] = rawList.map(video => {
         const rawDate = video.publishedAt || video.createdAt;
         const validDate = rawDate ? new Date(rawDate) : null;
         const isValid = validDate && !isNaN(validDate.getTime());
@@ -179,31 +179,41 @@ export default function LiveStreamScreen() {
           categoryId: video.categoryId,
           createdAt: video.createdAt,
         };
-      }));
+      });
+
+      if (targetPage === 1) {
+        setVideos(formatted);
+      } else {
+        setVideos(prev => {
+          const existingIds = new Set(prev.map(v => v.id));
+          const newUnique = formatted.filter(v => !existingIds.has(v.id));
+          return [...prev, ...newUnique];
+        });
+      }
+
+      setPage(targetPage);
+      setHasMore(Boolean(result.hasMore));
+      if (typeof result.total === 'number') {
+        setTotalCount(result.total);
+      }
     } catch (err) {
       setFetchError(true);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    loadVideos();
-  }, []);
+    setPage(1);
+    loadVideos(1, false);
+  }, [videoSearch, selectedCategoryFilter]);
 
-  // ── Derived ──────────────────────────────────────────────────────────────────
-  const filteredVideos = videos.filter(video => {
-    const matchesCategory =
-      selectedCategoryFilter === 'all' || video.categoryId === selectedCategoryFilter;
-
-    const query = videoSearch.trim().toLowerCase();
-    const matchesSearch =
-      !query ||
-      video.titleEng.toLowerCase().includes(query) ||
-      video.titleTel.toLowerCase().includes(query);
-
-    return matchesCategory && matchesSearch;
-  });
+  const handleEndReached = () => {
+    if (!loading && !loadingMore && hasMore) {
+      loadVideos(page + 1, false);
+    }
+  };
 
   // Live video ID from socket session (if active)
   const liveVideoId = liveSession?.activeYoutubeLink
@@ -329,260 +339,283 @@ export default function LiveStreamScreen() {
     }
   };
 
+  // ── Render Video Card Item for Virtualized List ──────────────────────────────
+  const renderVideoItem = ({ item }: { item: VideoItem }) => {
+    const title = isTel ? item.titleTel : item.titleEng;
+    const dateStr = item.createdAt 
+      ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '16 Aug 2026';
+
+    return (
+      <View style={[styles.videoCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+        <TouchableOpacity activeOpacity={0.92} onPress={() => openInYouTube(item.id)} style={styles.thumbnailBox}>
+          <Image source={{ uri: item.thumbnail }} style={styles.thumbnailImage} resizeMode="cover" />
+          <View style={styles.thumbnailShade} />
+          <View style={styles.durationBadge}>
+            <Text style={styles.durationText}>{item.duration && item.duration !== '--:--' ? item.duration : 'LIVE'}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.videoInfo}>
+          <TouchableOpacity activeOpacity={0.8} onPress={() => openInYouTube(item.id)}>
+            <Text style={[styles.videoTitle, { color: theme.text }]} numberOfLines={2}>
+              {title}
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.videoDateText, { color: subtleText }]}>
+            {dateStr}
+          </Text>
+
+          <View style={styles.videoActionsRow}>
+            <TouchableOpacity
+              style={[styles.actionBtnOutline, { borderColor: theme.cardBorder }]}
+              onPress={() => shareVideo(item.id, title)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="export-variant" size={15} color={theme.text} />
+              <Text style={[styles.actionBtnOutlineText, { color: theme.text }]}>
+                {isTel ? 'షేర్' : 'Share'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtnFilled, { backgroundColor: '#ef4444' }]}
+              onPress={() => openInYouTube(item.id)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="play" size={16} color="#ffffff" />
+              <Text style={styles.actionBtnFilledText}>
+                {isTel ? 'చూడండి' : 'Watch'}
+              </Text>
+            </TouchableOpacity>
+
+            {isAdmin && (
+              <TouchableOpacity
+                style={[styles.actionDeleteBtn, { backgroundColor: '#ef444415', borderColor: '#ef444440' }]}
+                onPress={() => item.dbId && handleDeleteVideo(item.dbId, title)}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ef4444" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderHeader = () => (
+    <View>
+      {/* ── Top Header Section ──────────────────────────────────────────────── */}
+      <View style={styles.topSectionContainer}>
+        {/* Subscribe to Channel Card */}
+        <View style={[styles.subscribeCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <View style={styles.ytRedBadge}>
+              <MaterialCommunityIcons name="youtube" size={22} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.subscribeTitle, { color: theme.text }]}>YouTube</Text>
+              <Text style={[styles.subscribeSub, { color: subtleText }]}>
+                {isTel ? 'మా యూట్యూబ్ ఛానెల్‌లను సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe to our official YouTube channels'}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.subscribeBtn}
+            onPress={async () => {
+              const primaryUrl = 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw';
+              const handleUrl = 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw';
+              try {
+                await Linking.openURL(primaryUrl);
+              } catch (e) {
+                Linking.openURL(handleUrl).catch(console.log);
+              }
+            }}
+            activeOpacity={0.88}
+          >
+            <MaterialCommunityIcons name="youtube" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.subscribeBtnText}>
+              {isTel ? 'సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Rounded Search Bar */}
+        <View style={[styles.searchBox, { backgroundColor: cardBg, borderColor: dividerColor, marginTop: 12 }]}>
+          <MaterialCommunityIcons name="magnify" size={20} color={subtleText} />
+          <RNTextInput
+            value={videoSearch}
+            onChangeText={setVideoSearch}
+            placeholder={isTel ? 'వీడియోలను వెతకండి...' : 'Search videos...'}
+            placeholderTextColor={subtleText}
+            style={[styles.searchInput, { color: theme.text }]}
+            returnKeyType="search"
+          />
+          {videoSearch.length > 0 && (
+            <TouchableOpacity onPress={() => setVideoSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MaterialCommunityIcons name="close-circle" size={18} color={subtleText} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* ── Top Featured Live Stream / Video Card ────────────────────── */}
+      {liveVideoId && (
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={() => openInYouTube(liveVideoId)}
+          style={[styles.liveBannerWrapper, { marginHorizontal: 16, marginTop: 4, marginBottom: 16 }]}
+        >
+          <Image
+            source={{ uri: `https://img.youtube.com/vi/${liveVideoId}/hqdefault.jpg` }}
+            style={styles.liveBannerThumb}
+            resizeMode="cover"
+          />
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.88)']} style={styles.liveBannerGradient}>
+            <View style={[styles.livePill, { backgroundColor: '#dc2626' }]}>
+              <View style={styles.liveDot} />
+              <Text style={styles.livePillText}>{isTel ? '🔴 సజీవ ప్రసారం (LIVE NOW)' : '🔴 LIVE STREAMING NOW'}</Text>
+            </View>
+            <Text style={styles.liveBannerTitle} numberOfLines={2}>
+              {liveSession?.song?.title || (videos[0] ? (isTel ? videos[0].titleTel : videos[0].titleEng) : (isTel ? 'చర్చి సజీవ ఆరాధన ప్రసారం' : 'Sanctuary Live Worship Service'))}
+            </Text>
+            <View style={styles.watchNowBtn}>
+              <MaterialCommunityIcons name="youtube" size={18} color="#fff" />
+              <Text style={styles.watchNowText}>{isTel ? 'యూట్యూబ్‌లో ప్రత్యక్షంగా చూడండి' : 'Watch Live on YouTube'}</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+
+      {/* ── Section Header ───────────────────────────────────────────────── */}
+      <View style={styles.recentHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            {isTel ? 'ఇటీవల వీడియోలు' : 'Recent Videos'}
+          </Text>
+        </View>
+        <View style={[styles.videoCountBadge, { backgroundColor: theme.accentBackground }]}>
+          <MaterialCommunityIcons name="youtube" size={15} color={theme.primary} />
+          <Text style={[styles.videoCountText, { color: theme.primary }]}>
+            {totalCount || videos.length}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Skeleton Loading State ───────────────────────────────────────── */}
+      {loading && page === 1 && (
+        <View style={styles.skeletonContainer}>
+          {[1, 2, 3].map(item => (
+            <View key={item} style={[styles.skeletonCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+              <View style={[styles.skeletonThumb, { backgroundColor: dividerColor }]} />
+              <View style={{ padding: 14, gap: 10 }}>
+                <View style={[styles.skeletonLine, { width: '80%', height: 16, backgroundColor: dividerColor }]} />
+                <View style={[styles.skeletonLine, { width: '50%', height: 12, backgroundColor: dividerColor }]} />
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                  <View style={[styles.skeletonLine, { width: 90, height: 32, borderRadius: 8, backgroundColor: dividerColor }]} />
+                  <View style={[styles.skeletonLine, { width: 90, height: 32, borderRadius: 8, backgroundColor: dividerColor }]} />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* ── Error State ─────────────────────────────────────────────────── */}
+      {!loading && fetchError && (
+        <View style={[styles.errorBox, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={44} color="#ef4444" style={{ marginBottom: 10 }} />
+          <Text style={[styles.errorTitle, { color: theme.text }]}>
+            {isTel ? 'వీడియోలను లోడ్ చేయలేకపోయాము' : 'Unable to load videos'}
+          </Text>
+          <Button
+            mode="contained"
+            buttonColor={theme.primary}
+            textColor="#ffffff"
+            style={{ marginTop: 14, borderRadius: 10 }}
+            onPress={() => loadVideos(1, true)}
+          >
+            {isTel ? 'మళ్లీ ప్రయత్నించండి' : 'Retry'}
+          </Button>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEmpty = () => {
+    if (loading || fetchError) return null;
+    return (
+      <View style={[styles.emptyState, { backgroundColor: cardBg, borderColor: dividerColor }]}>
+        <MaterialCommunityIcons name="video-off-outline" size={46} color={subtleText} style={{ opacity: 0.6, marginBottom: 12 }} />
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>
+          {isTel ? 'వీడియోలు ఇంకా లేవు' : 'No videos available yet'}
+        </Text>
+        <Text style={[styles.emptySubtitle, { color: subtleText }]}>
+          {isTel ? 'కొత్త YouTube వీడియోలను ఇక్కడ చూడవచ్చు.' : 'Check back later for new YouTube worship videos.'}
+        </Text>
+        {isAdmin && (
+          <TouchableOpacity
+            style={[styles.primaryAddBtn, { backgroundColor: theme.primary, marginTop: 16 }]}
+            onPress={() => setAddVideoModalVisible(true)}
+            activeOpacity={0.88}
+          >
+            <MaterialCommunityIcons name="plus" size={18} color="#ffffff" />
+            <Text style={styles.primaryAddBtnText}>
+              {isTel ? '+ YouTube వీడియో' : '+ Add Video'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const renderFooter = () => {
+    if (loadingMore) {
+      return (
+        <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="small" color={theme.primary} />
+          <Text style={{ fontSize: 12, color: subtleText, marginTop: 6, fontWeight: '600' }}>
+            {isTel ? 'మరిన్ని వీడియోలు లోడ్ అవుతున్నాయి...' : 'Loading more videos...'}
+          </Text>
+        </View>
+      );
+    }
+    return <View style={{ height: 110 }} />;
+  };
+
   // ─── JSX ─────────────────────────────────────────────────────────────────────
   return (
     <Portal.Host>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
 
-        
-
-        <ScrollView
+        <FlatList
           style={styles.feedScroll}
-          contentContainerStyle={{ paddingBottom: 110 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          data={videos}
+          keyExtractor={(item, index) => item.dbId || item.id || String(index)}
+          renderItem={renderVideoItem}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={loading}
-              onRefresh={loadVideos}
+              refreshing={loading && page === 1}
+              onRefresh={() => loadVideos(1, true)}
               colors={[theme.primary]}
               tintColor={theme.primary}
             />
           }
-        >
-
-          {/* ── Top Header Section ──────────────────────────────────────────────── */}
-          <View style={styles.topSectionContainer}>
-            {/* Subscribe to Channel Card */}
-            <View style={[styles.subscribeCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <View style={styles.ytRedBadge}>
-                  <MaterialCommunityIcons name="youtube" size={22} color="#ffffff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.subscribeTitle, { color: theme.text }]}>YouTube</Text>
-                  <Text style={[styles.subscribeSub, { color: subtleText }]}>
-                    {isTel ? 'మా యూట్యూబ్ ఛానెల్‌లను సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe to our official YouTube channels'}
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.subscribeBtn}
-                onPress={async () => {
-                  const primaryUrl = 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw';
-                  const handleUrl = 'https://youtube.com/@satellitecityfullgospelchurch?si=iin66GqRGh3VUYEw';
-                  try {
-                    await Linking.openURL(primaryUrl);
-                  } catch (e) {
-                    Linking.openURL(handleUrl).catch(console.log);
-                  }
-                }}
-                activeOpacity={0.88}
-              >
-                <MaterialCommunityIcons name="youtube" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-                <Text style={styles.subscribeBtnText}>
-                  {isTel ? 'సబ్‌స్క్రైబ్ చేయండి' : 'Subscribe'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Rounded Search Bar */}
-            <View style={[styles.searchBox, { backgroundColor: cardBg, borderColor: dividerColor, marginTop: 12 }]}>
-              <MaterialCommunityIcons name="magnify" size={20} color={subtleText} />
-              <RNTextInput
-                value={videoSearch}
-                onChangeText={setVideoSearch}
-                placeholder={isTel ? 'వీడియోలను వెతకండి...' : 'Search videos...'}
-                placeholderTextColor={subtleText}
-                style={[styles.searchInput, { color: theme.text }]}
-                returnKeyType="search"
-              />
-              {videoSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setVideoSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <MaterialCommunityIcons name="close-circle" size={18} color={subtleText} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* ── Top Featured Live Stream / Video Card ────────────────────── */}
-          {liveVideoId && (
-            <TouchableOpacity
-              activeOpacity={0.92}
-              onPress={() => openInYouTube(liveVideoId)}
-              style={[styles.liveBannerWrapper, { marginHorizontal: 16, marginTop: 4, marginBottom: 16 }]}
-            >
-              <Image
-                source={{ uri: `https://img.youtube.com/vi/${liveVideoId}/hqdefault.jpg` }}
-                style={styles.liveBannerThumb}
-                resizeMode="cover"
-              />
-              <LinearGradient colors={['transparent', 'rgba(0,0,0,0.88)']} style={styles.liveBannerGradient}>
-                <View style={[styles.livePill, { backgroundColor: '#dc2626' }]}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.livePillText}>{isTel ? '🔴 సజీవ ప్రసారం (LIVE NOW)' : '🔴 LIVE STREAMING NOW'}</Text>
-                </View>
-                <Text style={styles.liveBannerTitle} numberOfLines={2}>
-                  {liveSession?.song?.title || (videos[0] ? (isTel ? videos[0].titleTel : videos[0].titleEng) : (isTel ? 'చర్చి సజీవ ఆరాధన ప్రసారం' : 'Sanctuary Live Worship Service'))}
-                </Text>
-                <View style={styles.watchNowBtn}>
-                  <MaterialCommunityIcons name="youtube" size={18} color="#fff" />
-                  <Text style={styles.watchNowText}>{isTel ? 'యూట్యూబ్‌లో ప్రత్యక్షంగా చూడండి' : 'Watch Live on YouTube'}</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-
-          {/* ── Section Header ───────────────────────────────────────────────── */}
-          <View style={styles.recentHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                {isTel ? 'ఇటీవల వీడియోలు' : 'Recent Videos'}
-              </Text>
-            </View>
-            <View style={[styles.videoCountBadge, { backgroundColor: theme.accentBackground }]}>
-              <MaterialCommunityIcons name="youtube" size={15} color={theme.primary} />
-              <Text style={[styles.videoCountText, { color: theme.primary }]}>
-                {filteredVideos.length}
-              </Text>
-            </View>
-          </View>
-
-          {/* ── Skeleton Loading State ───────────────────────────────────────── */}
-          {loading ? (
-            <View style={styles.skeletonContainer}>
-              {[1, 2, 3].map(item => (
-                <View key={item} style={[styles.skeletonCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
-                  <View style={[styles.skeletonThumb, { backgroundColor: dividerColor }]} />
-                  <View style={{ padding: 14, gap: 10 }}>
-                    <View style={[styles.skeletonLine, { width: '80%', height: 16, backgroundColor: dividerColor }]} />
-                    <View style={[styles.skeletonLine, { width: '50%', height: 12, backgroundColor: dividerColor }]} />
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                      <View style={[styles.skeletonLine, { width: 90, height: 32, borderRadius: 8, backgroundColor: dividerColor }]} />
-                      <View style={[styles.skeletonLine, { width: 90, height: 32, borderRadius: 8, backgroundColor: dividerColor }]} />
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : fetchError ? (
-            /* ── Error State ─────────────────────────────────────────────────── */
-            <View style={[styles.errorBox, { backgroundColor: cardBg, borderColor: dividerColor }]}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={44} color="#ef4444" style={{ marginBottom: 10 }} />
-              <Text style={[styles.errorTitle, { color: theme.text }]}>
-                {isTel ? 'వీడియోలను లోడ్ చేయలేకపోయాము' : 'Unable to load videos'}
-              </Text>
-              <Button
-                mode="contained"
-                buttonColor={theme.primary}
-                textColor="#ffffff"
-                style={{ marginTop: 14, borderRadius: 10 }}
-                onPress={loadVideos}
-              >
-                {isTel ? 'మళ్లీ ప్రయత్నించండి' : 'Retry'}
-              </Button>
-            </View>
-          ) : filteredVideos.length === 0 ? (
-            /* ── Empty State ─────────────────────────────────────────────────── */
-            <View style={[styles.emptyState, { backgroundColor: cardBg, borderColor: dividerColor }]}>
-              <MaterialCommunityIcons name="video-off-outline" size={46} color={subtleText} style={{ opacity: 0.6, marginBottom: 12 }} />
-              <Text style={[styles.emptyTitle, { color: theme.text }]}>
-                {isTel ? 'వీడియోలు ఇంకా లేవు' : 'No videos available yet'}
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: subtleText }]}>
-                {isTel ? 'కొత్త YouTube వీడియోలను ఇక్కడ చూడవచ్చు.' : 'Check back later for new YouTube worship videos.'}
-              </Text>
-              {isAdmin && (
-                <TouchableOpacity
-                  style={[styles.primaryAddBtn, { backgroundColor: theme.primary, marginTop: 16 }]}
-                  onPress={() => setAddVideoModalVisible(true)}
-                  activeOpacity={0.88}
-                >
-                  <MaterialCommunityIcons name="plus" size={18} color="#ffffff" />
-                  <Text style={styles.primaryAddBtnText}>
-                    {isTel ? '+ YouTube వీడియో' : '+ Add Video'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            /* ── Recent Video Cards List (Matching User Mock Exactly) ───────────────── */
-            filteredVideos.map((item, idx) => {
-              const title = isTel ? item.titleTel : item.titleEng;
-              const dateStr = item.createdAt 
-                ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                : '16 Aug 2026';
-
-              return (
-                <View key={item.id || idx} style={[styles.videoCard, { backgroundColor: cardBg, borderColor: dividerColor }]}>
-                  
-                  {/* Thumbnail Box with Duration Badge in Bottom-Right Corner */}
-                  <TouchableOpacity activeOpacity={0.92} onPress={() => openInYouTube(item.id)} style={styles.thumbnailBox}>
-                    <Image source={{ uri: item.thumbnail }} style={styles.thumbnailImage} resizeMode="cover" />
-                    <View style={styles.thumbnailShade} />
-
-                    {/* Duration Badge Bottom-Right Corner */}
-                    <View style={styles.durationBadge}>
-                      <Text style={styles.durationText}>{item.duration && item.duration !== '--:--' ? item.duration : 'LIVE'}</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Video Details */}
-                  <View style={styles.videoInfo}>
-                    
-                    {/* Title */}
-                    <TouchableOpacity activeOpacity={0.8} onPress={() => openInYouTube(item.id)}>
-                      <Text style={[styles.videoTitle, { color: theme.text }]} numberOfLines={2}>
-                        {title}
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* Publishing Date */}
-                    <Text style={[styles.videoDateText, { color: subtleText }]}>
-                      {dateStr}
-                    </Text>
-
-                    {/* Action Bar: [ ↗ Share ] and [ ▶ Watch ] */}
-                    <View style={styles.videoActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnOutline, { borderColor: theme.cardBorder }]}
-                        onPress={() => shareVideo(item.id, title)}
-                        activeOpacity={0.8}
-                      >
-                        <MaterialCommunityIcons name="export-variant" size={15} color={theme.text} />
-                        <Text style={[styles.actionBtnOutlineText, { color: theme.text }]}>
-                          {isTel ? 'షేర్' : 'Share'}
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.actionBtnFilled, { backgroundColor: '#ef4444' }]}
-                        onPress={() => openInYouTube(item.id)}
-                        activeOpacity={0.8}
-                      >
-                        <MaterialCommunityIcons name="play" size={16} color="#ffffff" />
-                        <Text style={styles.actionBtnFilledText}>
-                          {isTel ? 'చూడండి' : 'Watch'}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {isAdmin && (
-                        <TouchableOpacity
-                          style={[styles.actionDeleteBtn, { backgroundColor: '#ef444415', borderColor: '#ef444440' }]}
-                          onPress={() => item.dbId && handleDeleteVideo(item.dbId, title)}
-                          activeOpacity={0.8}
-                        >
-                          <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ef4444" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              );
-            })
-          )}
-
-        </ScrollView>
+        />
 
         {/* ── Floating Action Button (FAB) in Bottom Right Corner for Admins ── */}
         {isAdmin && (

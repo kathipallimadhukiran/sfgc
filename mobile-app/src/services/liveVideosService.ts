@@ -14,14 +14,38 @@ export interface LiveVideoItem {
   createdAt: string;
 }
 
+export interface GetVideosResponse {
+  success: boolean;
+  videos: LiveVideoItem[];
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
+  hasMore?: boolean;
+}
+
 class LiveVideosService {
-  async getVideos(): Promise<{ success: boolean; videos: LiveVideoItem[] }> {
+  async getVideos(page: number = 1, limit: number = 20, search: string = '', category: string = ''): Promise<GetVideosResponse> {
     try {
-      const response = await apiClient.get('/api/youtube/videos');
-      return { success: Boolean(response.success), videos: Array.isArray(response.videos) ? response.videos : [] };
+      const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('limit', String(limit));
+      if (search) params.append('search', search);
+      if (category) params.append('category', category);
+
+      const response = await apiClient.get(`/api/youtube/videos?${params.toString()}`);
+      return {
+        success: Boolean(response.success),
+        videos: Array.isArray(response.videos) ? response.videos : [],
+        page: response.page || page,
+        limit: response.limit || limit,
+        total: response.total || 0,
+        totalPages: response.totalPages || 1,
+        hasMore: Boolean(response.hasMore),
+      };
     } catch (error) {
       console.log('Unable to load youtube videos:', error);
-      return { success: false, videos: [] };
+      return { success: false, videos: [], page, limit, total: 0, totalPages: 1, hasMore: false };
     }
   }
 
