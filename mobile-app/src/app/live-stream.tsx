@@ -149,7 +149,7 @@ export default function LiveStreamScreen() {
     try {
       const result = await liveVideosService.getVideos(
         targetPage,
-        20,
+        50,
         videoSearch,
         selectedCategoryFilter
       );

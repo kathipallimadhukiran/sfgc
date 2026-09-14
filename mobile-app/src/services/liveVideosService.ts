@@ -25,7 +25,7 @@ export interface GetVideosResponse {
 }
 
 class LiveVideosService {
-  async getVideos(page: number = 1, limit: number = 20, search: string = '', category: string = ''): Promise<GetVideosResponse> {
+  async getVideos(page: number = 1, limit: number = 50, search: string = '', category: string = ''): Promise<GetVideosResponse> {
     try {
       const params = new URLSearchParams();
       params.append('page', String(page));

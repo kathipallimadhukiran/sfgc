@@ -43,7 +43,7 @@ export const getLiveVideos = async (req: Request, res: Response, next: NextFunct
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limitParam = req.query.limit as string;
     const isAll = limitParam === 'all' || limitParam === '0';
-    const limit = isAll ? 0 : Math.max(1, parseInt(limitParam) || 20);
+    const limit = isAll ? 0 : Math.max(1, parseInt(limitParam) || 50);
 
     const categoryId = req.query.category as string;
     const search = req.query.search as string;
